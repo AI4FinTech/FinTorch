@@ -17,3 +17,18 @@ Develop FinTorch, an open-source machine learning library as an extension of PyT
 
 **Impact:**
 FinTorch will not only streamline the process of regulatory compliance for FinTech companies but also foster innovation and research in AI-driven financial technologies. It will serve as a crucial tool for industry professionals, researchers, and government institutions, aligning with the AI4FinTech community's objectives of knowledge dissemination and development of responsible, cutting-edge financial solutions.
+
+### **Description of the Structure:**
+
+- **`fintorch` Directory:** Contains the core library modules.
+    - **`models`**: Core models for compliance monitoring, fraud detection, risk assessment, and sustainable finance.
+    - **`datasets`**: Financial datasets and data processing utilities.
+    - **`utils`**: Helper tools and functions for compliance and other financial applications.
+    - **`training`**: Training and evaluation scripts for the models.
+- **`examples` Directory:** Example scripts demonstrating the use of FinTorch in different scenarios.
+- **`tests` Directory:** Unit and integration tests for the library.
+- **`benchmarks` Directory:** Benchmark scripts and resources for testing the performance of the library.
+- **`docs` Directory:** Documentation files, including build scripts and source files.
+- **`docker` Directory:** Dockerfile and related resources for containerizing the FinTorch library.
+- **`conda` Directory:** Scripts and files needed for building a Conda package of the library.
+- **`tutorials` Directory:** Jupyter notebooks that provide tutorials on how to use the library for various FinTech applications.
