@@ -2,10 +2,4 @@ name: fintorch-environment
 
 dependencies:
   - python=3.11
-  - numpy
-  - toolz
-  - matplotlib
-  - dill
-  - pandas
-  - partd
-  - bokeh
+  - click
