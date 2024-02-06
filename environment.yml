@@ -1,7 +1,7 @@
 name: fintorch-environment
 
 dependencies:
-  - python=3.4
+  - python=3.11
   - numpy
   - toolz
   - matplotlib
