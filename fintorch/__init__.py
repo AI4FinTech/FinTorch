@@ -1,3 +1,5 @@
+from . import fintorch
+
 """Top-level package for FinTorch."""
 
 __author__ = """Marcel Boersma"""
