@@ -1,0 +1,5 @@
+name: fintorch-environment
+
+dependencies:
+  - python=3.11
+  - click
