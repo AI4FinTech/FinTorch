@@ -6,8 +6,6 @@ FinTorch
 .. image:: https://img.shields.io/pypi/v/fintorch.svg
         :target: https://pypi.python.org/pypi/fintorch
 
-.. image:: https://img.shields.io/travis/boersmamarcel/fintorch.svg
-        :target: https://travis-ci.com/boersmamarcel/fintorch
 
 .. image:: https://readthedocs.org/projects/fintorch/badge/?version=latest
         :target: https://fintorch.readthedocs.io/en/latest/?version=latest
