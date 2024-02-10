@@ -14,10 +14,6 @@ FinTorch
         :alt: Documentation Status
 
 
-.. image:: https://pyup.io/repos/github/boersmamarcel/fintorch/shield.svg
-     :target: https://pyup.io/repos/github/boersmamarcel/fintorch/
-     :alt: Updates
-
 .. image:: https://codecov.io/gh/AI4FinTech/FinTorch/graph/badge.svg?token=OBD2MHP5SE
  :target: https://codecov.io/gh/AI4FinTech/FinTorch
 
