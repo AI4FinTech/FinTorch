@@ -45,8 +45,8 @@ body:
       label: license
       description: Does the license permit inclusion in this repository?
       options:
-        - yes
-        - no
+        - "yes"
+        - "no"
       default: 1
     validations:
       required: true
