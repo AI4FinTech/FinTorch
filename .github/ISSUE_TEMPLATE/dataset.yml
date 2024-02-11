@@ -1,0 +1,58 @@
+name: Add New Dataset
+description: Provide necessary information and create the required components for adding a new dataset.
+title: "Add Dataset: [Dataset Name]"
+labels: ["new dataset", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please follow the template when proposing and working on a new dataset contribution.**
+  - type: textarea
+    id: description
+    attributes:
+      label: Dataset Description
+      description: Describe the dataset comprehensively
+      placeholder: |
+        * Origin (source, links):
+        * Academic Paper (title, links):
+        * Content (type of data):
+        * Size (approximate):
+        * Licensing:
+    validations:
+      required: true
+  - type: checkboxes
+    id: tasks
+    attributes:
+      label: Tasks
+      options:
+        - label: Download/Extraction Script
+          required: true
+        - label: Dataset Test
+          required: true
+        - label: Tutorial
+          required: true
+  - type: textarea
+    id: considerations
+    attributes:
+      label: Additional Considerations
+      description: |
+        Please address:
+        * Permissions: Does the license permit inclusion in this repository?
+        * Versioning: How will you handle dataset updates?
+        * Documentation:  How will you document the dataset?
+  - type: markdown
+    attributes:
+      value: "**Submission Checklist:**"
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Submission Checklist
+      options:
+        - label: I have followed the contribution guidelines.
+          required: true
+        - label: I have provided a thorough dataset description.
+          required: true
+        - label: My scripts and tests work as intended.
+          required: true
+        - label: The tutorial demonstrates dataset usage clearly.
+          required: true
