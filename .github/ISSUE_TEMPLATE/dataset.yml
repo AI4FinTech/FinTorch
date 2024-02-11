@@ -37,7 +37,6 @@ body:
       label: Additional Considerations
       description: |
         Please address:
-        * Permissions: Does the license permit inclusion in this repository?
         * Versioning: How will you handle dataset updates?
         * Documentation:  How will you document the dataset?
   - type: dropdown
