@@ -19,3 +19,5 @@
   - [ ] Licensing is compatible with the repository.
   - [ ] If applicable, a strategy for maintaining up-to-date compatibility with the dataset is discussed.
   - [ ] Documentation covers the new dataset thoroughly.
+
+Thanks for contributing
