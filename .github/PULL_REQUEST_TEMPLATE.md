@@ -5,7 +5,7 @@
 - [ ] Contributor signed the license agreement: To contribute to our repository, the contributor must sign the license agreement
 - [ ] Thorough Description: The dataset is adequately described in the issue, including origin, content, size, licensing, and the relevant academic paper.
 - [ ] Script Functionality:
-  - [ ]  Download and extraction script downloads the dataset to the intended location.
+  - [ ] Download and extraction script downloads the dataset to the intended location.
   - [ ] The script correctly preprocesses the data into a PyTorch Lightning-compatible format.
 - [ ] Tests: Tests pass and successfully verify:
   - [ ] Correct download and extraction.
