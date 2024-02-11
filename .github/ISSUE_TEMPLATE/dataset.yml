@@ -50,9 +50,6 @@ body:
       default: 1
     validations:
       required: true
-  - type: markdown
-    attributes:
-      value: "**Submission Checklist:**"
   - type: checkboxes
     id: checklist
     attributes:
