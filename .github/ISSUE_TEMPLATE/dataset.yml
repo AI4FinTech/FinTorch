@@ -40,14 +40,14 @@ body:
         * Versioning: How will you handle dataset updates?
         * Documentation:  How will you document the dataset?
   - type: dropdown
-    id: version
+    id: license
     attributes:
       label: license
       description: Does the license permit inclusion in this repository?
       options:
-        - yes
-        - no
-      default: 0
+        - "yes"
+        - "no"
+      default: 1
     validations:
       required: true
   - type: markdown
