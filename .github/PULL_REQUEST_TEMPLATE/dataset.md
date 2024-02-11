@@ -19,3 +19,5 @@
   - **\[ \]** Licensing is compatible with the repository.
   - **\[ \]** A strategy for maintaining up-to-date compatibility with the dataset is discussed, if applicable.
   - **\[ \]** Documentation covers the new dataset thoroughly.
+
+Thanks for contributing to the FinTorch project!
