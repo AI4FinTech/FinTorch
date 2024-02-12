@@ -26,7 +26,7 @@ jobs:
           PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           path-to-signatures: 'signatures/version1/cla.json'
-          path-to-document: 'https://github.com/AI4FinTech/FinTorch/blob/master/SAPCLA.md' # e.g. a CLA or a DCO document
+          path-to-document: 'https://github.com/AI4FinTech/FinTorch/blob/main/signatures/version1/SAPCLA.md' # e.g. a CLA or a DCO document
           # branch should not be protected
           branch: 'main'
           allowlist: user1,bot*,boersmamarcel
