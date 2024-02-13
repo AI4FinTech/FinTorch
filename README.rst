@@ -26,7 +26,7 @@ AI4FinTech project repository
 Features
 --------
 
-* TODO4
+* TODO5
 
 FinTorch - Machine Learning for FinTech
 =========================================
@@ -90,5 +90,3 @@ This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypack
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
-
-
