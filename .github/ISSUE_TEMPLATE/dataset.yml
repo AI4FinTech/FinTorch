@@ -26,11 +26,8 @@ body:
       label: Tasks
       options:
         - label: Download/Extraction Script
-          required: true
         - label: Dataset Test
-          required: true
         - label: Tutorial
-          required: true
   - type: textarea
     id: considerations
     attributes:
@@ -55,11 +52,7 @@ body:
     attributes:
       label: Submission Checklist
       options:
-        - label: I have followed the contribution guidelines.
-          required: true
+        - label: I have read the contribution guidelines.
         - label: I have provided a thorough dataset description.
-          required: true
         - label: My scripts and tests work as intended.
-          required: true
         - label: The tutorial demonstrates dataset usage clearly.
-          required: true
