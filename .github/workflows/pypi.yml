@@ -106,7 +106,7 @@ jobs:
 
     environment:
       name: testpypi
-      url: https://test.pypi.org/fintorch
+      url: https://test.pypi.org/p/fintorch
 
 
     permissions:
