@@ -51,6 +51,8 @@ jobs:
         path: dist/
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI }}  # Use the secret here
 
   github-release:
     name: >-
@@ -104,8 +106,7 @@ jobs:
     environment:
       name: testpypi
       url: https://test.pypi.org/fintorch
-      with:
-        password: ${{ github.PYPI }}
+
 
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
@@ -120,3 +121,4 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
+        password: ${{ secrets.PYPI }}  # Use the secret here
