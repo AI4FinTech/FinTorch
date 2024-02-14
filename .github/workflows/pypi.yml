@@ -104,6 +104,8 @@ jobs:
     environment:
       name: testpypi
       url: https://test.pypi.org/fintorch
+      with:
+        password: ${{ github.PYPI }}
 
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
