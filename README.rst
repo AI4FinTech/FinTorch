@@ -26,7 +26,7 @@ AI4FinTech project repository
 Features
 --------
 
-* TODO6
+* TODO7
 
 FinTorch - Machine Learning for FinTech
 =========================================
