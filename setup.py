@@ -9,13 +9,13 @@ with open("README.rst") as readme_file:
 with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
-requirements = [
-    "Click>=7.0",
-]
+requirements = ["Click>=7.0", "torch", "pytorch_lightning", "kaggle", "polars", "numpy"]
 
 test_requirements = [
     "pytest>=3",
 ]
+
+dev_requirements = ["sphinx"]
 
 setup(
     author="Marcel Boersma",
@@ -46,6 +46,7 @@ setup(
     packages=find_packages(include=["fintorch", "fintorch.*"]),
     test_suite="tests",
     tests_require=test_requirements,
+    extras_require={"test": test_requirements, "dev": dev_requirements},
     url="https://github.com/boersmamarcel/fintorch",
     version="0.3.0",
     zip_safe=False,
