@@ -9,7 +9,15 @@ with open("README.rst") as readme_file:
 with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
-requirements = ["Click>=7.0", "torch", "pytorch_lightning", "kaggle", "polars", "numpy"]
+requirements = [
+    "Click>=7.0",
+    "torch",
+    "torch_geometric",
+    "pytorch_lightning",
+    "kaggle",
+    "polars",
+    "numpy",
+]
 
 test_requirements = [
     "pytest>=3",
@@ -20,16 +28,13 @@ dev_requirements = ["sphinx"]
 setup(
     author="Marcel Boersma",
     author_email="boersma.marcel@gmail.com",
-    python_requires=">=3.6",
+    python_requires=">=3.10",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.10",
     ],
     description="AI4FinTech project repository",
     entry_points={
