@@ -1,0 +1,60 @@
+name: Add New Model
+description: Provide details and components for adding a new machine learning model.
+title: "Add Model: [Model Name]"
+labels: ["new model", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please follow the template when proposing and working on a new model contribution.**
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Model Description
+      description: Describe the model (architecture, purpose, intended use cases) 
+      placeholder: |
+        * Type (e.g., classification, regression, NLP):
+        * Pre-trained? If yes, source: 
+        * Performance metrics (accuracy, F1, etc.): 
+
+  - type: checkboxes
+    id: tasks
+    attributes:
+      label: Tasks
+      options:
+        - label: Model saving/loading script
+        - label: Model inference script (API or example)
+        - label: Model performance evaluation script
+        - label: Tutorial demonstrating usage
+
+  - type: textarea
+    id: considerations
+    attributes:
+      label: Additional Considerations
+      description: |
+        Please address:
+        * Dependencies: List required libraries and versions.
+        * Model size and hardware requirements:
+        * Training dataset: Where is it obtained? Any licensing restrictions?
+
+  - type: dropdown
+    id: license
+    attributes:
+      label: license
+      description: Does the license permit inclusion in this repository?
+      options:
+        - "yes"
+        - "no"
+      default: 1
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Submission Checklist
+      options:
+        - label: I have read the contribution guidelines.
+        - label: I have provided a detailed model description.
+        - label: All required scripts are provided, functional, and tested.
+        - label: I have clarified dependencies and hardware considerations.
+        - label: The tutorial is clear and demonstrates model usage.
