@@ -1,5 +1,6 @@
 """Console script for fintorch."""
 import sys
+
 import click
 
 

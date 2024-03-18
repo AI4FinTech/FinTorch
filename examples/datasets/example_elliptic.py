@@ -10,7 +10,8 @@ from torch_geometric.loader import DataLoader
 from fintorch.datasets import elliptic
 
 # Load the elliptic dataset
-elliptic_dataset = elliptic.EllipticDataset("~/.fintorch_data", force_reload=True)
+elliptic_dataset = elliptic.EllipticDataset("~/.fintorch_data",
+                                            force_reload=True)
 
 
 class GNNModel(nn.Module):
@@ -46,12 +47,16 @@ class GNNModel(nn.Module):
         in_channels, out_channels = c_in, c_hidden
         for _ in range(num_layers - 1):
             layers += [
-                gnn_layer(in_channels=in_channels, out_channels=out_channels, **kwargs),
+                gnn_layer(in_channels=in_channels,
+                          out_channels=out_channels,
+                          **kwargs),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dp_rate),
             ]
             in_channels = c_hidden
-        layers += [gnn_layer(in_channels=in_channels, out_channels=c_out, **kwargs)]
+        layers += [
+            gnn_layer(in_channels=in_channels, out_channels=c_out, **kwargs)
+        ]
         self.layers = nn.ModuleList(layers)
 
     def forward(self, x: Tensor, edge_index: Tensor) -> Tensor:
@@ -66,12 +71,12 @@ class GNNModel(nn.Module):
             Tensor: Output tensor.
         """
 
-        for l in self.layers:
-            if isinstance(l, geom_nn.MessagePassing):
+        for layer in self.layers:
+            if isinstance(layer, geom_nn.MessagePassing):
                 # In case of a geom layer, also pass the edge_index list
-                x = l(x, edge_index)
+                x = layer(x, edge_index)
             else:
-                x = l(x)
+                x = layer(x)
 
         return x
 
@@ -82,9 +87,8 @@ class GNN(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        self.accuracy = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=3
-        )
+        self.accuracy = torchmetrics.classification.Accuracy(task="multiclass",
+                                                             num_classes=3)
 
         self.model = GNNModel(**model_kwargs)
         self.loss_module = nn.CrossEntropyLoss()
@@ -143,14 +147,16 @@ def train_node_classifier(dataset, **model_kwargs):
 
     # Create a PyTorch Lightning trainer with the generation callback
     trainer = pl.Trainer(
-        accelerator="gpu", devices=1, max_epochs=1000, enable_progress_bar=False
-    )  # False because epoch size is 1
+        accelerator="gpu",
+        devices=1,
+        max_epochs=1000,
+        enable_progress_bar=False)  # False because epoch size is 1
 
     # Note: the dimensions are specific for the Elliptic dataset
     model = GNN(c_in=167, c_out=3, **model_kwargs)
-    trainer.fit(
-        model, train_dataloaders=node_data_loader, val_dataloaders=node_data_loader
-    )
+    trainer.fit(model,
+                train_dataloaders=node_data_loader,
+                val_dataloaders=node_data_loader)
 
     # Test best model on the test set
     trainer.test(model, node_data_loader, verbose=True)
@@ -158,6 +164,7 @@ def train_node_classifier(dataset, **model_kwargs):
     return model
 
 
-node_gnn_model = train_node_classifier(
-    dataset=elliptic_dataset, c_hidden=256, num_layers=5, dp_rate=0.1
-)
+node_gnn_model = train_node_classifier(dataset=elliptic_dataset,
+                                       c_hidden=256,
+                                       num_layers=5,
+                                       dp_rate=0.1)

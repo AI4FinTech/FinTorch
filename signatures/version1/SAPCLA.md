@@ -10,7 +10,7 @@ Thank you for your interest in contributing to AI4FinTech's FinTorch ("We" or "U
 
 The purpose of this contributor agreement ("Agreement") is to clarify and document the rights granted by contributors to Us. To make this document effective, please follow the instructions at https://github.com/AI4FinTech/FinTorch/.
 
-### 0\. Preamble
+### 0. Preamble
 
 Software is deeply embedded in all aspects of our lives and it is important that it empower, rather than restrict us. Free Software gives everybody the rights to use, understand, adapt and share software. These rights help support other fundamental freedoms like freedom of speech, press and privacy.
 
@@ -26,7 +26,7 @@ This process only serves for the transfer of economic rights. So-called moral ri
 
 If You are an employee and have created the Contribution as part of your employment, You need to have Your employer approve this Agreement or sign the Entity version of this document. If You do not own the Copyright in the entire work of authorship, any other author of the Contribution should also sign this – in any event, please contact Us at boersma.marcel@gmail.com
 
-### 1\. Definitions
+### 1. Definitions
 
 **"You"** means the individual Copyright owner who Submits a Contribution to Us.
 
@@ -44,17 +44,17 @@ If You are an employee and have created the Contribution as part of your employm
 
 **"Documentation"** means any non-software portion of a Contribution.
 
-### 2\. License grant
+### 2. License grant
 
 #### 2.1 Copyright license to Us
 
 Subject to the terms and conditions of this Agreement, You hereby grant to Us a worldwide, royalty-free, exclusive, perpetual and irrevocable (except as stated in Section 8.2) license, with the right to transfer an unlimited number of non-exclusive licenses or to grant sublicenses to third parties, under the Copyright covering the Contribution to use the Contribution by all means, including, but not limited to:
 
-* publish the Contribution,
-* modify the Contribution,
-* prepare derivative works based upon or containing the Contribution and/or to combine the Contribution with other Materials,
-* reproduce the Contribution in original or modified form,
-* distribute, to make the Contribution available to the public, display and publicly perform the Contribution in original or modified form.
+- publish the Contribution,
+- modify the Contribution,
+- prepare derivative works based upon or containing the Contribution and/or to combine the Contribution with other Materials,
+- reproduce the Contribution in original or modified form,
+- distribute, to make the Contribution available to the public, display and publicly perform the Contribution in original or modified form.
 
 #### 2.2 Moral rights
 
@@ -64,15 +64,15 @@ Moral Rights remain unaffected to the extent they are recognized and not waivabl
 
 Upon such grant of rights to Us, We immediately grant to You a worldwide, royalty-free, non-exclusive, perpetual and irrevocable license, with the right to transfer an unlimited number of non-exclusive licenses or to grant sublicenses to third parties, under the Copyright covering the Contribution to use the Contribution by all means, including, but not limited to:
 
-* publish the Contribution,
-* modify the Contribution,
-* prepare derivative works based upon or containing the Contribution and/or to combine the Contribution with other Materials,
-* reproduce the Contribution in original or modified form,
-* distribute, to make the Contribution available to the public, display and publicly perform the Contribution in original or modified form.
+- publish the Contribution,
+- modify the Contribution,
+- prepare derivative works based upon or containing the Contribution and/or to combine the Contribution with other Materials,
+- reproduce the Contribution in original or modified form,
+- distribute, to make the Contribution available to the public, display and publicly perform the Contribution in original or modified form.
 
 This license back is limited to the Contribution and does not provide any rights to the Material.
 
-### 3\. Patents
+### 3. Patents
 
 #### 3.1 Patent license
 
@@ -82,7 +82,7 @@ Subject to the terms and conditions of this Agreement You hereby grant to Us and
 
 You reserve the right to revoke the patent license stated in section 3.1 if We make any infringement claim that is targeted at your Contribution and not asserted for a Defensive Purpose. An assertion of claims of the Patents shall be considered for a "Defensive Purpose" if the claims are asserted against an entity that has filed, maintained, threatened, or voluntarily participated in a patent infringement lawsuit against Us or any of Our licensees.
 
-### 4\. License obligations by Us
+### 4. License obligations by Us
 
 We agree to (sub)license the Contribution or any Materials containing, based on or derived from your Contribution under the terms of any licenses the Free Software Foundation classifies as Free Software License and which are approved by the Open Source Initiative as Open Source licenses.
 
@@ -120,7 +120,6 @@ IF THE DISCLAIMER AND DAMAGE WAIVER MENTIONED IN SECTION 5. AND SECTION 6. CANNO
 
 9.5 You agree to notify Us of any facts or circumstances of which you become aware that would make this Agreement inaccurate in any respect.
 
-
 #### Recreate this Contributor License Agreement
 
 [https://contributoragreements.org/ca-cla-chooser/?beneficiary-name=AI4FinTech&project-name=FinTorch&project-website=https%3A%2F%2Fgithub.com%2FAI4FinTech%2FFinTorch%2F&project-email=boersma.marcel%40gmail.com&process-url=https%3A%2F%2Fgithub.com%2FAI4FinTech%2FFinTorch%2F&project-jurisdiction=Netherlands&agreement-exclusivity=exclusive&fsfe-compliance=&fsfe-fla=&outbound-option=fsfe&outboundlist=&outboundlist-custom=&medialist=\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_&patent-option=Traditional&your-date=&your-name=&your-title=&your-address=&your-patents=&pos=apply&action=](https://contributoragreements.org/ca-cla-chooser/?beneficiary-name=AI4FinTech&project-name=FinTorch&project-website=https%3A%2F%2Fgithub.com%2FAI4FinTech%2FFinTorch%2F&project-email=boersma.marcel%40gmail.com&process-url=https%3A%2F%2Fgithub.com%2FAI4FinTech%2FFinTorch%2F&project-jurisdiction=Netherlands&agreement-exclusivity=exclusive&fsfe-compliance=&fsfe-fla=&outbound-option=fsfe&outboundlist=&outboundlist-custom=&medialist=____________________&patent-option=Traditional&your-date=&your-name=&your-title=&your-address=&your-patents=&pos=apply&action=)
@@ -141,7 +140,7 @@ Thank you for your interest in contributing to AI4FinTech's FinTorch ("We" or "U
 
 The purpose of this contributor agreement ("Agreement") is to clarify and document the rights granted by contributors to Us. To make this document effective, please follow the instructions at https://github.com/AI4FinTech/FinTorch/.
 
-### 0\. Preamble
+### 0. Preamble
 
 Software is deeply embedded in all aspects of our lives and it is important that it empower, rather than restrict us. Free Software gives everybody the rights to use, understand, adapt and share software. These rights help support other fundamental freedoms like freedom of speech, press and privacy.
 
@@ -157,7 +156,7 @@ This process only serves for the transfer of economic rights. So-called moral ri
 
 If You are an employee and have created the Contribution as part of your employment, You need to have Your employer approve this Agreement or sign the Entity version of this document. If You do not own the Copyright in the entire work of authorship, any other author of the Contribution should also sign this – in any event, please contact Us at boersma.marcel@gmail.com
 
-### 1\. Definitions
+### 1. Definitions
 
 **"You"** means the individual Copyright owner who Submits a Contribution to Us.
 
@@ -175,17 +174,17 @@ If You are an employee and have created the Contribution as part of your employm
 
 **"Documentation"** means any non-software portion of a Contribution.
 
-### 2\. License grant
+### 2. License grant
 
 #### 2.1 Copyright license to Us
 
 Subject to the terms and conditions of this Agreement, You hereby grant to Us a worldwide, royalty-free, exclusive, perpetual and irrevocable (except as stated in Section 8.2) license, with the right to transfer an unlimited number of non-exclusive licenses or to grant sublicenses to third parties, under the Copyright covering the Contribution to use the Contribution by all means, including, but not limited to:
 
-* publish the Contribution,
-* modify the Contribution,
-* prepare derivative works based upon or containing the Contribution and/or to combine the Contribution with other Materials,
-* reproduce the Contribution in original or modified form,
-* distribute, to make the Contribution available to the public, display and publicly perform the Contribution in original or modified form.
+- publish the Contribution,
+- modify the Contribution,
+- prepare derivative works based upon or containing the Contribution and/or to combine the Contribution with other Materials,
+- reproduce the Contribution in original or modified form,
+- distribute, to make the Contribution available to the public, display and publicly perform the Contribution in original or modified form.
 
 #### 2.2 Moral rights
 
@@ -195,15 +194,15 @@ Moral Rights remain unaffected to the extent they are recognized and not waivabl
 
 Upon such grant of rights to Us, We immediately grant to You a worldwide, royalty-free, non-exclusive, perpetual and irrevocable license, with the right to transfer an unlimited number of non-exclusive licenses or to grant sublicenses to third parties, under the Copyright covering the Contribution to use the Contribution by all means, including, but not limited to:
 
-* publish the Contribution,
-* modify the Contribution,
-* prepare derivative works based upon or containing the Contribution and/or to combine the Contribution with other Materials,
-* reproduce the Contribution in original or modified form,
-* distribute, to make the Contribution available to the public, display and publicly perform the Contribution in original or modified form.
+- publish the Contribution,
+- modify the Contribution,
+- prepare derivative works based upon or containing the Contribution and/or to combine the Contribution with other Materials,
+- reproduce the Contribution in original or modified form,
+- distribute, to make the Contribution available to the public, display and publicly perform the Contribution in original or modified form.
 
 This license back is limited to the Contribution and does not provide any rights to the Material.
 
-### 3\. Patents
+### 3. Patents
 
 #### 3.1 Patent license
 
@@ -213,7 +212,7 @@ Subject to the terms and conditions of this Agreement You hereby grant to Us and
 
 You reserve the right to revoke the patent license stated in section 3.1 if We make any infringement claim that is targeted at your Contribution and not asserted for a Defensive Purpose. An assertion of claims of the Patents shall be considered for a "Defensive Purpose" if the claims are asserted against an entity that has filed, maintained, threatened, or voluntarily participated in a patent infringement lawsuit against Us or any of Our licensees.
 
-### 4\. License obligations by Us
+### 4. License obligations by Us
 
 We agree to (sub)license the Contribution or any Materials containing, based on or derived from your Contribution under the terms of any licenses the Free Software Foundation classifies as Free Software License and which are approved by the Open Source Initiative as Open Source licenses.
 
