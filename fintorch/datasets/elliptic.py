@@ -1,10 +1,10 @@
 import os
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 
 import numpy as np
 import polars as pol
 import torch
-from torch_geometric.data import Data, DataLoader, InMemoryDataset
+from torch_geometric.data import Data, InMemoryDataset
 
 from fintorch.datasets.kaggle.downloader import KaggleDownloader
 
