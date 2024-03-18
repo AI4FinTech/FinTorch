@@ -13,13 +13,14 @@ class EllipticDataset(InMemoryDataset):
     """
     The Elliptic Data Set: Understanding Bitcoin Transactions
 
-    The Elliptic Data Set provides valuable insights into Bitcoin transactions, allowing researchers to distinguish between licit and illicit activities.
+    The Elliptic Data Set provides valuable insights into Bitcoin transactions,
+    allowing researchers to distinguish between licit and illicit activities.
     Here's what you need to know:
 
     Purpose:
 
     - Maps Bitcoin transactions to real-world entities.
-    - Classifies entities as licit (e.g., exchanges, wallets, miners) or illicit (e.g., scams, malware, terrorism funding).
+    - Classifies entities as licit or illicit.
 
     Content:
 
@@ -38,7 +39,9 @@ class EllipticDataset(InMemoryDataset):
 
     If you use the Elliptic Data Set, please cite:
     [1] Elliptic, www.elliptic.co.
-    [2] M. Weber, et al., "Anti-Money Laundering in Bitcoin: Experimenting with Graph Convolutional Networks for Financial Forensics", KDD ’19 Workshop on Anomaly Detection in Finance, August 2019, Anchorage, AK, USA.
+    [2] M. Weber, et al., "Anti-Money Laundering in Bitcoin:
+    Experimenting with Graph Convolutional Networks for Financial Forensics",
+    KDD ’19 Workshop on Anomaly Detection in Finance, August 2019, Anchorage, AK, USA.
 
     The EllipticDataset consists of three files:
 
