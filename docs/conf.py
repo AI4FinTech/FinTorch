@@ -1,9 +1,9 @@
-import os
-import sys
+import os  # noqa: E402
+import sys  # noqa: E402
 
-import fintorch
+sys.path.insert(0, os.path.abspath(".."))  # noqa: E402
 
-sys.path.insert(0, os.path.abspath(".."))
+import fintorch  # noqa: E402
 
 # -- General configuration ---------------------------------------------
 
