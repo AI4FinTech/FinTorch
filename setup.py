@@ -53,6 +53,6 @@ setup(
     tests_require=test_requirements,
     extras_require={"test": test_requirements, "dev": dev_requirements},
     url="https://github.com/boersmamarcel/fintorch",
-    version="0.3.0",
+    version="0.1.1",
     zip_safe=False,
 )

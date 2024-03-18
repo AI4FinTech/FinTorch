@@ -2,6 +2,9 @@
 History
 =======
 
+0.1.1
+* Adds elliptical dataset
+
 0.1.0 (2024-02-06)
 ------------------
 
