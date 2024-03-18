@@ -1,3 +1,6 @@
+Console script setup
+*********
+
 .. _console-script-setup:
 
 
