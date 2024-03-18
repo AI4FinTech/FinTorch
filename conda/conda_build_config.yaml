@@ -18,4 +18,5 @@ dependencies:
   - click
   - nbsphinx
   - pandoc
+  - numpy
   - sphinx-rtd-theme
