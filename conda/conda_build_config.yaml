@@ -17,3 +17,5 @@ dependencies:
   - click
   - numpy
   - polars
+  - torch
+  - torch_geometric
