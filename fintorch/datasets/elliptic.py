@@ -11,9 +11,37 @@ from fintorch.datasets.kaggle.downloader import KaggleDownloader
 
 class EllipticDataset(InMemoryDataset):
     """
-    A PyTorch dataset class for the Elliptic Bitcoin Dataset.
+    The Elliptic Data Set: Understanding Bitcoin Transactions
+
+    The Elliptic Data Set provides valuable insights into Bitcoin transactions, allowing researchers to distinguish between licit and illicit activities.
+    Here's what you need to know:
+
+    Purpose:
+
+    - Maps Bitcoin transactions to real-world entities.
+    - Classifies entities as licit (e.g., exchanges, wallets, miners) or illicit (e.g., scams, malware, terrorism funding).
+
+    Content:
+
+    - Anonymized transaction graph from the Bitcoin blockchain.
+    - Nodes represent transactions; edges represent Bitcoin flows.
+    - 203,769 nodes and 234,355 edges.
+    - Each node has 166 features (partially described due to IP concerns).
+    - Nodes are labeled "licit", "illicit", or "unknown".
+
+    Features:
+
+    - Include transaction time, inputs/outputs, fees, volume, and aggregated statistics.
+    - Time steps group transactions into connected components.
+
+    Citations
+
+    If you use the Elliptic Data Set, please cite:
+    [1] Elliptic, www.elliptic.co.
+    [2] M. Weber, et al., "Anti-Money Laundering in Bitcoin: Experimenting with Graph Convolutional Networks for Financial Forensics", KDD ’19 Workshop on Anomaly Detection in Finance, August 2019, Anchorage, AK, USA.
 
     The EllipticDataset consists of three files:
+
     - elliptic_txs_classes.csv
     - elliptic_txs_edgelist.csv
     - elliptic_txs_features.csv
