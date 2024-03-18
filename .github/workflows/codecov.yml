@@ -15,6 +15,12 @@ jobs:
         uses: actions/setup-python@master
         with:
           python-version: 3.11
+      - name: Setup Kaggle
+        run: |
+          mkdir $HOME/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > $HOME/.kaggle/kaggle.json
+          chmod 600 $HOME/.kaggle/kaggle.json
+
       - name: Generate coverage report
         run: |
           pip install pytest
