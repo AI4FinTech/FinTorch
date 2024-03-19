@@ -153,7 +153,7 @@ class EllipticDataset(InMemoryDataset):
         # Mapping 'class' column to numerics
         # The dataset has licit (0), illicit (1), and unknown (2) entities.
         classes = classes.with_columns(
-            pol.col("class").cast(pol.Utf8).apply(lambda x: {
+            pol.col("class").cast(pol.Utf8).map_elements(lambda x: {
                 "unknown": 2,
                 "1": 1,
                 "2": 0
