@@ -39,7 +39,7 @@ setup(
     description="AI4FinTech project repository",
     entry_points={
         "console_scripts": [
-            "fintorch=fintorch.cli:main",
+            "fintorch=fintorch.cli:fintorch",
         ],
     },
     install_requires=requirements,
@@ -51,10 +51,7 @@ setup(
     packages=find_packages(include=["fintorch", "fintorch.*"]),
     test_suite="tests",
     tests_require=test_requirements,
-    extras_require={
-        "test": test_requirements,
-        "dev": dev_requirements
-    },
+    extras_require={"test": test_requirements, "dev": dev_requirements},
     url="https://github.com/boersmamarcel/fintorch",
     version="0.1.1",
     zip_safe=False,
