@@ -18,7 +18,7 @@ def test_command_line_interface():
 
 
 def test_command_line_interface_elliptic_dataset():
-    """Test the CLI."""
+    """Test the CLI standard."""
     runner = CliRunner()
     result = runner.invoke(cli.fintorch, ["datasets", "elliptic"])
     assert result.exit_code == 0
