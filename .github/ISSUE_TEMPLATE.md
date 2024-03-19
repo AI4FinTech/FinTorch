@@ -1,6 +1,6 @@
-* FinTorch version:
-* Python version:
-* Operating System:
+- FinTorch version:
+- Python version:
+- Operating System:
 
 ### Description
 

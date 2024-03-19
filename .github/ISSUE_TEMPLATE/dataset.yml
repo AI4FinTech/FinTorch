@@ -28,6 +28,7 @@ body:
         - label: Download/Extraction Script
         - label: Dataset Test
         - label: Tutorial
+        - label: cli support
   - type: textarea
     id: considerations
     attributes:

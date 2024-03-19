@@ -5,16 +5,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
     env:
       OS: ${{ matrix.os }}
-      PYTHON: '3.11'
+      PYTHON: '3.10'
     steps:
       - uses: actions/checkout@master
       - name: Setup Python
         uses: actions/setup-python@master
         with:
           python-version: 3.11
+      - name: Setup Kaggle
+        run: |
+          mkdir $HOME/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > $HOME/.kaggle/kaggle.json
+          chmod 600 $HOME/.kaggle/kaggle.json
+
       - name: Generate coverage report
         run: |
           pip install pytest

@@ -11,30 +11,35 @@ with open("HISTORY.rst") as history_file:
 
 requirements = [
     "Click>=7.0",
+    "torch",
+    "torch_geometric",
+    "pytorch_lightning",
+    "kaggle",
+    "polars",
+    "numpy",
 ]
 
 test_requirements = [
     "pytest>=3",
 ]
 
+dev_requirements = ["sphinx"]
+
 setup(
     author="Marcel Boersma",
     author_email="boersma.marcel@gmail.com",
-    python_requires=">=3.6",
+    python_requires=">=3.10",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.10",
     ],
     description="AI4FinTech project repository",
     entry_points={
         "console_scripts": [
-            "fintorch=fintorch.cli:main",
+            "fintorch=fintorch.cli:fintorch",
         ],
     },
     install_requires=requirements,
@@ -46,7 +51,8 @@ setup(
     packages=find_packages(include=["fintorch", "fintorch.*"]),
     test_suite="tests",
     tests_require=test_requirements,
+    extras_require={"test": test_requirements, "dev": dev_requirements},
     url="https://github.com/boersmamarcel/fintorch",
-    version="0.3.0",
+    version="0.1.1",
     zip_safe=False,
 )
