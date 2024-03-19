@@ -1,7 +1,5 @@
 """Console script for fintorch."""
 
-import sys
-
 import click
 
 from fintorch.datasets import elliptic as e
