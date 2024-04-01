@@ -9,7 +9,7 @@ from torch_geometric.data import Data, InMemoryDataset
 from fintorch.datasets.kaggle.downloader import KaggleDownloader
 
 
-class EllipticDataset(InMemoryDataset):
+class TransactionDataset(InMemoryDataset):
     """
     The Elliptic Data Set: Understanding Bitcoin Transactions
 
@@ -107,7 +107,7 @@ class EllipticDataset(InMemoryDataset):
         Returns:
             list: A list of processed file names.
         """
-        return ["data_v1.pt"]
+        return ["transaction_graph_v1.pt"]
 
     def download(self) -> None:
         """
