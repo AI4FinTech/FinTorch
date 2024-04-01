@@ -19,3 +19,4 @@ click
 nbsphinx
 pandoc
 sphinx-rtd-theme
+huggingface_hub
