@@ -17,7 +17,7 @@ requirements = [
     "kaggle",
     "polars",
     "numpy",
-    "datasets",
+    "huggingface_hub",
 ]
 
 test_requirements = [
