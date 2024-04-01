@@ -2,13 +2,13 @@ import os
 
 import pytest
 
-from fintorch.datasets.elliptic import EllipticDataset
+from fintorch.datasets.elliptic import TransactionDataset
 
 
 @pytest.fixture
 def dataset():
     root = "/tmp/data/fintorch/"
-    return EllipticDataset(root)
+    return TransactionDataset(root)
 
 
 def test_raw_file_names(dataset):
