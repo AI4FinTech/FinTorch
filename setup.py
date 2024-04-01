@@ -57,7 +57,7 @@ setup(
         "dev": dev_requirements
     },
     url="https://github.com/boersmamarcel/fintorch",
-    version="0.1.1",
+    version="0.1.2",
     zip_safe=False,
     tutorial_requirements=[
         "seaborn",
