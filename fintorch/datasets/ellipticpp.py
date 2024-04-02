@@ -38,6 +38,8 @@ class TransactionActorDataset(InMemoryDataset):
     Here we discuss the wallet related features, for the transaction related
     features please see the elliptic.TransactionDataset.
 
+    Note: we replaced all null values with 0 values.
+
     **Transaction related:**
 
     * **BTCtransacted:** Total BTC transacted (sent+received)
@@ -145,12 +147,14 @@ class TransactionActorDataset(InMemoryDataset):
         Returns:
             DataFrame: The modified DataFrame with the 'class' column mapped to numerical values.
         """
+        # Mapping 'class' column to numerics
+        # The dataset has licit (0), illicit (1), and unknown (2) entities.
         return df.with_columns(
             pol.col("class").cast(pol.Utf8).map_elements(
                 lambda x: {
-                    "unknown": 3,
+                    "unknown": 2,
                     "1": 1,
-                    "2": 2
+                    "2": 0
                 }.get(x),
                 return_dtype=pol.Int64))
 
@@ -243,8 +247,12 @@ class TransactionActorDataset(InMemoryDataset):
                                                          left_on="txId",
                                                          right_on="txId")
 
+        # Replace null values with 0
+        features_transaction = features_transaction.fill_null(0)
+
         # Load wallets features and classes into Polars DataFrame
         features_wallets = pol.read_csv(self.downloaded_files[6])
+        features_wallets = features_wallets.fill_null(0)
 
         # Prepare labels
         transaction_labels = torch.tensor(
