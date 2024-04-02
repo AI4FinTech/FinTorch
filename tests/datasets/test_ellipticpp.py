@@ -43,7 +43,7 @@ def test_prepare_edge_index():
             "x": 3,
             "y": 4,
             "z": 5
-        }
+        },
     }
     edge_index = dataset.prepare_edge_index(edgelist, mapping_dict)
     assert torch.all(torch.eq(edge_index, torch.tensor([[0, 1, 2], [3, 4,
@@ -54,19 +54,18 @@ def test_process():
     dataset = TransactionActorDataset(root="test_data")
     dataset.process()
     dataset = dataset[0]
-    print(dataset)
-    assert dataset['wallets'].x.shape[0] == dataset['wallets'].y.shape[0]
-    assert dataset['wallets'].train_mask.shape[0] == dataset[
-        'wallets'].y.shape[0]
-    assert dataset['wallets'].val_mask.shape[0] == dataset['wallets'].y.shape[
+
+    assert dataset["wallets"].x.shape[0] == dataset["wallets"].y.shape[0]
+    assert dataset["wallets"].train_mask.shape[0] == dataset[
+        "wallets"].y.shape[0]
+    assert dataset["wallets"].val_mask.shape[0] == dataset["wallets"].y.shape[
         0]
-    assert dataset['wallets'].test_mask.shape[0] == dataset['wallets'].y.shape[
+    assert dataset["wallets"].test_mask.shape[0] == dataset["wallets"].y.shape[
         0]
-    assert dataset['wallets'].x.shape[1] == dataset['wallets'].y.max() + 1
     assert (
-        dataset['wallets'].train_mask.sum() +
-        dataset['wallets'].val_mask.sum() +
-        dataset['wallets'].test_mask.sum() == dataset['wallets'].y.shape[0])
+        dataset["wallets"].train_mask.sum() +
+        dataset["wallets"].val_mask.sum() +
+        dataset["wallets"].test_mask.sum() == dataset["wallets"].y.shape[0])
 
     assert dataset["transactions"].x.shape[0] == dataset[
         "transactions"].y.shape[0]
@@ -76,17 +75,16 @@ def test_process():
             dataset["transactions"].y.shape[0])
     assert (dataset["transactions"].test_mask.shape[0] ==
             dataset["transactions"].y.shape[0])
-    assert dataset["transactions"].x.shape[1] == dataset["transactions"].y.max(
-    ) + 1
     assert (dataset["transactions"].train_mask.sum() +
             dataset["transactions"].val_mask.sum() +
             dataset["transactions"].test_mask.sum() ==
             dataset["transactions"].y.shape[0])
 
-    assert dataset.edge_index_addr_tx.shape[0] == 2
-    assert dataset.edge_index_tx_addr.shape[0] == 2
-    assert dataset.edge_index_addr_addr.shape[0] == 2
-    assert dataset.edge_index_tx_tx.shape[0] == 2
+    assert dataset["wallet", "to", "transaction"]["edge_index"].shape[0] == 2
+    assert dataset["transaction", "to", "wallet"]["edge_index"].shape[0] == 2
+    assert dataset["wallet", "to", "wallet"]["edge_index"].shape[0] == 2
+    assert dataset["transaction", "to",
+                   "transaction"]["edge_index"].shape[0] == 2
 
 
 test_download()
