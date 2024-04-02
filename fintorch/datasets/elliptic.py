@@ -27,7 +27,7 @@ class TransactionDataset(InMemoryDataset):
     - Anonymized transaction graph from the Bitcoin blockchain.
     - Nodes represent transactions; edges represent Bitcoin flows.
     - 203,769 nodes and 234,355 edges.
-    - Each node has 166 features (partially described due to IP concerns).
+    - Each node has 166 features.
     - Nodes are labeled "licit", "illicit", or "unknown".
 
     Features:
@@ -193,7 +193,8 @@ class TransactionDataset(InMemoryDataset):
                               dtype=torch.float32).long()
 
         # Extract node features (with optimization)
-        node_features = torch.tensor(df_merge.drop(["class"]).to_numpy(),
+        node_features = torch.tensor(df_merge.drop(["class",
+                                                    "column_1"]).to_numpy(),
                                      dtype=torch.float32)
 
         num_data = node_features.shape[0]
