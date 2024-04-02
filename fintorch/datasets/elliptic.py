@@ -153,11 +153,13 @@ class TransactionDataset(InMemoryDataset):
         # Mapping 'class' column to numerics
         # The dataset has licit (0), illicit (1), and unknown (2) entities.
         classes = classes.with_columns(
-            pol.col("class").cast(pol.Utf8).map_elements(lambda x: {
-                "unknown": 2,
-                "1": 1,
-                "2": 0
-            }.get(x)))
+            pol.col("class").cast(pol.Utf8).map_elements(
+                lambda x: {
+                    "unknown": 2,
+                    "1": 1,
+                    "2": 0
+                }.get(x),
+                return_dtype=pol.Int64))
 
         # Cast the classes to Int32 identifiers
         classes = classes.with_columns(classes["txId"].cast(
