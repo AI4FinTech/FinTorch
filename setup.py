@@ -17,13 +17,14 @@ requirements = [
     "kaggle",
     "polars",
     "numpy",
+    "huggingface_hub",
+    "seaborn",
+    "networkx",
 ]
 
 test_requirements = [
     "pytest>=3",
 ]
-
-dev_requirements = ["sphinx"]
 
 setup(
     author="Marcel Boersma",
@@ -51,8 +52,7 @@ setup(
     packages=find_packages(include=["fintorch", "fintorch.*"]),
     test_suite="tests",
     tests_require=test_requirements,
-    extras_require={"test": test_requirements, "dev": dev_requirements},
-    url="https://github.com/boersmamarcel/fintorch",
-    version="0.1.1",
+    url="https://github.com/AI4FinTech/fintorch",
+    version="0.1.2",
     zip_safe=False,
 )

@@ -7,7 +7,9 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   fintorch.datasets
    fintorch.dl
+   fintorch.graph
 
 Submodules
 ----------

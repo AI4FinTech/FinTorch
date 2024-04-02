@@ -11,9 +11,8 @@ Welcome to FinTorch's documentation!
    usage
    modules
    contributing
-   authors
    troubleshooting
-   tutorials/elliptical/Elliptical
+   tutorials/elliptical/Elliptic
    history
 
 Indices and tables

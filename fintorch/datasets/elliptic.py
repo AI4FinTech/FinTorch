@@ -9,7 +9,7 @@ from torch_geometric.data import Data, InMemoryDataset
 from fintorch.datasets.kaggle.downloader import KaggleDownloader
 
 
-class EllipticDataset(InMemoryDataset):
+class TransactionDataset(InMemoryDataset):
     """
     The Elliptic Data Set: Understanding Bitcoin Transactions
 
@@ -27,7 +27,7 @@ class EllipticDataset(InMemoryDataset):
     - Anonymized transaction graph from the Bitcoin blockchain.
     - Nodes represent transactions; edges represent Bitcoin flows.
     - 203,769 nodes and 234,355 edges.
-    - Each node has 166 features (partially described due to IP concerns).
+    - Each node has 166 features.
     - Nodes are labeled "licit", "illicit", or "unknown".
 
     Features:
@@ -107,7 +107,7 @@ class EllipticDataset(InMemoryDataset):
         Returns:
             list: A list of processed file names.
         """
-        return ["data_v1.pt"]
+        return ["transaction_graph_v1.pt"]
 
     def download(self) -> None:
         """
@@ -153,11 +153,13 @@ class EllipticDataset(InMemoryDataset):
         # Mapping 'class' column to numerics
         # The dataset has licit (0), illicit (1), and unknown (2) entities.
         classes = classes.with_columns(
-            pol.col("class").cast(pol.Utf8).map_elements(lambda x: {
-                "unknown": 2,
-                "1": 1,
-                "2": 0
-            }.get(x)))
+            pol.col("class").cast(pol.Utf8).map_elements(
+                lambda x: {
+                    "unknown": 2,
+                    "1": 1,
+                    "2": 0
+                }.get(x),
+                return_dtype=pol.Int64))
 
         # Cast the classes to Int32 identifiers
         classes = classes.with_columns(classes["txId"].cast(
@@ -191,7 +193,8 @@ class EllipticDataset(InMemoryDataset):
                               dtype=torch.float32).long()
 
         # Extract node features (with optimization)
-        node_features = torch.tensor(df_merge.drop(["class"]).to_numpy(),
+        node_features = torch.tensor(df_merge.drop(["class",
+                                                    "column_1"]).to_numpy(),
                                      dtype=torch.float32)
 
         num_data = node_features.shape[0]

@@ -3,6 +3,7 @@
 import click
 
 from fintorch.datasets import elliptic as e
+from fintorch.datasets import ellipticpp as epp
 
 
 @click.group()
@@ -18,7 +19,9 @@ def datasets(dataset):
     # Implement your dataset download logic here
     click.echo(f"Downloading dataset: {dataset}")
     if dataset == "elliptic":
-        e.EllipticDataset("~/.fintorch_data", force_reload=True)
+        e.TransactionDataset("~/.fintorch_data", force_reload=True)
+    elif dataset == "ellipticpp":
+        epp.TransactionActorDataset("~/.fintorch_data", force_reload=True)
 
 
 @fintorch.command()
