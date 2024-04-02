@@ -14,7 +14,7 @@ def test_map_classes():
     dataset = TransactionActorDataset(root="test_data")
     df = pl.DataFrame({"class": ["unknown", "1", "2"]})
     mapped_df = dataset.map_classes(df)
-    assert mapped_df["class"].to_list() == [3, 1, 2]
+    assert mapped_df["class"].to_list() == [2, 1, 0]
 
 
 def test_split_data():
