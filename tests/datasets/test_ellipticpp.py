@@ -80,11 +80,11 @@ def test_process():
             dataset["transactions"].test_mask.sum() ==
             dataset["transactions"].y.shape[0])
 
-    assert dataset["wallet", "to", "transaction"]["edge_index"].shape[0] == 2
-    assert dataset["transaction", "to", "wallet"]["edge_index"].shape[0] == 2
-    assert dataset["wallet", "to", "wallet"]["edge_index"].shape[0] == 2
-    assert dataset["transaction", "to",
-                   "transaction"]["edge_index"].shape[0] == 2
+    assert dataset["wallets", "to", "transactions"]["edge_index"].shape[0] == 2
+    assert dataset["transactions", "to", "wallets"]["edge_index"].shape[0] == 2
+    assert dataset["wallets", "to", "wallets"]["edge_index"].shape[0] == 2
+    assert dataset["transactions", "to",
+                   "transactions"]["edge_index"].shape[0] == 2
 
 
 test_download()
