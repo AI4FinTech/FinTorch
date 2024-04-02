@@ -20,3 +20,4 @@ nbsphinx
 pandoc
 sphinx-rtd-theme
 huggingface_hub
+jinja2
