@@ -4,8 +4,6 @@ import numpy as np
 import polars as pol
 import torch
 from huggingface_hub import hf_hub_download
-# from google.oauth2 import service_account
-# from googleapiclient.discovery import build
 from torch_geometric.data import HeteroData, InMemoryDataset
 from tqdm import tqdm
 
@@ -77,11 +75,13 @@ class TransactionActorDataset(InMemoryDataset):
             DataFrame: The modified DataFrame with the 'class' column mapped to numerical values.
         """
         return df.with_columns(
-            pol.col("class").cast(pol.Utf8).map_elements(lambda x: {
-                "unknown": 3,
-                "1": 1,
-                "2": 2
-            }.get(x)))
+            pol.col("class").cast(pol.Utf8).map_elements(
+                lambda x: {
+                    "unknown": 3,
+                    "1": 1,
+                    "2": 2
+                }.get(x),
+                return_dtype=pol.Int64))
 
     def split_data(self, num_data, splits=[0.8, 0.1]):
         """
@@ -136,10 +136,9 @@ class TransactionActorDataset(InMemoryDataset):
 
         """
         for k, v in mapping_dict.items():
-            edgelist = edgelist.replace(
-                k,
-                edgelist[k].apply(lambda x: v.get(x, x)),
-            )
+            edgelist = edgelist.with_columns(
+                pol.col(k).alias(k).map_elements(lambda x: v.get(x, x),
+                                                 return_dtype=pol.Int64))
 
         # Preparing edge_index for PyTorch
         edgelist = np.array(edgelist.to_numpy()).T
@@ -268,8 +267,8 @@ class TransactionActorDataset(InMemoryDataset):
         )
 
         df["transaction", "transaction"].edge_index = tx_tx_edge_index
-        df["transaction", "address"].edge_index = tx_addr_edge_index
-        df["address", "transaction"].edge_index = addr_tx_edge_index
-        df["address", "address"].edge_index = addr_addr_edge_index
+        df["transaction", "wallet"].edge_index = tx_addr_edge_index
+        df["wallet", "transaction"].edge_index = addr_tx_edge_index
+        df["wallet", "wallet"].edge_index = addr_addr_edge_index
 
         self.save([df], self.processed_paths[0])

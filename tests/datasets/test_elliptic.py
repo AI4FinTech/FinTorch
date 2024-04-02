@@ -21,7 +21,7 @@ def test_raw_file_names(dataset):
 
 
 def test_processed_file_names(dataset):
-    expected_files = ["data_v1.pt"]
+    expected_files = ["transaction_graph_v1.pt"]
     assert dataset.processed_file_names == expected_files
 
 

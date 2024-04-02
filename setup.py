@@ -19,13 +19,12 @@ requirements = [
     "numpy",
     "huggingface_hub",
     "seaborn",
-    "networkx"
+    "networkx",
 ]
 
 test_requirements = [
     "pytest>=3",
 ]
-
 
 setup(
     author="Marcel Boersma",
