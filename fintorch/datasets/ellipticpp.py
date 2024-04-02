@@ -9,6 +9,77 @@ from tqdm import tqdm
 
 
 class TransactionActorDataset(InMemoryDataset):
+    """
+    The Elliptic++ Data Set: Understanding Bitcoin Transactions and Actors/Wallets
+
+    Extends the Elliptic Data Set by incorporating wallet addresses (actors) to
+    enable the detection of illicit activity in the Bitcoin network.
+
+    Purpose:
+
+    * Maps Bitcoin transactions to real-world entities, including wallet addresses.
+    * Classifies entities as licit, illicit, or unknown.
+    * Facilitates the identification of illicit actors within the Bitcoin network.
+
+    Content:
+
+    * Inherits features and structure from the Elliptic Data Set:
+        * Anonymized transaction graph from the Bitcoin blockchain.
+        * 203,769 nodes (transactions) and 234,355 edges (Bitcoin flows).
+        * Node features related to transactions, time, and aggregated statistics.
+        * Node labels: "licit", "illicit", or "unknown".
+    * Additional wallet address (actor) data:
+        * 822k wallet addresses
+        * Node features related to wallets, time, and other statistics.
+        * Node labels: "licit", "illicit", or "unknown".
+
+    Features:
+
+    Here we discuss the wallet related features, for the transaction related
+    features please see the elliptic.TransactionDataset.
+
+    **Transaction related:**
+
+    * **BTCtransacted:** Total BTC transacted (sent+received)
+    * **BTCsent:** Total BTC sent
+    * **BTCreceived:** Total BTC received
+    * **Fees:** Total fees in BTC
+    * **Feesshare:** Total fees as share of BTC transacted
+
+    **Time related:**
+
+    * **Blockstxs:** Number of blocks between transactions
+    * **Blocksinput:** Number of blocks between being an input address
+    * **Blocksoutput:** Number of blocks between being an output address
+    * **Addr interactions:** Number of interactions among addresses (5 values: total, min, max, mean, median)
+    * **Class:** Class label: {illicit, licit, unknown}
+
+    **Transaction related:**
+
+    * **Txstotal:** Total number of blockchain transactions
+    * **TxSinput:** Total number of dataset transactions as input address
+    * **TxSoutput:** Total number of dataset transactions as output address
+
+    **Time related:**
+
+    * **Timesteps:** Number of time steps transacting in
+    * **Lifetime:** Lifetime in blocks
+    * **Block first:** Block height first transacted in
+    * **Blocklast:** Block height last transacted in
+    * **Block first sent:** Block height first sent in
+    * **Block first receive:** Block height first received in
+    * **Repeat interactions:** Number of addresses transacted with multiple times (single value)
+
+
+
+    Citations:
+
+    [1] Elliptic, www.elliptic.co.
+    [2] M. Weber, et al., "Anti-Money Laundering in Bitcoin: Experimenting with Graph Convolutional Networks
+    for Financial Forensics", KDD ’19 Workshop on Anomaly Detection in Finance, August 2019, Anchorage, AK, USA.
+
+
+    """
 
     def __init__(
         self,
@@ -266,9 +337,9 @@ class TransactionActorDataset(InMemoryDataset):
             },
         )
 
-        df["transaction", "transaction"].edge_index = tx_tx_edge_index
-        df["transaction", "wallet"].edge_index = tx_addr_edge_index
-        df["wallet", "transaction"].edge_index = addr_tx_edge_index
-        df["wallet", "wallet"].edge_index = addr_addr_edge_index
+        df["transactions", "transactions"].edge_index = tx_tx_edge_index
+        df["transactions", "wallets"].edge_index = tx_addr_edge_index
+        df["wallets", "transactions"].edge_index = addr_tx_edge_index
+        df["wallets", "wallets"].edge_index = addr_addr_edge_index
 
         self.save([df], self.processed_paths[0])
