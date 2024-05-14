@@ -2,7 +2,7 @@ Welcome to FinTorch's documentation!
 ======================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    readme
@@ -12,7 +12,8 @@ Welcome to FinTorch's documentation!
    modules
    contributing
    troubleshooting
-   tutorials/elliptical/Elliptic
+   tutorials/elliptic/Elliptic
+   tutorials/graphbean/graphbean
    history
 
 Indices and tables
