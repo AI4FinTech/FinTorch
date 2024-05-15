@@ -363,7 +363,8 @@ class EllipticDataModule(pl.LightningDataModule):
         self.edge = edge
 
     def setup(self, stage=None):
-        dataset = TransactionActorDataset("~/.fintorch_data")
+        dataset = TransactionActorDataset("~/.fintorch_data",
+                                          force_reload=False)
         self.dataset = dataset[0]
         self.split_dataset(dataset[0])
 
