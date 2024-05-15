@@ -4,30 +4,69 @@ import lightning as L
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 import torch_geometric.nn as nng
 import torchmetrics
-from torch.nn import optim
 from torch_geometric.nn import SAGEConv
 
 
-def GraphBEANLoss(feature_predictions, pred_edges, sampled_data, edge):
+def GraphBEANLoss(feature_predictions, edge_predictions,
+                  ground_truth_sampled_data, edge):
+    # Loss of the feature reconstruction per node type
     feature_loss = 0
     for key in feature_predictions.keys():
         feature_loss += nn.MSELoss()(feature_predictions[key],
-                                     sampled_data[key].x)
+                                     ground_truth_sampled_data[key].x)
 
+    # Edge prediction loss (one edge type)
     src, to, dst = edge
     edge_loss = F.binary_cross_entropy_with_logits(
-        pred_edges, sampled_data[src, to, dst].edge_label)
+        edge_predictions, ground_truth_sampled_data[src, to, dst].edge_label)
 
+    # Total loss function
     total_loss = feature_loss + edge_loss
 
     return total_loss
 
 
+def GraphBEANLossClassifier(
+    feature_predictions,
+    edge_predictions,
+    ground_truth_sampled_data,
+    edge,
+    node_pred,
+    node_ground_truth,
+):
+    # Loss of the feature reconstruction per node type
+    loss = GraphBEANLoss(feature_predictions, edge_predictions,
+                         ground_truth_sampled_data, edge)
+
+    classification_loss = F.binary_cross_entropy_with_logits(
+        node_pred, node_ground_truth)
+
+    # Total loss function
+    total_loss = loss + classification_loss
+
+    return total_loss
+
+
 class LinkClassifier(nn.Module):
+    """
+    LinkClassifier is a PyTorch module that performs link classification in a graph.
+    """
 
     def forward(self, src, dst, edge_label_index):
+        """
+        Performs the forward pass of the LinkClassifier model.
+
+        Args:
+            src (torch.Tensor): Source node features.
+            dst (torch.Tensor): Destination node features.
+            edge_label_index (tuple): Tuple containing the indices of the edge labels.
+
+        Returns:
+            torch.Tensor: The result of the forward pass.
+        """
         x_src_features = src[edge_label_index[0]]
         x_dst_features = dst[edge_label_index[1]]
 
@@ -35,6 +74,27 @@ class LinkClassifier(nn.Module):
 
 
 class GraphBEAN(nn.Module):
+    """
+    GraphBEAN (Graph Bipartite Edge and Node) model for interaction-focused anomaly detection on bipartite
+    node-and-edge-attributed graphs. We modified the original implementation to include a classification head such
+    that the model works for semi-supervised settings.
+
+    Reference:
+    Fathony, R., Ng, J., & Chen, J. (2023, June). Interaction-focused anomaly detection on bipartite
+    node-and-edge-attributed graphs. In 2023 International Joint Conference on Neural Networks (IJCNN) (pp. 1-10). IEEE.
+
+    Args:
+        hetero_data (HeteroData): The heterogeneous graph data.
+        n_encoder_layers (int): Number of encoder layers.
+        n_feature_decoder_layers (int): Number of feature decoder layers.
+        hidden_channels (int): Number of hidden channels.
+        features_channels (dict): Dictionary specifying the number of channels for each edge type.
+
+    Attributes:
+        encoder_layers (nn.ModuleList): List of encoder layers.
+        decoder_layers (nn.ModuleList): List of feature decoder layers.
+        graph_edge_prediction (LinkClassifier): Link classifier for graph edge prediction.
+    """
 
     def __init__(
         self,
@@ -43,26 +103,45 @@ class GraphBEAN(nn.Module):
         n_feature_decoder_layers: int,
         hidden_channels: int,
         features_channels: dict,
+        conv_type: callable,
     ):
+        # GATConv, GATv2Conv, SAGEConv, GraphConv, ResGatedGraphConv, TransformerConv, MFConv, RGCNConv, GMMConv,
+        # SplineConv, NNConv, CGConv, PointTransformerConv, LEConv, GENConv, FiLMConv, GeneralConv,
         super().__init__()
 
-        self.encoder_layers = nn.ModuleList()
+        assert n_encoder_layers > 0, "Number of encoder layers must be greater than 0."
+        assert (
+            n_feature_decoder_layers
+            > 0), "Number of feature decoder layers must be greater than 0."
+        assert hidden_channels > 0, "Number of hidden channels must be greater than 0."
 
-        # Encoder decoder (latent)
+        # Encoder layers
+        self.encoder_layers = nn.ModuleList()
         self.encoder_layers.append(
-            self.EncoderLayer(hetero_data, (-1, -1), hidden_channels))
+            self.EncoderLayer(hetero_data, (-1, -1), hidden_channels,
+                              conv_type))  # Pass conv_type argument
 
         for _ in range(n_encoder_layers - 1):
             self.encoder_layers.append(
-                self.EncoderLayer(hetero_data, hidden_channels,
-                                  hidden_channels))
+                nng.HeteroConv(
+                    {
+                        edge_type: conv_type(hidden_channels, hidden_channels)
+                        for edge_type in hetero_data.edge_types
+                    },
+                    aggr="sum",
+                ))  # Pass conv_type argument
 
-        # FeatureDecoder
+        # FeatureDecoder layers
         self.decoder_layers = nn.ModuleList()
         for _ in range(n_feature_decoder_layers):
             self.decoder_layers.append(
-                self.FeatureDecoderLayer(hetero_data, hidden_channels,
-                                         hidden_channels))
+                nng.HeteroConv(
+                    {
+                        edge_type: conv_type(hidden_channels, hidden_channels)
+                        for edge_type in hetero_data.edge_types
+                    },
+                    aggr="sum",
+                ))
 
         decoder_last_conv_layer = nng.HeteroConv(
             {
@@ -75,24 +154,14 @@ class GraphBEAN(nn.Module):
 
         self.decoder_layers.append(decoder_last_conv_layer)
 
+        # Graph classifier head
         self.graph_edge_prediction = LinkClassifier()
 
-    def FeatureDecoderLayer(self, hetero_data, in_channels, out_channels):
-        conv_layer = nng.HeteroConv(
-            {
-                edge_type: SAGEConv(in_channels, out_channels)
-                for edge_type in hetero_data.edge_types
-            },
-            aggr="sum",
-        )
-
-        return conv_layer
-
-    def EncoderLayer(self, hetero_data, in_channels, out_channels):
+    def EncoderLayer(self, hetero_data, in_channels, out_channels, conv_type):
 
         conv_layer = nng.HeteroConv(
             {
-                edge_type: SAGEConv(in_channels, out_channels)
+                edge_type: conv_type(in_channels, out_channels)
                 for edge_type in hetero_data.edge_types
             },
             aggr="sum",
@@ -101,6 +170,20 @@ class GraphBEAN(nn.Module):
         return conv_layer
 
     def forward(self, data, edge):
+        """
+        Forward pass of the GraphBEAN model.
+
+        Args:
+            data (Tensor): The input data.
+            edge (Tuple): Tuple containing the source, target, and destination nodes.
+
+        Returns:
+            Tuple: A tuple containing the following elements:
+                - None: Placeholder for future use.
+                - hidden_representation (Tensor): The hidden representation obtained from the encoder layers.
+                - feature_out (Tensor): The output of the feature decoding layers.
+                - edge_prediction (Tensor): The predicted edge labels.
+        """
         # loop through the encoder layers to obtain the hidden representation
         hidden_representation = data.x_dict
         for layer in self.encoder_layers:
@@ -151,6 +234,7 @@ class GraphBeanClassifier(nn.Module):
             n_feature_decoder_layers,
             hidden_channels,
             features_channels,
+            SAGEConv,
         )
 
         self.classifierHead = nn.ModuleList([
@@ -196,11 +280,17 @@ class GraphBEANModule(L.LightningModule):
         class_head_layers=3,
         classes=2,
         predict="wallets",
+        data=None,
     ):
         super().__init__()
         self.model = model
         self.edge = edge
         self.predict = predict
+
+        if data:
+            self.dataset = data
+        else:
+            self.dataset = None
 
         if classifier:
             self.loss_fn = torch.nn.CrossEntropyLoss()
@@ -239,7 +329,8 @@ class GraphBEANModule(L.LightningModule):
 
     def setup(self, stage=None):
         # Get the dataset from the datamodule
-        self.dataset = self.trainer.datamodule.dataset
+        if self.dataset is None:
+            self.dataset = self.trainer.datamodule.dataset
 
         mapping = dict()
         for key in self.dataset.metadata()[0]:
@@ -265,8 +356,9 @@ class GraphBEANModule(L.LightningModule):
                 self.decoder_layers,
                 self.hidden_layers,
                 mapping,
+                SAGEConv,
             ))
-
+        print(f"Model:{self.model}")
         self.optimizers = optim.Adam(self.model.parameters(),
                                      lr=self.learning_rate)
 
