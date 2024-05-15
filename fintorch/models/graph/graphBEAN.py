@@ -12,6 +12,20 @@ from torch_geometric.nn import SAGEConv
 
 def GraphBEANLoss(feature_predictions, edge_predictions,
                   ground_truth_sampled_data, edge):
+    """
+    Calculates the loss function for the GraphBEAN model.
+
+    Args:
+        feature_predictions (dict): A dictionary containing the predicted features for each node type.
+        edge_predictions (torch.Tensor): The predicted edge values.
+        ground_truth_sampled_data (dict): A dictionary containing the ground truth sampled data for each node type.
+        edge (tuple): A tuple representing the source, target, and destination nodes for the edge.
+
+    Returns:
+        torch.Tensor: The total loss value.
+
+    """
+
     # Loss of the feature reconstruction per node type
     feature_loss = 0
     for key in feature_predictions.keys():
@@ -37,15 +51,30 @@ def GraphBEANLossClassifier(
     node_pred,
     node_ground_truth,
 ):
+    """
+    Calculates the total loss for the GraphBEAN model with a classifier.
+
+    Args:
+        feature_predictions (Tensor): Predictions of the node features.
+        edge_predictions (Tensor): Predictions of the edge features.
+        ground_truth_sampled_data (Tensor): Ground truth sampled data.
+        edge (Tensor): Edge tensor.
+        node_pred (Tensor): Predictions of the node labels.
+        node_ground_truth (Tensor): Ground truth node labels.
+
+    Returns:
+        Tensor: The total loss for the GraphBEAN model with a classifier.
+    """
+
     # Loss of the feature reconstruction per node type
     loss = GraphBEANLoss(feature_predictions, edge_predictions,
                          ground_truth_sampled_data, edge)
 
-    classification_loss = F.binary_cross_entropy_with_logits(
-        node_pred, node_ground_truth)
+    classification_loss_fn = torch.nn.CrossEntropyLoss()
+    class_loss = classification_loss_fn(node_pred, node_ground_truth)
 
     # Total loss function
-    total_loss = loss + classification_loss
+    total_loss = loss + class_loss
 
     return total_loss
 
@@ -222,6 +251,7 @@ class GraphBeanClassifier(nn.Module):
         features_channels: Dict,
         class_head_layers: int = 1,
         classes: int = 3,
+        conv_type: callable = SAGEConv,
     ):
 
         super().__init__()
@@ -234,7 +264,7 @@ class GraphBeanClassifier(nn.Module):
             n_feature_decoder_layers,
             hidden_channels,
             features_channels,
-            SAGEConv,
+            conv_type,
         )
 
         self.classifierHead = nn.ModuleList([
@@ -270,7 +300,6 @@ class GraphBEANModule(L.LightningModule):
     def __init__(
         self,
         edge,
-        model=None,
         loss_fn=None,
         learning_rate=0.01,
         encoder_layers=2,
@@ -281,9 +310,27 @@ class GraphBEANModule(L.LightningModule):
         classes=2,
         predict="wallets",
         data=None,
+        conv_type: callable = SAGEConv,
     ):
+        """
+        Initializes the GraphBEAN model.
+
+        Args:
+            edge (str): The edge type.
+            model (torch.nn.Module, optional): The underlying model architecture. Defaults to None.
+            loss_fn (callable, optional): The loss function. Defaults to None.
+            learning_rate (float, optional): The learning rate. Defaults to 0.01.
+            encoder_layers (int, optional): The number of encoder layers. Defaults to 2.
+            decoder_layers (int, optional): The number of decoder layers. Defaults to 2.
+            hidden_layers (int, optional): The number of hidden layers. Defaults to 128.
+            classifier (bool, optional): Whether the model is a classifier. Defaults to False.
+            class_head_layers (int, optional): The number of layers in the classification head. Defaults to 3.
+            classes (int, optional): The number of classes. Defaults to 2.
+            predict (str, optional): The prediction type. Defaults to "wallets".
+            data (torch_geometric.data.Data, optional): The dataset. Defaults to None.
+            conv_type (callable, optional): The convolutional layer type. Defaults to SAGEConv.
+        """
         super().__init__()
-        self.model = model
         self.edge = edge
         self.predict = predict
 
@@ -293,7 +340,7 @@ class GraphBEANModule(L.LightningModule):
             self.dataset = None
 
         if classifier:
-            self.loss_fn = torch.nn.CrossEntropyLoss()
+            self.loss_fn = loss_fn if loss_fn is not None else GraphBEANLossClassifier
         else:
             self.loss_fn = loss_fn if loss_fn is not None else GraphBEANLoss
 
@@ -304,6 +351,7 @@ class GraphBEANModule(L.LightningModule):
         self.classifier = classifier
         self.class_head_layers = class_head_layers
         self.classes = classes
+        self.conv_type = conv_type
 
         self.accuracy = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=classes, average="macro")
@@ -328,59 +376,98 @@ class GraphBEANModule(L.LightningModule):
         self.save_hyperparameters()
 
     def setup(self, stage=None):
+        """
+        Function called before validate and fit.
+        Sets up the model and optimizers based on the provided dataset and configuration.
+
+        Args:
+            stage: Optional[str], the current stage of training. Defaults to None.
+
+        Returns:
+            None
+        """
+
         # Get the dataset from the datamodule
         if self.dataset is None:
             self.dataset = self.trainer.datamodule.dataset
 
+        # Required for the feature encoder-decoder
         mapping = dict()
         for key in self.dataset.metadata()[0]:
             mapping[key] = self.dataset[key].x.shape[1]
 
         if self.classifier:
             # Initialize your model using the dataset
-            self.model = (self.model
-                          if self.model is not None else GraphBeanClassifier(
-                              self.dataset,
-                              self.encoder_layers,
-                              self.decoder_layers,
-                              self.hidden_layers,
-                              mapping,
-                              self.class_head_layers,
-                              self.classes,
-                          ))
-        else:
-            # Initialize your model using the dataset
-            self.model = (self.model if self.model is not None else GraphBEAN(
+            self.model = GraphBeanClassifier(
                 self.dataset,
                 self.encoder_layers,
                 self.decoder_layers,
                 self.hidden_layers,
                 mapping,
-                SAGEConv,
-            ))
-        print(f"Model:{self.model}")
+                self.class_head_layers,
+                self.classes,
+                self.conv_type,
+            )
+
+        else:
+            # Initialize your model using the dataset
+            self.model = GraphBEAN(
+                self.dataset,
+                self.encoder_layers,
+                self.decoder_layers,
+                self.hidden_layers,
+                mapping,
+                self.conv_type,
+            )
+
         self.optimizers = optim.Adam(self.model.parameters(),
                                      lr=self.learning_rate)
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, batch, edge):
+        """
+        Forward pass of the graphBEAN model.
 
-    def training_step(self, batch, batch_idx):
-        class_probs, hidden_representation, pred_features, pred_edges = self.model(
-            batch, self.edge)
+        Args:
+            batch: The input batch.
+            edge: The input edge.
 
+        Returns:
+            The output of the model.
+        """
+        return self.model(batch, edge)
+
+    def loss(self, batch, class_probs, pred_features, pred_edges):
         if self.classifier:
-
             loss = self.loss_fn(
+                pred_features,
+                pred_edges,
+                batch,
+                self.edge,
                 class_probs[self.predict],
                 batch[self.predict].y,
             )
         else:
             loss = self.loss_fn(pred_features, pred_edges, batch, self.edge)
 
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        """
+        Performs a single training step on the given batch of data.
+
+        Args:
+            batch: The input batch of data.
+            batch_idx: The index of the current batch.
+
+        Returns:
+            The loss value computed during the training step.
+        """
+        class_probs, _, pred_features, pred_edges = self(batch, self.edge)
+
+        loss = self.loss(batch, class_probs, pred_features, pred_edges)
+
         self.log("train_loss", loss)
 
-        # print(f"Class probs:{class_probs} \n\n batch")
         if self.classifier:
             output_class = torch.argmax(class_probs[self.predict],
                                         dim=1).long()
@@ -390,15 +477,18 @@ class GraphBEANModule(L.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        class_probs, hidden_representation, pred_features, pred_edges = self.model(
-            batch, self.edge)
-        if self.classifier:
-            loss = self.loss_fn(
-                class_probs[self.predict],
-                batch[self.predict].y,
-            )
-        else:
-            loss = self.loss_fn(pred_features, pred_edges, batch, self.edge)
+        """
+        Performs a validation step on the given batch of data.
+
+        Args:
+            batch: The batch of data for validation.
+            batch_idx: The index of the current batch.
+
+        Returns:
+            None
+        """
+        class_probs, _, pred_features, pred_edges = self(batch, self.edge)
+        loss = self.loss(batch, class_probs, pred_features, pred_edges)
 
         self.log("val_loss",
                  loss,
@@ -459,14 +549,23 @@ class GraphBEANModule(L.LightningModule):
                 prog_bar=True,
                 batch_size=16,
             )
-        self.validation_step_outputs.append({
-            "labels":
-            batch[self.predict].y,
-            "logits":
-            class_probs[self.predict],
-        })
+            self.validation_step_outputs.append({
+                "labels":
+                batch[self.predict].y,
+                "logits":
+                class_probs[self.predict],
+            })
 
     def on_validation_epoch_end(self):
+        """
+        Performs operations at the end of each validation epoch.
+
+        This method clears the validation step outputs.
+
+        Returns:
+            None
+        """
+
         # print(f"all val outputs:{len(self.validation_step_outputs)}")
 
         # labels = torch.cat([x["labels"] for x in self.validation_step_outputs])
@@ -496,4 +595,10 @@ class GraphBEANModule(L.LightningModule):
         self.validation_step_outputs.clear()
 
     def configure_optimizers(self):
+        """
+        Configures the optimizers for the model.
+
+        Returns:
+            optimizers: The configured optimizers for the model.
+        """
         return self.optimizers
