@@ -11,10 +11,13 @@ data_module = EllipticDataModule(("wallets", "to", "transactions"))
 module = GraphBEANModule(
     ("wallets", "to", "transactions"),
     learning_rate=0.001,
+    classifier=True,
     conv_type=TransformerConv,
     encoder_layers=10,
     decoder_layers=10,
     hidden_layers=100,
+    class_head_layers=4,
+    predict="transactions",
 )
 
 # Create a PyTorch Lightning Trainer and train the module
