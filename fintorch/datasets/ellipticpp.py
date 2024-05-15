@@ -1,10 +1,13 @@
 from typing import Callable, List, Optional
 
+import lightning.pytorch as pl
 import numpy as np
 import polars as pol
 import torch
+import torch_geometric.transforms as T
 from huggingface_hub import hf_hub_download
 from torch_geometric.data import HeteroData, InMemoryDataset
+from torch_geometric.loader import LinkNeighborLoader
 from tqdm import tqdm
 
 
@@ -351,3 +354,91 @@ class TransactionActorDataset(InMemoryDataset):
         df["wallets", "wallets"].edge_index = addr_addr_edge_index
 
         self.save([df], self.processed_paths[0])
+
+
+class EllipticDataModule(pl.LightningDataModule):
+
+    def __init__(self, edge):
+        super().__init__()
+        self.edge = edge
+
+    def setup(self, stage=None):
+        dataset = TransactionActorDataset("~/.fintorch_data")
+        self.dataset = dataset[0]
+        self.split_dataset(dataset[0])
+
+    def split_dataset(self, dataset):
+
+        transform = T.RandomLinkSplit(
+            num_val=0.1,
+            num_test=0.1,
+            disjoint_train_ratio=0.3,
+            neg_sampling_ratio=2.0,
+            edge_types=[
+                ("wallets", "to", "transactions"),
+                ("transactions", "to", "wallets"),
+                ("wallets", "to", "wallets"),
+                ("transactions", "to", "transactions"),
+            ],
+        )
+        self.train_data, self.val_data, self.test_data = transform(dataset)
+
+    def train_dataloader(self):
+        src, to, dst = self.edge
+        edge_index_length = self.train_data[src, to, dst].edge_index.shape[1]
+        labels = torch.ones(edge_index_length)
+        loader = LinkNeighborLoader(
+            self.train_data,
+            num_neighbors=[10, 30],
+            batch_size=128,
+            shuffle=True,
+            edge_label_index=(
+                (src, to, dst),
+                self.train_data[src, to, dst].edge_index,
+            ),
+            edge_label=labels,
+            neg_sampling="binary",
+            num_workers=27,
+        )
+
+        return loader
+
+    def val_dataloader(self):
+        src, to, dst = self.edge
+
+        edge_index_length = self.val_data[src, to, dst].edge_index.shape[1]
+        labels = torch.ones(edge_index_length)
+        loader = LinkNeighborLoader(
+            self.val_data,
+            num_neighbors=[10, 30],
+            batch_size=128,
+            edge_label_index=(
+                (src, to, dst),
+                self.val_data[src, to, dst].edge_index,
+            ),
+            edge_label=labels,
+            neg_sampling="binary",
+            num_workers=27,
+        )
+
+        return loader
+
+    def test_dataloader(self):
+        src, to, dst = self.edge
+
+        edge_index_length = self.test_data[src, to, dst].edge_index.shape[1]
+        labels = torch.ones(edge_index_length)
+        loader = LinkNeighborLoader(
+            self.val_data,
+            num_neighbors=[10, 30],
+            batch_size=128,
+            edge_label_index=(
+                (src, to, dst),
+                self.test_data[src, to, dst].edge_index,
+            ),
+            edge_label=labels,
+            neg_sampling="binary",
+            num_workers=27,
+        )
+
+        return loader
