@@ -13,7 +13,7 @@ requirements = [
     "Click>=7.0",
     "torch",
     "torch_geometric",
-    "pytorch_lightning",
+    "lightning",
     "kaggle",
     "polars",
     "numpy",
