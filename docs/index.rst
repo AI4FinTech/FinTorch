@@ -12,8 +12,7 @@ Welcome to FinTorch's documentation!
    modules
    contributing
    troubleshooting
-   tutorials/elliptic/Elliptic
-   tutorials/graphbean/graphbean
+   tutorials
    history
 
 Indices and tables
