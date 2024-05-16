@@ -1,7 +1,9 @@
 import polars as pl
 import torch
+from torch_geometric.loader import LinkNeighborLoader
 
-from fintorch.datasets.ellipticpp import TransactionActorDataset
+from fintorch.datasets.ellipticpp import (EllipticDataModule,
+                                          TransactionActorDataset)
 
 
 def test_download():
@@ -87,8 +89,62 @@ def test_process():
                    "transactions"]["edge_index"].shape[0] == 2
 
 
+def test_setup():
+    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module.setup()
+    assert data_module.train_data is not None
+    assert data_module.val_data is not None
+    assert data_module.test_data is not None
+
+
+def test_train_dataloader():
+    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module.setup()
+    train_dataloader = data_module.train_dataloader()
+    assert train_dataloader is not None
+
+
+def test_train_dataloader_type():
+    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module.setup()
+    train_dataloader = data_module.train_dataloader()
+    assert isinstance(train_dataloader, LinkNeighborLoader)
+
+
+def test_val_dataloader_type():
+    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module.setup()
+    val_dataloader = data_module.val_dataloader()
+    assert isinstance(val_dataloader, LinkNeighborLoader)
+
+
+def test_val_dataloader():
+    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module.setup()
+    val_dataloader = data_module.val_dataloader()
+    assert val_dataloader is not None
+
+
+def test_link_neighbor_loader_type():
+    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module.setup()
+    train_dataloader = data_module.train_dataloader()
+    assert isinstance(train_dataloader, LinkNeighborLoader)
+
+
+def test_test_dataloader():
+    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module.setup()
+    test_dataloader = data_module.test_dataloader()
+    assert test_dataloader is not None
+
+
 test_download()
 test_map_classes()
 test_split_data()
 test_prepare_edge_index()
 test_process()
+test_setup()
+test_train_dataloader()
+test_val_dataloader()
+test_test_dataloader()
