@@ -21,3 +21,4 @@ pandoc
 sphinx-rtd-theme
 huggingface_hub
 jinja2
+lightning
