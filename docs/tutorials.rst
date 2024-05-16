@@ -4,5 +4,5 @@ Tutorials
 .. toctree::
    :maxdepth: 2
 
-   elliptic/Elliptic
-   graphbean/graphbean
+   tutorials/elliptic/Elliptic
+   tutorials/graphbean/graphbean
