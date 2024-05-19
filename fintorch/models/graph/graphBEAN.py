@@ -9,6 +9,8 @@ import torch_geometric.nn as nng
 import torchmetrics
 from torch_geometric.nn import SAGEConv
 
+VERBOSE = False
+
 
 def GraphBEANLoss(feature_predictions, edge_predictions,
                   ground_truth_sampled_data, edge):
@@ -25,22 +27,41 @@ def GraphBEANLoss(feature_predictions, edge_predictions,
         torch.Tensor: The total loss value.
 
     """
-
+    if VERBOSE:
+        print("loss function started...")
     # Loss of the feature reconstruction per node type
     feature_loss = 0
     for key in feature_predictions.keys():
         feature_loss += nn.MSELoss()(feature_predictions[key],
                                      ground_truth_sampled_data[key].x)
-
     # Edge prediction loss (one edge type)
     src, to, dst = edge
     edge_loss = F.binary_cross_entropy_with_logits(
         edge_predictions, ground_truth_sampled_data[src, to, dst].edge_label)
-
     # Total loss function
     total_loss = feature_loss + edge_loss
-
+    if VERBOSE:
+        print(f"total_loss:{total_loss}")
     return total_loss
+    # print(f"loss function started...")
+    # # Loss of the feature reconstruction per node type
+    # feature_loss = 0
+    # for key in feature_predictions.keys():
+    #     feature_loss += nn.MSELoss()(
+    #         feature_predictions[key], ground_truth_sampled_data[key].x
+    #     )
+
+    # # Edge prediction loss (one edge type)
+    # src, to, dst = edge
+    # edge_loss = F.binary_cross_entropy_with_logits(
+    #     edge_predictions, ground_truth_sampled_data[src, to, dst].edge_label
+    # )
+
+    # # Total loss function
+    # total_loss = feature_loss + edge_loss
+
+    # print(f"total_loss:{total_loss}")
+    # return total_loss
 
 
 def GraphBEANLossClassifier(
@@ -71,6 +92,11 @@ def GraphBEANLossClassifier(
                          ground_truth_sampled_data, edge)
 
     classification_loss_fn = torch.nn.CrossEntropyLoss()
+    if VERBOSE:
+        print(
+            f"node_pre:{node_pred} gt:{node_ground_truth} unique:{node_ground_truth.unique()}"
+        )
+    # TODO: fix class loss
     class_loss = classification_loss_fn(node_pred, node_ground_truth)
 
     # Total loss function
@@ -99,7 +125,7 @@ class LinkClassifier(nn.Module):
         x_src_features = src[edge_label_index[0]]
         x_dst_features = dst[edge_label_index[1]]
 
-        return (x_src_features * x_dst_features).sum(dim=-1)
+        return torch.sigmoid((x_src_features * x_dst_features).sum(dim=-1))
 
 
 class GraphBEAN(nn.Module):
@@ -133,6 +159,7 @@ class GraphBEAN(nn.Module):
         hidden_channels: int,
         features_channels: dict,
         conv_type: callable,
+        edge_types,
     ):
         # GATConv, GATv2Conv, SAGEConv, GraphConv, ResGatedGraphConv, TransformerConv, MFConv, RGCNConv, GMMConv,
         # SplineConv, NNConv, CGConv, PointTransformerConv, LEConv, GENConv, FiLMConv, GeneralConv,
@@ -146,16 +173,26 @@ class GraphBEAN(nn.Module):
 
         # Encoder layers
         self.encoder_layers = nn.ModuleList()
-        self.encoder_layers.append(
-            self.EncoderLayer(hetero_data, (-1, -1), hidden_channels,
-                              conv_type))  # Pass conv_type argument
+        first_encoder_layer = nng.HeteroConv(
+            {
+                edge_type: conv_type(-1, hidden_channels)
+                for edge_type in edge_types
+            },
+            aggr="sum",
+        )
+
+        self.encoder_layers.append(first_encoder_layer)
+
+        # self.encoder_layers.append(
+        #     self.EncoderLayer(hetero_data, (-1, -1), hidden_channels, conv_type)
+        # )  # Pass conv_type argument
 
         for _ in range(n_encoder_layers - 1):
             self.encoder_layers.append(
                 nng.HeteroConv(
                     {
                         edge_type: conv_type(hidden_channels, hidden_channels)
-                        for edge_type in hetero_data.edge_types
+                        for edge_type in edge_types
                     },
                     aggr="sum",
                 ))  # Pass conv_type argument
@@ -167,7 +204,7 @@ class GraphBEAN(nn.Module):
                 nng.HeteroConv(
                     {
                         edge_type: conv_type(hidden_channels, hidden_channels)
-                        for edge_type in hetero_data.edge_types
+                        for edge_type in edge_types
                     },
                     aggr="sum",
                 ))
@@ -175,8 +212,8 @@ class GraphBEAN(nn.Module):
         decoder_last_conv_layer = nng.HeteroConv(
             {
                 edge_type:
-                SAGEConv(hidden_channels, features_channels[edge_type[2]])
-                for edge_type in hetero_data.edge_types
+                conv_type(hidden_channels, features_channels[edge_type[2]])
+                for edge_type in edge_types
             },
             aggr="sum",
         )
@@ -213,6 +250,11 @@ class GraphBEAN(nn.Module):
                 - feature_out (Tensor): The output of the feature decoding layers.
                 - edge_prediction (Tensor): The predicted edge labels.
         """
+        if VERBOSE:
+            print(f"Data:{data}\n data.edge_index_dict:{data.edge_index_dict}")
+        # print(f"Data sparse:{T.ToSparseTensor()(data)}")
+        # data = T.ToSparseTensor()(data)
+
         # loop through the encoder layers to obtain the hidden representation
         hidden_representation = data.x_dict
         for layer in self.encoder_layers:
@@ -221,12 +263,22 @@ class GraphBEAN(nn.Module):
                 data.edge_index_dict,
             )
 
+        if VERBOSE:
+            print(
+                f"hidden:{hidden_representation['transactions'].shape} and {hidden_representation['wallets'].shape}"
+            )
+        if VERBOSE:
+            print("Starting decoder part")
         # Obtain the feature decoding output after looping through the feature decoding layers
         feature_out = hidden_representation
         for layer in self.decoder_layers:
             feature_out = layer(
                 feature_out,
                 data.edge_index_dict,
+            )
+        if VERBOSE:
+            print(
+                f"Finished decoder:{feature_out['transactions'].shape} and {feature_out['wallets'].shape}"
             )
 
         src, to, dst = edge
@@ -252,6 +304,7 @@ class GraphBeanClassifier(nn.Module):
         class_head_layers: int = 1,
         classes: int = 3,
         conv_type: callable = SAGEConv,
+        edge_types=None,
     ):
 
         super().__init__()
@@ -265,6 +318,7 @@ class GraphBeanClassifier(nn.Module):
             hidden_channels,
             features_channels,
             conv_type,
+            edge_types,
         )
 
         self.classifierHead = nn.ModuleList([
@@ -272,7 +326,7 @@ class GraphBeanClassifier(nn.Module):
                                  hetero_data.metadata()[0])
         ])
 
-        for i in range(class_head_layers):
+        for _ in range(class_head_layers):
             self.classifierHead.append(
                 nng.HeteroDictLinear(hidden_channels, hidden_channels,
                                      hetero_data.metadata()[0]))
@@ -300,6 +354,7 @@ class GraphBEANModule(L.LightningModule):
     def __init__(
         self,
         edge,
+        edge_types,
         loss_fn=None,
         learning_rate=0.01,
         encoder_layers=2,
@@ -352,6 +407,7 @@ class GraphBEANModule(L.LightningModule):
         self.class_head_layers = class_head_layers
         self.classes = classes
         self.conv_type = conv_type
+        self.edge_types = edge_types
 
         self.accuracy = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=classes, average="macro")
@@ -407,6 +463,7 @@ class GraphBEANModule(L.LightningModule):
                 self.class_head_layers,
                 self.classes,
                 self.conv_type,
+                self.edge_types,
             )
 
         else:
@@ -418,6 +475,7 @@ class GraphBEANModule(L.LightningModule):
                 self.hidden_layers,
                 mapping,
                 self.conv_type,
+                self.edge_types,
             )
 
         self.optimizers = optim.Adam(self.model.parameters(),
