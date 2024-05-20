@@ -9,7 +9,7 @@ import torch_geometric.nn as nng
 import torchmetrics
 from torch_geometric.nn import SAGEConv
 
-VERBOSE = False
+VERBOSE = True
 
 
 def GraphBEANLoss(feature_predictions, edge_predictions,
@@ -92,12 +92,16 @@ def GraphBEANLossClassifier(
                          ground_truth_sampled_data, edge)
 
     classification_loss_fn = torch.nn.CrossEntropyLoss()
-    if VERBOSE:
-        print(
-            f"node_pre:{node_pred} gt:{node_ground_truth} unique:{node_ground_truth.unique()}"
-        )
+
     # TODO: fix class loss
-    class_loss = classification_loss_fn(node_pred, node_ground_truth)
+    # Filter for illict and licit class
+    idx = node_ground_truth != 3
+    filtered = node_ground_truth[idx]
+
+    if VERBOSE:
+        print(f"node_pre:{node_pred} gt:{filtered} unique:{filtered.unique()}")
+
+    class_loss = classification_loss_fn(node_pred[idx, :], filtered - 1)
 
     # Total loss function
     total_loss = loss + class_loss

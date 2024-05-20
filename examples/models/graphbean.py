@@ -17,6 +17,7 @@ module = GraphBEANModule(
     encoder_layers=2,
     decoder_layers=2,
     hidden_layers=100,
+    classes=2,
     classifier=True,
 )
 
