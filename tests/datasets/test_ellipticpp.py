@@ -2,7 +2,7 @@ import polars as pl
 import torch
 from torch_geometric.loader import LinkNeighborLoader
 
-from fintorch.datasets.ellipticpp import (EllipticDataModule,
+from fintorch.datasets.ellipticpp import (EllipticppDataModule,
                                           TransactionActorDataset)
 
 
@@ -90,7 +90,7 @@ def test_process():
 
 
 def test_setup():
-    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module = EllipticppDataModule(edge=("wallets", "to", "transactions"))
     data_module.setup()
     assert data_module.train_data is not None
     assert data_module.val_data is not None
@@ -98,42 +98,42 @@ def test_setup():
 
 
 def test_train_dataloader():
-    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module = EllipticppDataModule(edge=("wallets", "to", "transactions"))
     data_module.setup()
     train_dataloader = data_module.train_dataloader()
     assert train_dataloader is not None
 
 
 def test_train_dataloader_type():
-    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module = EllipticppDataModule(edge=("wallets", "to", "transactions"))
     data_module.setup()
     train_dataloader = data_module.train_dataloader()
     assert isinstance(train_dataloader, LinkNeighborLoader)
 
 
 def test_val_dataloader_type():
-    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module = EllipticppDataModule(edge=("wallets", "to", "transactions"))
     data_module.setup()
     val_dataloader = data_module.val_dataloader()
     assert isinstance(val_dataloader, LinkNeighborLoader)
 
 
 def test_val_dataloader():
-    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module = EllipticppDataModule(edge=("wallets", "to", "transactions"))
     data_module.setup()
     val_dataloader = data_module.val_dataloader()
     assert val_dataloader is not None
 
 
 def test_link_neighbor_loader_type():
-    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module = EllipticppDataModule(edge=("wallets", "to", "transactions"))
     data_module.setup()
     train_dataloader = data_module.train_dataloader()
     assert isinstance(train_dataloader, LinkNeighborLoader)
 
 
 def test_test_dataloader():
-    data_module = EllipticDataModule(edge=("wallets", "to", "transactions"))
+    data_module = EllipticppDataModule(edge=("wallets", "to", "transactions"))
     data_module.setup()
     test_dataloader = data_module.test_dataloader()
     assert test_dataloader is not None
