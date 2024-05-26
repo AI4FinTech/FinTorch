@@ -9,7 +9,7 @@ import torch_geometric.nn as nng
 import torchmetrics
 from torch_geometric.nn import SAGEConv
 
-VERBOSE = False
+VERBOSE = True
 
 
 def GraphBEANLoss(feature_predictions, edge_predictions,
@@ -355,6 +355,7 @@ class GraphBeanClassifier(nn.Module):
 
 class GraphBEANModule(L.LightningModule):
 
+    # TODO: clarify the api and settings!?
     def __init__(
         self,
         edge,
@@ -496,6 +497,8 @@ class GraphBEANModule(L.LightningModule):
         Returns:
             The output of the model.
         """
+        if VERBOSE:
+            print(f"forward module batch:{batch} edge:{edge}")
         return self.model(batch, edge)
 
     def loss(self, batch, class_probs, pred_features, pred_edges):
@@ -564,6 +567,8 @@ class GraphBEANModule(L.LightningModule):
         Returns:
             None
         """
+        if VERBOSE:
+            print(f"forward module batch:{batch} edge:{self.edge}")
         class_probs, _, pred_features, pred_edges = self(batch, self.edge)
         loss = self.loss(batch, class_probs, pred_features, pred_edges)
 
