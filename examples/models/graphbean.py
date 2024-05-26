@@ -1,11 +1,12 @@
 import lightning as L
 
-from fintorch.datasets.ellipticpp import EllipticDataModule
+from fintorch.datasets.ellipticpp import EllipticppDataModule
 from fintorch.graph.layers.beanconv import BEANConv
 from fintorch.models.graph.graphBEAN import GraphBEANModule
 
 # We use an example data module from the elliptic dataset which is bipartite
-data_module = EllipticDataModule(("wallets", "to", "transactions"))
+data_module = EllipticppDataModule(("wallets", "to", "transactions"),
+                                   force_reload=False)
 
 # Create an instance of the GraphBEANModule
 module = GraphBEANModule(
@@ -14,18 +15,13 @@ module = GraphBEANModule(
                 ("transactions", "to", "wallets")],
     learning_rate=0.001,
     conv_type=BEANConv,
-    encoder_layers=2,
-    decoder_layers=2,
-    hidden_layers=100,
-    classes=2,
-    classifier=True,
+    encoder_layers=5,
+    decoder_layers=5,
+    hidden_layers=50,
 )
 
 # Create a PyTorch Lightning Trainer and train the module
-trainer = L.Trainer(max_epochs=10,
-                    accelerator="cpu",
-                    limit_val_batches=0,
-                    num_sanity_val_steps=0)
+trainer = L.Trainer(max_epochs=100, accelerator="gpu")
 
 # Train the module using the dataloaders
 trainer.fit(module, datamodule=data_module)

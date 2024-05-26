@@ -9,7 +9,7 @@ import torch_geometric.nn as nng
 import torchmetrics
 from torch_geometric.nn import SAGEConv
 
-VERBOSE = True
+VERBOSE = False
 
 
 def GraphBEANLoss(feature_predictions, edge_predictions,
@@ -101,7 +101,7 @@ def GraphBEANLossClassifier(
     if VERBOSE:
         print(f"node_pre:{node_pred} gt:{filtered} unique:{filtered.unique()}")
 
-    class_loss = classification_loss_fn(node_pred[idx, :], filtered - 1)
+    class_loss = classification_loss_fn(node_pred[idx, :], filtered)
 
     # Total loss function
     total_loss = loss + class_loss
@@ -528,13 +528,28 @@ class GraphBEANModule(L.LightningModule):
 
         loss = self.loss(batch, class_probs, pred_features, pred_edges)
 
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, on_step=True, prog_bar=True)
+
+        node_ground_truth = batch[self.predict].y
+        idx = node_ground_truth != 2
+        batch_subset = node_ground_truth[idx]
 
         if self.classifier:
             output_class = torch.argmax(class_probs[self.predict],
                                         dim=1).long()
-            self.accuracy(output_class, batch[self.predict].y)
-            self.log("train_acc_step", self.accuracy)
+            output_class_subset = output_class[idx]
+            if VERBOSE:
+                print(
+                    f"output_class_subset:{output_class_subset.shape} batch_subset:{batch_subset.shape}"
+                )
+            self.accuracy(output_class_subset, batch_subset)
+            self.log(
+                "train_accuracy",
+                self.accuracy,
+                prog_bar=True,
+                on_step=True,
+                on_epoch=False,
+            )
 
         return loss
 
@@ -552,18 +567,25 @@ class GraphBEANModule(L.LightningModule):
         class_probs, _, pred_features, pred_edges = self(batch, self.edge)
         loss = self.loss(batch, class_probs, pred_features, pred_edges)
 
-        self.log("val_loss",
-                 loss,
-                 on_step=False,
-                 on_epoch=True,
-                 prog_bar=True,
-                 batch_size=16)
+        self.log(
+            "val_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=False,
+            batch_size=16,
+        )
+
+        node_ground_truth = batch[self.predict].y
+        idx_filter = node_ground_truth != 2
+        batch_subset = node_ground_truth[idx_filter]
 
         if self.classifier:
             # print(f"target:{batch['wallets'].y - 1}")
             output_class = torch.argmax(class_probs[self.predict],
                                         dim=1).long()
-            self.accuracy(output_class, batch[self.predict].y)
+            output_class_subset = output_class[idx_filter]
+            self.accuracy(output_class_subset, batch_subset)
             self.log(
                 "val_acc_step",
                 self.accuracy,
@@ -572,7 +594,7 @@ class GraphBEANModule(L.LightningModule):
                 prog_bar=True,
                 batch_size=16,
             )
-            self.f1(output_class, batch[self.predict].y)
+            self.f1(output_class_subset, batch_subset)
             self.log(
                 "val_f1",
                 self.f1,
@@ -581,7 +603,7 @@ class GraphBEANModule(L.LightningModule):
                 prog_bar=True,
                 batch_size=16,
             )
-            self.recall(output_class, batch[self.predict].y)
+            self.recall(output_class_subset, batch_subset)
             self.log(
                 "val_recall",
                 self.recall,
@@ -590,7 +612,7 @@ class GraphBEANModule(L.LightningModule):
                 prog_bar=True,
                 batch_size=16,
             )
-            self.precision(output_class, batch[self.predict].y)
+            self.precision(output_class_subset, batch_subset)
             self.log(
                 "val_precision",
                 self.precision,
@@ -599,24 +621,24 @@ class GraphBEANModule(L.LightningModule):
                 prog_bar=True,
                 batch_size=16,
             )
-            self.aucroc(
-                class_probs[self.predict],
-                batch[self.predict].y,
-            )
-            self.log(
-                "val_aucroc",
-                self.aucroc,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                batch_size=16,
-            )
-            self.validation_step_outputs.append({
-                "labels":
-                batch[self.predict].y,
-                "logits":
-                class_probs[self.predict],
-            })
+            # self.aucroc(
+            #     class_probs[idx_filter, self.predict],
+            #     batch_subset,
+            # )
+            # self.log(
+            #     "val_aucroc",
+            #     self.aucroc,
+            #     on_step=False,
+            #     on_epoch=True,
+            #     prog_bar=True,
+            #     batch_size=16,
+            # )
+            # self.validation_step_outputs.append(
+            #     {
+            #         "labels": batch_subset,
+            #         "logits": class_probs[idx_filter, self.predict],
+            #     }
+            # )
 
     def on_validation_epoch_end(self):
         """

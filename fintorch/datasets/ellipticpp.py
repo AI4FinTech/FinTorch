@@ -105,6 +105,9 @@ class TransactionActorDataset(InMemoryDataset):
         data = self.get(0)
         self.data, self.slices = self.collate([data])
 
+        if force_reload:
+            print("Forcing reload of the dataset")
+
         assert isinstance(self._data, HeteroData)
 
     @property
@@ -255,7 +258,8 @@ class TransactionActorDataset(InMemoryDataset):
         features_transaction = features_transaction.fill_null(0)
 
         # Load wallets features and classes into Polars DataFrame
-        features_wallets = pol.read_csv(self.downloaded_files[6])
+        features_wallets = self.map_classes(
+            pol.read_csv(self.downloaded_files[6]))
         features_wallets = features_wallets.fill_null(0)
 
         # Prepare labels
@@ -357,7 +361,7 @@ class TransactionActorDataset(InMemoryDataset):
         self.save([df], self.processed_paths[0])
 
 
-class EllipticDataModule(pl.LightningDataModule):
+class EllipticppDataModule(pl.LightningDataModule):
     """
     LightningDataModule for handling the Elliptic++ dataset. The EllipticDataModule class is responsible for loading,
     preprocessing, and preparing the Elliptic++ dataset for use in Lightning Model Modules.
@@ -391,6 +395,7 @@ class EllipticDataModule(pl.LightningDataModule):
         batch_size: int = 128,
         neg_sampling: str = "binary",
         num_workers: int = -1,
+        force_reload=False,
     ) -> None:
         super().__init__()
 
@@ -420,6 +425,7 @@ class EllipticDataModule(pl.LightningDataModule):
         self.num_neighbors = num_neighbors
         self.batch_size = batch_size
         self.neg_sampling = neg_sampling
+        self.force_reload = force_reload
 
         if num_workers == -1:
             self.num_workers = multiprocessing.cpu_count() - 1
@@ -428,7 +434,7 @@ class EllipticDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         dataset = TransactionActorDataset("~/.fintorch_data",
-                                          force_reload=False)
+                                          force_reload=self.force_reload)
         self.dataset = dataset[0]
         self.split_dataset(dataset[0])
 
