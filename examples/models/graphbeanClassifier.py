@@ -10,6 +10,8 @@ torch.set_float32_matmul_precision("medium")
 # We use an example data module from the elliptic dataset which is bipartite
 data_module = EllipticppDataModule(("wallets", "to", "transactions"),
                                    force_reload=False)
+data_module.setup()
+print(next(iter(data_module.train_dataloader())))
 
 # Create an instance of the GraphBEANModule
 module = GraphBEANModule(
