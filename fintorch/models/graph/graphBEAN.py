@@ -9,7 +9,7 @@ import torch_geometric.nn as nng
 import torchmetrics
 from torch_geometric.nn import SAGEConv
 
-VERBOSE = True
+VERBOSE = False
 
 
 def GraphBEANLoss(feature_predictions, edge_predictions,
