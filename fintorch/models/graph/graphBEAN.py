@@ -267,10 +267,10 @@ class GraphBEAN(nn.Module):
                 data.edge_index_dict,
             )
 
-        if VERBOSE:
-            print(
-                f"hidden:{hidden_representation['transactions'].shape} and {hidden_representation['wallets'].shape}"
-            )
+        # if VERBOSE:
+        #     print(
+        #         f"hidden:{hidden_representation['transactions'].shape} and {hidden_representation['wallets'].shape}"
+        #     )
         if VERBOSE:
             print("Starting decoder part")
         # Obtain the feature decoding output after looping through the feature decoding layers
@@ -280,10 +280,10 @@ class GraphBEAN(nn.Module):
                 feature_out,
                 data.edge_index_dict,
             )
-        if VERBOSE:
-            print(
-                f"Finished decoder:{feature_out['transactions'].shape} and {feature_out['wallets'].shape}"
-            )
+        # if VERBOSE:
+        #     print(
+        #         f"Finished decoder:{feature_out['transactions'].shape} and {feature_out['wallets'].shape}"
+        #     )
 
         src, to, dst = edge
 

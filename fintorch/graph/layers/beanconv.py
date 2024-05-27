@@ -23,14 +23,16 @@ class BeanAggregation(Aggregation):
 
     """
 
-    def forward(self,
-                x: Tensor,
-                index: Optional[Tensor] = None,
-                ptr: Optional[Tensor] = None,
-                dim_size: Optional[int] = None,
-                dim: int = -2,
-                edge_attr=None,
-                **kwargs) -> Tensor:
+    def forward(
+        self,
+        x: Tensor,
+        index: Optional[Tensor] = None,
+        ptr: Optional[Tensor] = None,
+        dim_size: Optional[int] = None,
+        dim: int = -2,
+        edge_attr=None,
+        **kwargs,
+    ) -> Tensor:
         """
         Performs the forward pass of the aggregation layer.
 
@@ -58,13 +60,13 @@ class BeanAggregation(Aggregation):
                                        ptr,
                                        dim_size,
                                        dim,
-                                       reduce='mean')
+                                       reduce="mean")
         output_edge_sum = self.reduce(edge_attr,
                                       index,
                                       ptr,
                                       dim_size,
                                       dim,
-                                      reduce='max')
+                                      reduce="max")
 
         # Concatenate outputs
         output = torch.cat(
@@ -89,13 +91,15 @@ class BeanAggregationSimple(Aggregation):
 
     """
 
-    def forward(self,
-                x: Tensor,
-                index: Optional[Tensor] = None,
-                ptr: Optional[Tensor] = None,
-                dim_size: Optional[int] = None,
-                dim: int = -2,
-                **kwargs) -> Tensor:
+    def forward(
+        self,
+        x: Tensor,
+        index: Optional[Tensor] = None,
+        ptr: Optional[Tensor] = None,
+        dim_size: Optional[int] = None,
+        dim: int = -2,
+        **kwargs,
+    ) -> Tensor:
         """
         Performs the forward pass of the aggregation layer.
 
@@ -131,7 +135,7 @@ class BEANConvSimple(MessagePassing):
         out_channels: int,
         bias: int = True,
         normalize: bool = True,
-        node_self_loop: bool = True,
+        node_self_loop: bool = False,
         aggr: Optional[Union[str, List[str], Aggregation]] = "mean",
         **kwargs,
     ):
@@ -182,7 +186,6 @@ class BEANConvSimple(MessagePassing):
         """
 
         output = self.propagate(edge_index, x=x)
-
         if self.node_self_loop:
             output = torch.cat((x[1], output), dim=1)
 
@@ -323,12 +326,14 @@ class BEANConv(MessagePassing):
 
         return output, edge_attr
 
-    def aggregate(self,
-                  inputs: Tensor,
-                  index: Tensor,
-                  ptr: Optional[Tensor] = None,
-                  edge_attr: Tensor = None,
-                  dim_size: Optional[int] = None) -> Tensor:
+    def aggregate(
+        self,
+        inputs: Tensor,
+        index: Tensor,
+        ptr: Optional[Tensor] = None,
+        edge_attr: Tensor = None,
+        dim_size: Optional[int] = None,
+    ) -> Tensor:
         """
         Aggregates the messages from neighboring nodes.
 
