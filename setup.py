@@ -10,16 +10,9 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "Click>=7.0",
-    "torch",
-    "torch_geometric",
-    "lightning",
-    "kaggle",
-    "polars",
-    "numpy",
-    "huggingface_hub",
-    "seaborn",
-    "networkx",
+    "Click>=7.0", "torch", "torch_geometric", "lightning", "kaggle", "polars",
+    "numpy", "huggingface_hub", "seaborn", "networkx", "optuna", "wand",
+    "optuna-integration"
 ]
 
 test_requirements = [
