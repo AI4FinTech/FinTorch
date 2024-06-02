@@ -424,22 +424,18 @@ class GraphBEANModule(L.LightningModule):
 
         self.accuracy = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=classes, average="macro")
-        self.accuracy_micro = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=classes, average="micro")
+
         self.f1 = torchmetrics.classification.F1Score(task="multiclass",
                                                       num_classes=classes,
                                                       average="macro")
-        self.f1_micro = torchmetrics.classification.F1Score(
-            task="multiclass", num_classes=classes, average="micro")
+
         self.recall = torchmetrics.classification.Recall(task="multiclass",
                                                          num_classes=classes,
                                                          average="macro")
-        self.recall_micro = torchmetrics.classification.Recall(
-            task="multiclass", num_classes=classes, average="micro")
+
         self.precision = torchmetrics.classification.Precision(
             task="multiclass", num_classes=classes, average="macro")
-        self.precision_micro = torchmetrics.classification.Precision(
-            task="multiclass", num_classes=classes, average="micro")
+
         self.confmat = torchmetrics.classification.ConfusionMatrix(
             task="multiclass", num_classes=classes)
 
@@ -629,43 +625,6 @@ class GraphBEANModule(L.LightningModule):
             self.log(
                 "val_precision",
                 self.precision,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                batch_size=64,
-            )
-
-            self.accuracy_micro(output_class_subset, batch_subset)
-            self.log(
-                "val_acc_micro",
-                self.accuracy_micro,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                batch_size=64,
-            )
-            self.f1(output_class_subset, batch_subset)
-            self.log(
-                "val_f1_micro",
-                self.f1_micro,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                batch_size=64,
-            )
-            self.recall(output_class_subset, batch_subset)
-            self.log(
-                "val_recall_micro",
-                self.recall_micro,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                batch_size=64,
-            )
-            self.precision(output_class_subset, batch_subset)
-            self.log(
-                "val_precision_micro",
-                self.precision_micro,
                 on_step=False,
                 on_epoch=True,
                 prog_bar=True,
