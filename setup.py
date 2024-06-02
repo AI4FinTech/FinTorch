@@ -39,9 +39,8 @@ setup(
     ],
     description="AI4FinTech project repository",
     entry_points={
-        "console_scripts": [
-            "fintorch=fintorch.cli:main",
-        ],
+        "console_scripts":
+        ["fintorch=fintorch.cli:fintorch", "fintrainer=fintorch.cli:trainer"],
     },
     install_requires=requirements,
     license="MIT license",

@@ -4,7 +4,7 @@ from torch_geometric.datasets import OGB_MAG
 from torch_geometric.loader import LinkNeighborLoader
 
 from fintorch.graph.layers.beanconv import BEANConvSimple
-from fintorch.models.graph.graphBEAN import GraphBEANModule
+from fintorch.models.graph.graphbean.graphBEAN import GraphBEANModule
 
 
 class OGBDataModule(L.LightningDataModule):

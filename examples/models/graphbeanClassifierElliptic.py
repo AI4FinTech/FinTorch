@@ -3,7 +3,7 @@ import torch
 
 from fintorch.datasets.ellipticpp import EllipticppDataModule
 from fintorch.graph.layers.beanconv import BEANConvSimple
-from fintorch.models.graph.graphBEAN import GraphBEANModule
+from fintorch.models.graph.graphbean.graphBEAN import GraphBEANModule
 
 torch.set_float32_matmul_precision("medium")
 
