@@ -29,7 +29,7 @@ class OGBDataModule(L.LightningDataModule):
         loader = LinkNeighborLoader(
             self.dataset,
             num_neighbors=num_neighbors,
-            batch_size=128,
+            batch_size=512,
             shuffle=True,
             edge_label_index=(
                 (src, to, dst),
@@ -78,6 +78,8 @@ module = GraphBEANModule(
     edge_types=[
         ("author", "writes", "paper"),
         ("paper", "rev_writes", "author"),
+        ("author", "affiliated_with", "institution"),
+        ("institution", "rev_affiliated_with", "author"),
     ],
     learning_rate=0.001,
     conv_type=BEANConvSimple,

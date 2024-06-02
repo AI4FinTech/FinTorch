@@ -135,7 +135,7 @@ class BEANConvSimple(MessagePassing):
         out_channels: int,
         bias: int = True,
         normalize: bool = True,
-        node_self_loop: bool = False,
+        node_self_loop: bool = True,
         aggr: Optional[Union[str, List[str], Aggregation]] = "mean",
         **kwargs,
     ):
@@ -196,17 +196,16 @@ class BEANConvSimple(MessagePassing):
 
         return output
 
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the layer.
 
-def __repr__(self) -> str:
-    """
-    Returns a string representation of the layer.
+        Returns:
+            str: The string representation of the layer.
 
-    Returns:
-        str: The string representation of the layer.
-
-    """
-    return (f"{self.__class__.__name__}({self.in_channels}, "
-            f"{self.out_channels}, aggr={self.aggr})")
+        """
+        return (f"{self.__class__.__name__}({self.in_channels}, "
+                f"{self.out_channels}, aggr={self.aggr})")
 
 
 class BEANConv(MessagePassing):
