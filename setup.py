@@ -40,7 +40,7 @@ setup(
     description="AI4FinTech project repository",
     entry_points={
         "console_scripts": [
-            "fintorch=fintorch.cli:fintorch",
+            "fintorch=fintorch.cli:main",
         ],
     },
     install_requires=requirements,

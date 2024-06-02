@@ -1,0 +1,12 @@
+model:
+  class_path: fintorch.models.graph.graphBEAN.GraphBEANModule
+  init_args:
+    edge_types: ['transactions_to_wallets', 'wallets_to_wallets']
+trainer:
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+data:
+  edge:
+    - transactions
+    - to
+    - wallets

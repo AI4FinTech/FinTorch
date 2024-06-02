@@ -27,41 +27,19 @@ def GraphBEANLoss(feature_predictions, edge_predictions,
         torch.Tensor: The total loss value.
 
     """
-    if VERBOSE:
-        print("loss function started...")
     # Loss of the feature reconstruction per node type
     feature_loss = 0
     for key in feature_predictions.keys():
         feature_loss += nn.MSELoss()(feature_predictions[key],
                                      ground_truth_sampled_data[key].x)
+
     # Edge prediction loss (one edge type)
     src, to, dst = edge
     edge_loss = F.binary_cross_entropy_with_logits(
         edge_predictions, ground_truth_sampled_data[src, to, dst].edge_label)
     # Total loss function
     total_loss = feature_loss + edge_loss
-    if VERBOSE:
-        print(f"total_loss:{total_loss}")
     return total_loss
-    # print(f"loss function started...")
-    # # Loss of the feature reconstruction per node type
-    # feature_loss = 0
-    # for key in feature_predictions.keys():
-    #     feature_loss += nn.MSELoss()(
-    #         feature_predictions[key], ground_truth_sampled_data[key].x
-    #     )
-
-    # # Edge prediction loss (one edge type)
-    # src, to, dst = edge
-    # edge_loss = F.binary_cross_entropy_with_logits(
-    #     edge_predictions, ground_truth_sampled_data[src, to, dst].edge_label
-    # )
-
-    # # Total loss function
-    # total_loss = feature_loss + edge_loss
-
-    # print(f"total_loss:{total_loss}")
-    # return total_loss
 
 
 def GraphBEANLossClassifier(
@@ -104,15 +82,40 @@ def GraphBEANLossClassifier(
     class_loss = classification_loss_fn(node_pred[idx, :], filtered)
 
     # Total loss function
-    total_loss = loss + class_loss
+    # total_loss = loss + class_loss * 100
+
+    weight = 3  # weight > 1, then class loss is weighted more
+    # Harmonic mean of feature_loss and total_loss
+    harmonic_mean = (1 + weight) * (loss * class_loss) / (weight * loss +
+                                                          class_loss)
+    total_loss = harmonic_mean
 
     return total_loss
 
 
-class LinkClassifier(nn.Module):
+class StructureDecoder(nn.Module):
     """
-    LinkClassifier is a PyTorch module that performs link classification in a graph.
+    StructureDecoder is a PyTorch module that performs link classification in a graph.
     """
+
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers):
+        super().__init__()
+
+        assert num_layers >= 2
+
+        self.mlp_layers_src = nn.ModuleList()
+        self.mlp_layers_src.append(nn.Linear(in_channels, hidden_channels))
+        for _ in range(num_layers - 2):
+            self.mlp_layers_src.append(
+                nn.Linear(hidden_channels, hidden_channels))
+        self.mlp_layers_src.append(nn.Linear(hidden_channels, out_channels))
+
+        self.mlp_layers_dst = nn.ModuleList()
+        self.mlp_layers_dst.append(nn.Linear(in_channels, hidden_channels))
+        for _ in range(num_layers - 2):
+            self.mlp_layers_dst.append(
+                nn.Linear(hidden_channels, hidden_channels))
+        self.mlp_layers_dst.append(nn.Linear(hidden_channels, out_channels))
 
     def forward(self, src, dst, edge_label_index):
         """
@@ -129,7 +132,17 @@ class LinkClassifier(nn.Module):
         x_src_features = src[edge_label_index[0]]
         x_dst_features = dst[edge_label_index[1]]
 
-        return torch.sigmoid((x_src_features * x_dst_features).sum(dim=-1))
+        # Loop over the self.mlp_layers_src
+        src = x_src_features
+        for layer in self.mlp_layers_src:
+            src = layer(src)
+
+        # Loop over the self.mlp_layers_dst
+        dst = x_dst_features
+        for layer in self.mlp_layers_dst:
+            dst = layer(dst)
+
+        return torch.sigmoid((src * dst).sum(dim=-1))
 
 
 class GraphBEAN(nn.Module):
@@ -157,7 +170,7 @@ class GraphBEAN(nn.Module):
 
     def __init__(
         self,
-        hetero_data,
+        heterodata,
         n_encoder_layers: int,
         n_feature_decoder_layers: int,
         hidden_channels: int,
@@ -165,8 +178,6 @@ class GraphBEAN(nn.Module):
         conv_type: callable,
         edge_types,
     ):
-        # GATConv, GATv2Conv, SAGEConv, GraphConv, ResGatedGraphConv, TransformerConv, MFConv, RGCNConv, GMMConv,
-        # SplineConv, NNConv, CGConv, PointTransformerConv, LEConv, GENConv, FiLMConv, GeneralConv,
         super().__init__()
 
         assert n_encoder_layers > 0, "Number of encoder layers must be greater than 0."
@@ -186,10 +197,6 @@ class GraphBEAN(nn.Module):
         )
 
         self.encoder_layers.append(first_encoder_layer)
-
-        # self.encoder_layers.append(
-        #     self.EncoderLayer(hetero_data, (-1, -1), hidden_channels, conv_type)
-        # )  # Pass conv_type argument
 
         for _ in range(n_encoder_layers - 1):
             self.encoder_layers.append(
@@ -225,7 +232,8 @@ class GraphBEAN(nn.Module):
         self.decoder_layers.append(decoder_last_conv_layer)
 
         # Graph classifier head
-        self.graph_edge_prediction = LinkClassifier()
+        self.graph_edge_prediction = StructureDecoder(hidden_channels,
+                                                      hidden_channels, 50, 10)
 
     def EncoderLayer(self, hetero_data, in_channels, out_channels, conv_type):
 
@@ -254,10 +262,6 @@ class GraphBEAN(nn.Module):
                 - feature_out (Tensor): The output of the feature decoding layers.
                 - edge_prediction (Tensor): The predicted edge labels.
         """
-        if VERBOSE:
-            print(f"Data:{data}\n data.edge_index_dict:{data.edge_index_dict}")
-        # print(f"Data sparse:{T.ToSparseTensor()(data)}")
-        # data = T.ToSparseTensor()(data)
 
         # loop through the encoder layers to obtain the hidden representation
         hidden_representation = data.x_dict
@@ -266,13 +270,11 @@ class GraphBEAN(nn.Module):
                 hidden_representation,
                 data.edge_index_dict,
             )
+            hidden_representation = {
+                key: F.relu(x)
+                for key, x in hidden_representation.items()
+            }
 
-        # if VERBOSE:
-        #     print(
-        #         f"hidden:{hidden_representation['transactions'].shape} and {hidden_representation['wallets'].shape}"
-        #     )
-        if VERBOSE:
-            print("Starting decoder part")
         # Obtain the feature decoding output after looping through the feature decoding layers
         feature_out = hidden_representation
         for layer in self.decoder_layers:
@@ -280,10 +282,7 @@ class GraphBEAN(nn.Module):
                 feature_out,
                 data.edge_index_dict,
             )
-        # if VERBOSE:
-        #     print(
-        #         f"Finished decoder:{feature_out['transactions'].shape} and {feature_out['wallets'].shape}"
-        #     )
+            feature_out = {key: F.relu(x) for key, x in feature_out.items()}
 
         src, to, dst = edge
 
@@ -412,19 +411,35 @@ class GraphBEANModule(L.LightningModule):
         self.class_head_layers = class_head_layers
         self.classes = classes
         self.conv_type = conv_type
+
         self.edge_types = edge_types
+        if isinstance(self.edge_types, str):
+            self.edge_types = [self.edge_types
+                               ]  # Handle single edge type as a list
+
+        # Convert edge_type strings to tuples
+        self.edge_types = [
+            tuple(edge_type.split('_')) for edge_type in self.edge_types
+        ]
 
         self.accuracy = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=classes, average="macro")
+        self.accuracy_micro = torchmetrics.classification.Accuracy(
+            task="multiclass", num_classes=classes, average="micro")
         self.f1 = torchmetrics.classification.F1Score(task="multiclass",
                                                       num_classes=classes,
                                                       average="macro")
+        self.f1_micro = torchmetrics.classification.F1Score(
+            task="multiclass", num_classes=classes, average="micro")
         self.recall = torchmetrics.classification.Recall(task="multiclass",
                                                          num_classes=classes,
                                                          average="macro")
+        self.recall_micro = torchmetrics.classification.Recall(
+            task="multiclass", num_classes=classes, average="micro")
         self.precision = torchmetrics.classification.Precision(
             task="multiclass", num_classes=classes, average="macro")
-
+        self.precision_micro = torchmetrics.classification.Precision(
+            task="multiclass", num_classes=classes, average="micro")
         self.confmat = torchmetrics.classification.ConfusionMatrix(
             task="multiclass", num_classes=classes)
 
@@ -541,10 +556,6 @@ class GraphBEANModule(L.LightningModule):
             output_class = torch.argmax(class_probs[self.predict],
                                         dim=1).long()
             output_class_subset = output_class[idx]
-            if VERBOSE:
-                print(
-                    f"output_class_subset:{output_class_subset.shape} batch_subset:{batch_subset.shape}"
-                )
             self.accuracy(output_class_subset, batch_subset)
             self.log(
                 "train_accuracy",
@@ -567,8 +578,6 @@ class GraphBEANModule(L.LightningModule):
         Returns:
             None
         """
-        if VERBOSE:
-            print(f"forward module batch:{batch} edge:{self.edge}")
         class_probs, _, pred_features, pred_edges = self(batch, self.edge)
         loss = self.loss(batch, class_probs, pred_features, pred_edges)
 
@@ -578,7 +587,7 @@ class GraphBEANModule(L.LightningModule):
             on_step=False,
             on_epoch=True,
             prog_bar=False,
-            batch_size=16,
+            batch_size=64,
         )
 
         node_ground_truth = batch[self.predict].y
@@ -586,7 +595,6 @@ class GraphBEANModule(L.LightningModule):
         batch_subset = node_ground_truth[idx_filter]
 
         if self.classifier:
-            # print(f"target:{batch['wallets'].y - 1}")
             output_class = torch.argmax(class_probs[self.predict],
                                         dim=1).long()
             output_class_subset = output_class[idx_filter]
@@ -597,7 +605,7 @@ class GraphBEANModule(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 prog_bar=True,
-                batch_size=16,
+                batch_size=64,
             )
             self.f1(output_class_subset, batch_subset)
             self.log(
@@ -606,7 +614,7 @@ class GraphBEANModule(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 prog_bar=True,
-                batch_size=16,
+                batch_size=64,
             )
             self.recall(output_class_subset, batch_subset)
             self.log(
@@ -615,7 +623,7 @@ class GraphBEANModule(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 prog_bar=True,
-                batch_size=16,
+                batch_size=64,
             )
             self.precision(output_class_subset, batch_subset)
             self.log(
@@ -624,26 +632,45 @@ class GraphBEANModule(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 prog_bar=True,
-                batch_size=16,
+                batch_size=64,
             )
-            # self.aucroc(
-            #     class_probs[idx_filter, self.predict],
-            #     batch_subset,
-            # )
-            # self.log(
-            #     "val_aucroc",
-            #     self.aucroc,
-            #     on_step=False,
-            #     on_epoch=True,
-            #     prog_bar=True,
-            #     batch_size=16,
-            # )
-            # self.validation_step_outputs.append(
-            #     {
-            #         "labels": batch_subset,
-            #         "logits": class_probs[idx_filter, self.predict],
-            #     }
-            # )
+
+            self.accuracy_micro(output_class_subset, batch_subset)
+            self.log(
+                "val_acc_micro",
+                self.accuracy_micro,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=64,
+            )
+            self.f1(output_class_subset, batch_subset)
+            self.log(
+                "val_f1_micro",
+                self.f1_micro,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=64,
+            )
+            self.recall(output_class_subset, batch_subset)
+            self.log(
+                "val_recall_micro",
+                self.recall_micro,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=64,
+            )
+            self.precision(output_class_subset, batch_subset)
+            self.log(
+                "val_precision_micro",
+                self.precision_micro,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=64,
+            )
 
     def on_validation_epoch_end(self):
         """
@@ -654,32 +681,6 @@ class GraphBEANModule(L.LightningModule):
         Returns:
             None
         """
-
-        # print(f"all val outputs:{len(self.validation_step_outputs)}")
-
-        # labels = torch.cat([x["labels"] for x in self.validation_step_outputs])
-        # logits = torch.cat([x["logits"] for x in self.validation_step_outputs])
-        # preds = torch.argmax(logits, dim=1).long()
-        # print(f"labs:{labels.cpu().numpy()} log:{logits}")
-
-        # wandb.log({
-        #     "conf_mat":
-        #     wandb.plot.confusion_matrix(
-        #         y_true=labels.cpu().numpy(),
-        #         preds=preds.cpu().numpy(),
-        #         class_names=["licit", "illicit"],
-        #     )
-        # })
-
-        # wandb.log({
-        #     "pr":
-        #     wandb.plot.pr_curve(
-        #         labels.cpu().numpy(),
-        #         logits.cpu().numpy(),
-        #         labels=["licit", "illicit"],
-        #         classes_to_plot=None,
-        #     )
-        # })
 
         self.validation_step_outputs.clear()
 
