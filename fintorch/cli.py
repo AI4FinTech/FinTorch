@@ -51,16 +51,6 @@ def train(model):
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)
 
 
-# if __name__ == "__main__":
-#     fintorch()
-
-# from lightning.pytorch.callbacks import ModelCheckpoint
-# from lightning.pytorch.callbacks.early_stopping import EarlyStopping
-# from lightning.pytorch.cli import LightningCLI
-
-# from fintorch.datasets.ellipticpp import EllipticppDataModule
-
-
 def trainer():
     cli = LightningCLI(
         run=False,
@@ -76,7 +66,3 @@ def trainer():
     )
 
     cli.trainer.fit(cli.model, datamodule=cli.datamodule)
-
-
-# if __name__ == "__main__":
-#     main()
