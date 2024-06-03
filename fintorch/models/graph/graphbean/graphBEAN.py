@@ -414,13 +414,16 @@ class GraphBEANModule(L.LightningModule):
 
         self.edge_types = edge_types
         if isinstance(self.edge_types, str):
-            self.edge_types = [self.edge_types
-                               ]  # Handle single edge type as a list
+            self.edge_types = [self.edge_types]
 
         # Convert edge_type strings to tuples
         self.edge_types = [
-            tuple(edge_type.split('_')) for edge_type in self.edge_types
+            tuple(edge_type.split('_'))
+            if isinstance(edge_type, str) else edge_type
+            for edge_type in self.edge_types
         ]
+
+        print(f"Edge types:{self.edge_types}")
 
         self.accuracy = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=classes, average="macro")

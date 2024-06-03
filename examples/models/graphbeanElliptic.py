@@ -11,7 +11,8 @@ data_module = EllipticppDataModule(("wallets", "to", "transactions"),
 # Create an instance of the GraphBEANModule
 module = GraphBEANModule(
     ("wallets", "to", "transactions"),
-    edge_types=[("wallets_to_transactions"), ("transactions_to_wallets")],
+    edge_types=[("wallets", "to", "transactions"),
+                ("transactions", "to", "wallets")],
     learning_rate=0.001,
     conv_type=BEANConvSimple,
     encoder_layers=5,
