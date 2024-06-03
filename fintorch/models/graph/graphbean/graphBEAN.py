@@ -423,8 +423,6 @@ class GraphBEANModule(L.LightningModule):
             for edge_type in self.edge_types
         ]
 
-        print(f"Edge types:{self.edge_types}")
-
         self.accuracy = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=classes, average="macro")
 
