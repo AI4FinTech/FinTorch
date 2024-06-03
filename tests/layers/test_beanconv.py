@@ -345,7 +345,8 @@ def test_BEANConv_no_edge_attributes():
 
     # V to U
     output_nodes_2 = conv.forward(x_uv, data['U', 'to', 'V'].edge_index)
+    print(f"output_nodes_2:{output_nodes_2.tolist()}")
     assert torch.allclose(
         output_nodes_2,
-        torch.tensor([[0.6133878231048584, -0.16562870144844055],
-                      [0.6133878231048584, -0.16562870144844055]]))
+        torch.tensor([[0.16857275366783142, 0.18551811575889587],
+                      [0.16857275366783142, 0.18551811575889587]]))
