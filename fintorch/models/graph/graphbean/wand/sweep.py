@@ -32,7 +32,7 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
         class_head_layers=class_head_layers,
         hidden_layers=hidden_layers,
         structure_decoder_head_layers=structure_decoder_head_layers,
-        structure_decoder_head_out_channel=structure_decoder_head_out_channel,
+        structure_decoder_head_out_channels=structure_decoder_head_out_channel,
         conv_type=BEANConvSimple,
         classifier=True,
         predict="transactions",
