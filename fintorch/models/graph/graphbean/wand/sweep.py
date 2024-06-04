@@ -18,6 +18,10 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
     class_head_layers = trial.suggest_int("class_head_layers", 1, 50)
     hidden_layers = trial.suggest_int("hidden_layers", 8, 512)
     learning_rate = trial.suggest_float("learning_rate", 0.0001, 0.001)
+    structure_decoder_head_layers = trial.suggest_int(
+        'structure_decoder_head_layers', 2, 64)
+    structure_decoder_head_out_channel = trial.suggest_int(
+        'structure_decoder_head_out_channel', 16, 256)
 
     model = GraphBEANModule(
         ("wallets", "to", "transactions"),
@@ -27,6 +31,8 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
         learning_rate=learning_rate,
         class_head_layers=class_head_layers,
         hidden_layers=hidden_layers,
+        structure_decoder_head_layers=structure_decoder_head_layers,
+        structure_decoder_head_out_channel=structure_decoder_head_out_channel,
         conv_type=BEANConvSimple,
         classifier=True,
         predict="transactions",
