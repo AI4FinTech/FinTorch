@@ -14,7 +14,7 @@ def test_download():
 
 def test_map_classes():
     dataset = TransactionActorDataset(root="test_data")
-    df = pl.DataFrame({"class": ["unknown", "1", "2"]})
+    df = pl.DataFrame({"class": ["3", "2", "1"]})
     mapped_df = dataset.map_classes(df)
     assert mapped_df["class"].to_list() == [2, 1, 0]
 
