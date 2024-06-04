@@ -19,6 +19,7 @@ class TransactionActorDataset(InMemoryDataset):
     Extends the Elliptic Data Set by incorporating wallet addresses (actors) to
     enable the detection of illicit activity in the Bitcoin network.
 
+
     Purpose:
 
     * Maps Bitcoin transactions to real-world entities, including wallet addresses.
@@ -43,6 +44,12 @@ class TransactionActorDataset(InMemoryDataset):
     features please see the elliptic.TransactionDataset.
 
     Note: we replaced all null values with 0 values.
+
+    Class distribution:
+
+    * Illicit (0)	4,545
+    * Licit (1)	42,019
+    * Unknown (2)	157,205
 
     **Transaction related:**
 
@@ -155,13 +162,13 @@ class TransactionActorDataset(InMemoryDataset):
             DataFrame: The modified DataFrame with the 'class' column mapped to numerical values.
         """
         # Mapping 'class' column to numerics
-        # The dataset has licit (0), illicit (1), and unknown (2) entities.
+        # The dataset has illicit (0), licit (1), and unknown (2) entities.
         return df.with_columns(
             pol.col("class").cast(pol.Utf8).map_elements(
                 lambda x: {
-                    "unknown": 2,
-                    "1": 1,
-                    "2": 0
+                    "3": 2,
+                    "2": 1,
+                    "1": 0
                 }.get(x),
                 return_dtype=pol.Int64))
 
@@ -517,7 +524,7 @@ class EllipticppDataModule(pl.LightningDataModule):
         """
         src, to, dst = self.edge
         loader = LinkNeighborLoader(
-            self.val_data,
+            self.test_data,
             num_neighbors=self.num_neighbors,
             batch_size=self.batch_size,
             edge_label_index=(

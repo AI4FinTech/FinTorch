@@ -9,8 +9,6 @@ import torch_geometric.nn as nng
 import torchmetrics
 from torch_geometric.nn import SAGEConv
 
-VERBOSE = False
-
 
 def GraphBEANLoss(feature_predictions, edge_predictions,
                   ground_truth_sampled_data, edge):
@@ -20,7 +18,7 @@ def GraphBEANLoss(feature_predictions, edge_predictions,
     Args:
         feature_predictions (dict): A dictionary containing the predicted features for each node type.
         edge_predictions (torch.Tensor): The predicted edge values.
-        ground_truth_sampled_data (dict): A dictionary containing the ground truth sampled data for each node type.
+        ground_truth_sampled_data (dict): A dictionary containing the ground truth data for each node type.
         edge (tuple): A tuple representing the source, target, and destination nodes for the edge.
 
     Returns:
@@ -52,11 +50,14 @@ def GraphBEANLossClassifier(
 ):
     """
     Calculates the total loss for the GraphBEAN model with a classifier.
+    We assume 3 classes:
+    * 0/1: two classes of interest
+    * 2: the class we exlcude (for example unlabelled data)
 
     Args:
         feature_predictions (Tensor): Predictions of the node features.
         edge_predictions (Tensor): Predictions of the edge features.
-        ground_truth_sampled_data (Tensor): Ground truth sampled data.
+        ground_truth_sampled_data (Tensor): Ground truth data.
         edge (Tensor): Edge tensor.
         node_pred (Tensor): Predictions of the node labels.
         node_ground_truth (Tensor): Ground truth node labels.
@@ -71,18 +72,13 @@ def GraphBEANLossClassifier(
 
     classification_loss_fn = torch.nn.CrossEntropyLoss()
 
-    # TODO: fix class loss
-    # Filter for illict and licit class
-    idx = node_ground_truth != 3
+    # We assume that we have classes 1/2/3 where 3 is unlabbeled. We filter on 3.
+    # Define more elegant solution see issue
+
+    idx = node_ground_truth != 2
     filtered = node_ground_truth[idx]
 
-    if VERBOSE:
-        print(f"node_pre:{node_pred} gt:{filtered} unique:{filtered.unique()}")
-
     class_loss = classification_loss_fn(node_pred[idx, :], filtered)
-
-    # Total loss function
-    # total_loss = loss + class_loss * 100
 
     weight = 3  # weight > 1, then class loss is weighted more
     # Harmonic mean of feature_loss and total_loss
@@ -95,7 +91,17 @@ def GraphBEANLossClassifier(
 
 class StructureDecoder(nn.Module):
     """
-    StructureDecoder is a PyTorch module that performs link classification in a graph.
+    Structure decoder module for the graphBEAN model.
+
+    Args:
+        in_channels (int): Number of input channels.
+        hidden_channels (int): Number of hidden channels.
+        out_channels (int): Number of output channels.
+        num_layers (int): Number of layers in the MLP.
+
+    Attributes:
+        mlp_layers_src (nn.ModuleList): List of MLP layers for source node features.
+        mlp_layers_dst (nn.ModuleList): List of MLP layers for destination node features.
     """
 
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers):
@@ -119,7 +125,7 @@ class StructureDecoder(nn.Module):
 
     def forward(self, src, dst, edge_label_index):
         """
-        Performs the forward pass of the LinkClassifier model.
+        Performs the forward pass of the StructureDecoder model.
 
         Args:
             src (torch.Tensor): Source node features.
@@ -147,36 +153,41 @@ class StructureDecoder(nn.Module):
 
 class GraphBEAN(nn.Module):
     """
-    GraphBEAN (Graph Bipartite Edge and Node) model for interaction-focused anomaly detection on bipartite
-    node-and-edge-attributed graphs. We modified the original implementation to include a classification head such
-    that the model works for semi-supervised settings.
+    GraphBEAN model for interaction-focused anomaly detection on bipartite node-and-edge-attributed graphs.
 
     Reference:
     Fathony, R., Ng, J., & Chen, J. (2023, June). Interaction-focused anomaly detection on bipartite
     node-and-edge-attributed graphs. In 2023 International Joint Conference on Neural Networks (IJCNN) (pp. 1-10). IEEE.
 
     Args:
-        hetero_data (HeteroData): The heterogeneous graph data.
         n_encoder_layers (int): Number of encoder layers.
         n_feature_decoder_layers (int): Number of feature decoder layers.
         hidden_channels (int): Number of hidden channels.
-        features_channels (dict): Dictionary specifying the number of channels for each edge type.
+        features_channels (dict): Dictionary mapping edge types to feature channels.
+        structure_decoder_head_out_channels (int): Number of output channels for the structure decoder.
+        structure_decoder_head_layers (int): Number of layers for the structure decoder.
+        conv_type (callable): Convolutional layer type.
+        edge_types: List of edge types.
+        aggr (str, optional): Aggregation method for the convolutional layers. Defaults to 'sum'.
 
     Attributes:
         encoder_layers (nn.ModuleList): List of encoder layers.
         decoder_layers (nn.ModuleList): List of feature decoder layers.
-        graph_edge_prediction (LinkClassifier): Link classifier for graph edge prediction.
+        graph_edge_prediction (StructureDecoder): Graph classifier head.
+
     """
 
     def __init__(
         self,
-        heterodata,
         n_encoder_layers: int,
         n_feature_decoder_layers: int,
         hidden_channels: int,
         features_channels: dict,
+        structure_decoder_head_out_channels: int,
+        structure_decoder_head_layers: int,
         conv_type: callable,
         edge_types,
+        aggr: str = 'sum',
     ):
         super().__init__()
 
@@ -193,7 +204,7 @@ class GraphBEAN(nn.Module):
                 edge_type: conv_type(-1, hidden_channels)
                 for edge_type in edge_types
             },
-            aggr="sum",
+            aggr=aggr,
         )
 
         self.encoder_layers.append(first_encoder_layer)
@@ -205,7 +216,7 @@ class GraphBEAN(nn.Module):
                         edge_type: conv_type(hidden_channels, hidden_channels)
                         for edge_type in edge_types
                     },
-                    aggr="sum",
+                    aggr=aggr,
                 ))  # Pass conv_type argument
 
         # FeatureDecoder layers
@@ -217,7 +228,7 @@ class GraphBEAN(nn.Module):
                         edge_type: conv_type(hidden_channels, hidden_channels)
                         for edge_type in edge_types
                     },
-                    aggr="sum",
+                    aggr=aggr,
                 ))
 
         decoder_last_conv_layer = nng.HeteroConv(
@@ -226,26 +237,15 @@ class GraphBEAN(nn.Module):
                 conv_type(hidden_channels, features_channels[edge_type[2]])
                 for edge_type in edge_types
             },
-            aggr="sum",
+            aggr=aggr,
         )
 
         self.decoder_layers.append(decoder_last_conv_layer)
 
         # Graph classifier head
-        self.graph_edge_prediction = StructureDecoder(hidden_channels,
-                                                      hidden_channels, 50, 10)
-
-    def EncoderLayer(self, hetero_data, in_channels, out_channels, conv_type):
-
-        conv_layer = nng.HeteroConv(
-            {
-                edge_type: conv_type(in_channels, out_channels)
-                for edge_type in hetero_data.edge_types
-            },
-            aggr="sum",
-        )
-
-        return conv_layer
+        self.graph_edge_prediction = StructureDecoder(
+            hidden_channels, hidden_channels,
+            structure_decoder_head_out_channels, structure_decoder_head_layers)
 
     def forward(self, data, edge):
         """
@@ -257,7 +257,7 @@ class GraphBEAN(nn.Module):
 
         Returns:
             Tuple: A tuple containing the following elements:
-                - None: Placeholder for future use.
+                - None: Placeholder for future use (classification model).
                 - hidden_representation (Tensor): The hidden representation obtained from the encoder layers.
                 - feature_out (Tensor): The output of the feature decoding layers.
                 - edge_prediction (Tensor): The predicted edge labels.
@@ -296,32 +296,65 @@ class GraphBEAN(nn.Module):
 
 
 class GraphBeanClassifier(nn.Module):
+    """
+    GraphBEAN model for interaction-focused anomaly detection on bipartite node-and-edge-attributed graphs.
+    We ammended the original implementation to include a classification head such that the model works for
+    semi-supervised settings.
 
-    def __init__(
-        self,
-        hetero_data,
-        n_encoder_layers: int,
-        n_feature_decoder_layers: int,
-        hidden_channels: int,
-        features_channels: Dict,
-        class_head_layers: int = 1,
-        classes: int = 3,
-        conv_type: callable = SAGEConv,
-        edge_types=None,
-    ):
+    Reference:
+    Fathony, R., Ng, J., & Chen, J. (2023, June). Interaction-focused anomaly detection on bipartite
+    node-and-edge-attributed graphs. In 2023 International Joint Conference on Neural Networks (IJCNN) (pp. 1-10). IEEE.
+
+
+    Args:
+        hetero_data (torch_geometric.data.HeteroData): The heterogeneous input graph data.
+        n_encoder_layers (int): The number of layers in the encoder.
+        n_feature_decoder_layers (int): The number of layers in the feature decoder.
+        hidden_channels (int): The number of hidden channels in the model.
+        features_channels (Dict): A dictionary specifying the number of channels for each feature type.
+        structure_decoder_head_out_channels (int): The number of output channels in the structure decoder head.
+        structure_decoder_head_layers (int): The number of layers in the structure decoder head.
+        class_head_layers (int, optional): The number of layers in the classifier head. Defaults to 1.
+        classes (int, optional): The number of classes for classification. Defaults to 3.
+        conv_type (callable, optional): The type of convolutional layer to use. Defaults to SAGEConv.
+        edge_types (list, optional): A list specifying the types of edges in the graph. Defaults to None.
+        aggr (str, optional): The aggregation method to use. Defaults to 'sum'.
+
+    Attributes:
+        data_types (list): A list of the data types in the heterogeneous graph.
+        graph_bean_layer (GraphBEAN): The GraphBEAN layer.
+        classifierHead (nn.ModuleList): The classifier head module list.
+
+    """
+
+    def __init__(self,
+                 hetero_data,
+                 n_encoder_layers: int,
+                 n_feature_decoder_layers: int,
+                 hidden_channels: int,
+                 features_channels: Dict,
+                 structure_decoder_head_out_channels: int,
+                 structure_decoder_head_layers: int,
+                 class_head_layers: int = 1,
+                 classes: int = 3,
+                 conv_type: callable = SAGEConv,
+                 edge_types=None,
+                 aggr='sum'):
 
         super().__init__()
 
         self.data_types = hetero_data.metadata()[0]
 
         self.graph_bean_layer = GraphBEAN(
-            hetero_data,
             n_encoder_layers,
             n_feature_decoder_layers,
             hidden_channels,
             features_channels,
+            structure_decoder_head_out_channels,
+            structure_decoder_head_layers,
             conv_type,
             edge_types,
+            aggr,
         )
 
         self.classifierHead = nn.ModuleList([
@@ -338,6 +371,22 @@ class GraphBeanClassifier(nn.Module):
                                  hetero_data.metadata()[0]))
 
     def forward(self, data, edge):
+        """
+        Forward pass of the GraphBeanClassifier.
+
+        Args:
+            data (torch_geometric.data.Data): The input graph data.
+            edge (torch.Tensor): The edge indices of the graph.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: The output tensors from the forward pass.
+                - class_probs (torch.Tensor): The class probabilities.
+                - hidden_representation (torch.Tensor): The hidden representation.
+                - feature_out (torch.Tensor): The output features.
+                - edge_prediction (torch.Tensor): The edge predictions.
+
+        """
+
         _, hidden_representation, feature_out, edge_prediction = self.graph_bean_layer(
             data, edge)
 
@@ -353,45 +402,52 @@ class GraphBeanClassifier(nn.Module):
 
 
 class GraphBEANModule(L.LightningModule):
+    """
+    LightningModule implementation for the GraphBEAN model.
 
-    # TODO: clarify the api and settings!?
-    def __init__(
-        self,
-        edge,
-        edge_types,
-        loss_fn=None,
-        learning_rate=0.01,
-        encoder_layers=2,
-        decoder_layers=2,
-        hidden_layers=128,
-        classifier: bool = False,
-        class_head_layers=3,
-        classes=2,
-        predict="wallets",
-        data=None,
-        conv_type: callable = SAGEConv,
-    ):
-        """
-        Initializes the GraphBEAN model.
+    Args:
+        edge: The input edge.
+        edge_types: The types of edges in the graph.
+        loss_fn: The loss function to use. Defaults to None.
+        learning_rate: The learning rate for the optimizer. Defaults to 0.01.
+        encoder_layers: The number of layers in the encoder. Defaults to 2.
+        decoder_layers: The number of layers in the decoder. Defaults to 2.
+        hidden_layers: The number of hidden layers. Defaults to 128.
+        structure_decoder_head_out_channels: The number of output channels in the structure decoder head.
+        Defaults to 50.
+        structure_decoder_head_layers: The number of layers in the structure decoder head. Defaults to 10.
+        classifier: Whether the model is a classifier. Defaults to False.
+        class_head_layers: The number of layers in the class head. Defaults to 3.
+        classes: The number of classes. Defaults to 2.
+        predict: The attribute to predict. Defaults to None.
+        data: The dataset. Defaults to None.
+        conv_type: The type of convolutional layer to use. Defaults to SAGEConv.
+        aggr: The aggregation method for the convolutional layer. Defaults to 'sum'.
+    """
 
-        Args:
-            edge (str): The edge type.
-            model (torch.nn.Module, optional): The underlying model architecture. Defaults to None.
-            loss_fn (callable, optional): The loss function. Defaults to None.
-            learning_rate (float, optional): The learning rate. Defaults to 0.01.
-            encoder_layers (int, optional): The number of encoder layers. Defaults to 2.
-            decoder_layers (int, optional): The number of decoder layers. Defaults to 2.
-            hidden_layers (int, optional): The number of hidden layers. Defaults to 128.
-            classifier (bool, optional): Whether the model is a classifier. Defaults to False.
-            class_head_layers (int, optional): The number of layers in the classification head. Defaults to 3.
-            classes (int, optional): The number of classes. Defaults to 2.
-            predict (str, optional): The prediction type. Defaults to "wallets".
-            data (torch_geometric.data.Data, optional): The dataset. Defaults to None.
-            conv_type (callable, optional): The convolutional layer type. Defaults to SAGEConv.
-        """
+    def __init__(self,
+                 edge,
+                 edge_types,
+                 loss_fn=None,
+                 learning_rate=0.01,
+                 encoder_layers=2,
+                 decoder_layers=2,
+                 hidden_layers=128,
+                 structure_decoder_head_out_channels=50,
+                 structure_decoder_head_layers=10,
+                 classifier=False,
+                 class_head_layers=3,
+                 classes=2,
+                 predict=None,
+                 data=None,
+                 conv_type=SAGEConv,
+                 aggr='sum'):
         super().__init__()
         self.edge = edge
         self.predict = predict
+
+        if classifier:
+            assert predict is not None
 
         if data:
             self.dataset = data
@@ -411,6 +467,9 @@ class GraphBEANModule(L.LightningModule):
         self.class_head_layers = class_head_layers
         self.classes = classes
         self.conv_type = conv_type
+        self.structure_decoder_head_out_channels = structure_decoder_head_out_channels
+        self.structure_decoder_head_layers = structure_decoder_head_layers
+        self.aggr = aggr
 
         self.edge_types = edge_types
         if isinstance(self.edge_types, str):
@@ -472,28 +531,19 @@ class GraphBEANModule(L.LightningModule):
         if self.classifier:
             # Initialize your model using the dataset
             self.model = GraphBeanClassifier(
-                self.dataset,
-                self.encoder_layers,
-                self.decoder_layers,
-                self.hidden_layers,
-                mapping,
-                self.class_head_layers,
-                self.classes,
-                self.conv_type,
-                self.edge_types,
-            )
+                self.dataset, self.encoder_layers, self.decoder_layers,
+                self.hidden_layers, mapping,
+                self.structure_decoder_head_out_channels,
+                self.structure_decoder_head_layers, self.class_head_layers,
+                self.classes, self.conv_type, self.edge_types, self.aggr)
 
         else:
             # Initialize your model using the dataset
-            self.model = GraphBEAN(
-                self.dataset,
-                self.encoder_layers,
-                self.decoder_layers,
-                self.hidden_layers,
-                mapping,
-                self.conv_type,
-                self.edge_types,
-            )
+            self.model = GraphBEAN(self.encoder_layers, self.decoder_layers,
+                                   self.hidden_layers, mapping,
+                                   self.structure_decoder_head_out_channels,
+                                   self.structure_decoder_head_layers,
+                                   self.conv_type, self.edge_types, self.aggr)
 
         self.optimizers = optim.Adam(self.model.parameters(),
                                      lr=self.learning_rate)
@@ -509,11 +559,21 @@ class GraphBEANModule(L.LightningModule):
         Returns:
             The output of the model.
         """
-        if VERBOSE:
-            print(f"forward module batch:{batch} edge:{edge}")
         return self.model(batch, edge)
 
     def loss(self, batch, class_probs, pred_features, pred_edges):
+        """
+        Computes the loss for the given batch.
+
+        Args:
+            batch: The input batch.
+            class_probs: The class probabilities.
+            pred_features: The predicted features.
+            pred_edges: The predicted edges.
+
+        Returns:
+            The computed loss.
+        """
         if self.classifier:
             loss = self.loss_fn(
                 pred_features,
@@ -545,11 +605,12 @@ class GraphBEANModule(L.LightningModule):
 
         self.log("train_loss", loss, on_step=True, prog_bar=True)
 
-        node_ground_truth = batch[self.predict].y
-        idx = node_ground_truth != 2
-        batch_subset = node_ground_truth[idx]
-
         if self.classifier:
+            node_ground_truth = batch[self.predict].y
+            # print(f"unique:{batch[self.predict].y.unique()}")
+            idx = node_ground_truth != 2
+            batch_subset = node_ground_truth[idx]
+            # print(f"batch:{batch[self.predict].y.shape} sub:{sum(idx)}")
             output_class = torch.argmax(class_probs[self.predict],
                                         dim=1).long()
             output_class_subset = output_class[idx]
@@ -575,6 +636,7 @@ class GraphBEANModule(L.LightningModule):
         Returns:
             None
         """
+
         class_probs, _, pred_features, pred_edges = self(batch, self.edge)
         loss = self.loss(batch, class_probs, pred_features, pred_edges)
 
@@ -587,11 +649,10 @@ class GraphBEANModule(L.LightningModule):
             batch_size=64,
         )
 
-        node_ground_truth = batch[self.predict].y
-        idx_filter = node_ground_truth != 2
-        batch_subset = node_ground_truth[idx_filter]
-
         if self.classifier:
+            node_ground_truth = batch[self.predict].y
+            idx_filter = node_ground_truth != 2
+            batch_subset = node_ground_truth[idx_filter]
             output_class = torch.argmax(class_probs[self.predict],
                                         dim=1).long()
             output_class_subset = output_class[idx_filter]

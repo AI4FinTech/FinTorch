@@ -8,12 +8,12 @@ from fintorch.models.graph.graphbean.graphBEAN import GraphBEANModule
 torch.set_float32_matmul_precision("medium")
 
 # We use an example data module from the elliptic dataset which is bipartite
-data_module = EllipticppDataModule(("wallets", "to", "transactions"),
+data_module = EllipticppDataModule(("transactions", "to", "wallets"),
                                    force_reload=False)
 
 # Create an instance of the GraphBEANModule
 module = GraphBEANModule(
-    ("wallets", "to", "transactions"),
+    ("transactions", "to", "wallets"),
     edge_types=[("wallets", "to", "transactions"),
                 ("transactions", "to", "wallets")],
     learning_rate=0.0001,
@@ -24,7 +24,7 @@ module = GraphBEANModule(
     classes=2,
     class_head_layers=100,
     classifier=True,
-    predict="transactions",
+    predict="wallets",
 )
 
 # Create a PyTorch Lightning Trainer and train the module
