@@ -32,13 +32,13 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/boersmamarcel/fintorch
+    $ git clone https://github.com/AI4FinTech/FinTorch
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/boersmamarcel/fintorch/tarball/master
+    $ curl -OJL https://github.com/AI4FinTech/FinTorch/tarball/master
 
 Once you have a copy of the source, you can install it with:
 
@@ -47,5 +47,5 @@ Once you have a copy of the source, you can install it with:
     $ python setup.py install
 
 
-.. _Github repo: https://github.com/boersmamarcel/fintorch
-.. _tarball: https://github.com/boersmamarcel/fintorch/tarball/master
+.. _Github repo: https://github.com/AI4FinTech/FinTorch
+.. _tarball: https://github.com/AI4FinTech/FinTorch/tarball/master
