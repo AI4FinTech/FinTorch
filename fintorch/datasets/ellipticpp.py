@@ -45,11 +45,17 @@ class TransactionActorDataset(InMemoryDataset):
 
     Note: we replaced all null values with 0 values.
 
-    Class distribution:
+    Class distribution for transactions:
 
     * Illicit (0)	4,545
     * Licit (1)	42,019
     * Unknown (2)	157,205
+
+    Class distribution for wallets:
+
+    * Illicit (0) 28,601
+    * Licit (1) 338,871
+    * Unknown (2) 900,788
 
     **Transaction related:**
 

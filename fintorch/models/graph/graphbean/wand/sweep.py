@@ -19,12 +19,17 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
     hidden_layers = trial.suggest_int("hidden_layers", 8, 512)
     learning_rate = trial.suggest_float("learning_rate", 0.0001, 0.001)
     structure_decoder_head_layers = trial.suggest_int(
-        'structure_decoder_head_layers', 2, 64)
+        "structure_decoder_head_layers", 2, 64)
     structure_decoder_head_out_channel = trial.suggest_int(
-        'structure_decoder_head_out_channel', 16, 256)
+        "structure_decoder_head_out_channel", 16, 256)
+
+    if predict == "transactions":
+        edge = ("wallets", "to", "transactions")
+    else:
+        edge = ("transactions", "to", "wallets")
 
     model = GraphBEANModule(
-        ("wallets", "to", "transactions"),
+        edge,
         edge_types=[("wallets_to_transactions"), ("transactions_to_wallets")],
         encoder_layers=encoder_layers,
         decoder_layers=decoder_layers,
@@ -35,16 +40,17 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
         structure_decoder_head_out_channels=structure_decoder_head_out_channel,
         conv_type=BEANConvSimple,
         classifier=True,
-        predict="transactions",
+        predict=predict,
     )
-    datamodule = EllipticppDataModule(("wallets", "to", "transactions"))
+    datamodule = EllipticppDataModule(edge)
 
     trainer = L.Trainer(
         enable_checkpointing=False,
         max_epochs=25,
         accelerator="auto",
         devices=1,
-        logger=L.pytorch.loggers.WandbLogger(project=f"graphbean-{predict}"),
+        logger=L.pytorch.loggers.WandbLogger(
+            project=f"graphbean-sweep-{predict}"),
         callbacks=[
             PyTorchLightningPruningCallback(trial, monitor="val_acc_step")
         ],
