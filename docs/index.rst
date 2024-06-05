@@ -7,7 +7,7 @@ Welcome to FinTorch's documentation!
 
    readme
    installation
-   console_script_setup
+   fintorch_cli
    usage
    modules
    contributing
