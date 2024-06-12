@@ -10,9 +10,19 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "Click>=7.0", "torch", "torch_geometric", "lightning", "kaggle", "polars",
-    "numpy", "huggingface_hub", "seaborn", "networkx", "optuna", "wand",
-    "optuna-integration"
+    "Click>=7.0",
+    "torch",
+    "torch_geometric",
+    "lightning",
+    "kaggle",
+    "polars",
+    "numpy",
+    "huggingface_hub",
+    "seaborn",
+    "networkx",
+    "optuna",
+    "wandb>=0.12.1",
+    "optuna-integration",
 ]
 
 test_requirements = [
@@ -32,8 +42,10 @@ setup(
     ],
     description="AI4FinTech project repository",
     entry_points={
-        "console_scripts":
-        ["fintorch=fintorch.cli:fintorch", "fintrainer=fintorch.cli:trainer"],
+        "console_scripts": [
+            "fintorch=fintorch.cli:fintorch",
+            "fintrainer=fintorch.cli:trainer",
+        ],
     },
     install_requires=requirements,
     license="MIT license",
