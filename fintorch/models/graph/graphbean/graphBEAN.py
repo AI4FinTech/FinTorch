@@ -187,7 +187,7 @@ class GraphBEAN(nn.Module):
         structure_decoder_head_layers: int,
         conv_type: callable,
         edge_types,
-        aggr: str = 'sum',
+        aggr: str = "sum",
     ):
         super().__init__()
 
@@ -244,8 +244,11 @@ class GraphBEAN(nn.Module):
 
         # Graph classifier head
         self.graph_edge_prediction = StructureDecoder(
-            hidden_channels, hidden_channels,
-            structure_decoder_head_out_channels, structure_decoder_head_layers)
+            hidden_channels,
+            hidden_channels,
+            structure_decoder_head_out_channels,
+            structure_decoder_head_layers,
+        )
 
     def forward(self, data, edge):
         """
@@ -327,19 +330,21 @@ class GraphBeanClassifier(nn.Module):
 
     """
 
-    def __init__(self,
-                 hetero_data,
-                 n_encoder_layers: int,
-                 n_feature_decoder_layers: int,
-                 hidden_channels: int,
-                 features_channels: Dict,
-                 structure_decoder_head_out_channels: int,
-                 structure_decoder_head_layers: int,
-                 class_head_layers: int = 1,
-                 classes: int = 3,
-                 conv_type: callable = SAGEConv,
-                 edge_types=None,
-                 aggr='sum'):
+    def __init__(
+        self,
+        hetero_data,
+        n_encoder_layers: int,
+        n_feature_decoder_layers: int,
+        hidden_channels: int,
+        features_channels: Dict,
+        structure_decoder_head_out_channels: int,
+        structure_decoder_head_layers: int,
+        class_head_layers: int = 1,
+        classes: int = 3,
+        conv_type: callable = SAGEConv,
+        edge_types=None,
+        aggr="sum",
+    ):
 
         super().__init__()
 
@@ -425,23 +430,25 @@ class GraphBEANModule(L.LightningModule):
         aggr: The aggregation method for the convolutional layer. Defaults to 'sum'.
     """
 
-    def __init__(self,
-                 edge,
-                 edge_types,
-                 loss_fn=None,
-                 learning_rate=0.01,
-                 encoder_layers=2,
-                 decoder_layers=2,
-                 hidden_layers=128,
-                 structure_decoder_head_out_channels=50,
-                 structure_decoder_head_layers=10,
-                 classifier=False,
-                 class_head_layers=3,
-                 classes=2,
-                 predict=None,
-                 data=None,
-                 conv_type=SAGEConv,
-                 aggr='sum'):
+    def __init__(
+        self,
+        edge,
+        edge_types,
+        loss_fn=None,
+        learning_rate=0.01,
+        encoder_layers=2,
+        decoder_layers=2,
+        hidden_layers=128,
+        structure_decoder_head_out_channels=50,
+        structure_decoder_head_layers=10,
+        classifier=False,
+        class_head_layers=3,
+        classes=2,
+        predict=None,
+        data=None,
+        conv_type=SAGEConv,
+        aggr="sum",
+    ):
         super().__init__()
         self.edge = edge
         self.predict = predict
@@ -477,7 +484,7 @@ class GraphBEANModule(L.LightningModule):
 
         # Convert edge_type strings to tuples
         self.edge_types = [
-            tuple(edge_type.split('_'))
+            tuple(edge_type.split("_"))
             if isinstance(edge_type, str) else edge_type
             for edge_type in self.edge_types
         ]
@@ -531,19 +538,33 @@ class GraphBEANModule(L.LightningModule):
         if self.classifier:
             # Initialize your model using the dataset
             self.model = GraphBeanClassifier(
-                self.dataset, self.encoder_layers, self.decoder_layers,
-                self.hidden_layers, mapping,
+                self.dataset,
+                self.encoder_layers,
+                self.decoder_layers,
+                self.hidden_layers,
+                mapping,
                 self.structure_decoder_head_out_channels,
-                self.structure_decoder_head_layers, self.class_head_layers,
-                self.classes, self.conv_type, self.edge_types, self.aggr)
+                self.structure_decoder_head_layers,
+                self.class_head_layers,
+                self.classes,
+                self.conv_type,
+                self.edge_types,
+                self.aggr,
+            )
 
         else:
             # Initialize your model using the dataset
-            self.model = GraphBEAN(self.encoder_layers, self.decoder_layers,
-                                   self.hidden_layers, mapping,
-                                   self.structure_decoder_head_out_channels,
-                                   self.structure_decoder_head_layers,
-                                   self.conv_type, self.edge_types, self.aggr)
+            self.model = GraphBEAN(
+                self.encoder_layers,
+                self.decoder_layers,
+                self.hidden_layers,
+                mapping,
+                self.structure_decoder_head_out_channels,
+                self.structure_decoder_head_layers,
+                self.conv_type,
+                self.edge_types,
+                self.aggr,
+            )
 
         self.optimizers = optim.Adam(self.model.parameters(),
                                      lr=self.learning_rate)
@@ -704,6 +725,65 @@ class GraphBEANModule(L.LightningModule):
         """
 
         self.validation_step_outputs.clear()
+
+    def test_step(self, batch, batch_idx):
+        """
+        Performs a test step on the given batch of data.
+
+        Args:
+            batch: The batch of data for validation.
+            batch_idx: The index of the current batch.
+
+        Returns:
+            None
+        """
+
+        class_probs, _, pred_features, pred_edges = self(batch, self.edge)
+        self.loss(batch, class_probs, pred_features, pred_edges)
+
+        if self.classifier:
+            node_ground_truth = batch[self.predict].y
+            idx_filter = node_ground_truth != 2
+            batch_subset = node_ground_truth[idx_filter]
+            output_class = torch.argmax(class_probs[self.predict],
+                                        dim=1).long()
+            output_class_subset = output_class[idx_filter]
+            self.accuracy(output_class_subset, batch_subset)
+            self.log(
+                "test_acc",
+                self.accuracy,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=64,
+            )
+            self.f1(output_class_subset, batch_subset)
+            self.log(
+                "test_f1",
+                self.f1,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=64,
+            )
+            self.recall(output_class_subset, batch_subset)
+            self.log(
+                "test_recall",
+                self.recall,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=64,
+            )
+            self.precision(output_class_subset, batch_subset)
+            self.log(
+                "test_precision",
+                self.precision,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                batch_size=64,
+            )
 
     def configure_optimizers(self):
         """
