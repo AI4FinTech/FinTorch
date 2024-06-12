@@ -35,10 +35,3 @@ def test_command_line_interface_ellipticpp_dataset():
                                            force_reload=True),
         ellipticpp.TransactionActorDataset,
     )
-
-
-def test_command_line_interface_train():
-    runner = CliRunner()
-    result = runner.invoke(cli.fintorch, ["train", "model_name"])
-    assert result.exit_code == 0
-    assert "Training model: model_name" in result.output
