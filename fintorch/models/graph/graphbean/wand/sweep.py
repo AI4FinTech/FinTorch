@@ -13,15 +13,15 @@ torch.set_float32_matmul_precision("medium")
 
 def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
     # We optimize the number of layers, hidden units in each layer and dropouts.
-    encoder_layers = trial.suggest_int("encoder_layers", 1, 5)
-    decoder_layers = trial.suggest_int("decoder_layers", 1, 5)
-    class_head_layers = trial.suggest_int("class_head_layers", 1, 50)
-    hidden_layers = trial.suggest_int("hidden_layers", 8, 512)
-    learning_rate = trial.suggest_float("learning_rate", 0.0001, 0.001)
+    encoder_layers = trial.suggest_int("encoder_layers", 1, 4)
+    decoder_layers = trial.suggest_int("decoder_layers", 1, 4)
+    class_head_layers = trial.suggest_int("class_head_layers", 1, 10)
+    hidden_layers = trial.suggest_int("hidden_layers", 8, 128)
+    learning_rate = trial.suggest_float("learning_rate", 0.0001, 0.005)
     structure_decoder_head_layers = trial.suggest_int(
-        "structure_decoder_head_layers", 2, 64)
+        "structure_decoder_head_layers", 2, 16)
     structure_decoder_head_out_channel = trial.suggest_int(
-        "structure_decoder_head_out_channel", 16, 256)
+        "structure_decoder_head_out_channel", 8, 64)
 
     if predict == "transactions":
         edge = ("wallets", "to", "transactions")
@@ -42,11 +42,11 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
         classifier=True,
         predict=predict,
     )
-    datamodule = EllipticppDataModule(edge)
+    datamodule = EllipticppDataModule(edge, batch_size=2056)
 
     trainer = L.Trainer(
         enable_checkpointing=False,
-        max_epochs=25,
+        max_epochs=50,
         accelerator="auto",
         devices=1,
         logger=L.pytorch.loggers.WandbLogger(
