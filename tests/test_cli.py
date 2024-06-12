@@ -35,3 +35,11 @@ def test_command_line_interface_ellipticpp_dataset():
                                            force_reload=True),
         ellipticpp.TransactionActorDataset,
     )
+
+
+def test_command_line_interface_train():
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.fintorch,
+        ["sweep", "--model", "model_name", "--predict", "predict"])
+    assert "Starting sweep for model" in result.output
