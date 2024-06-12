@@ -13,13 +13,16 @@ requirements = [
     "Click>=7.0",
     "torch",
     "torch_geometric",
-    "pytorch_lightning",
+    "lightning",
     "kaggle",
     "polars",
     "numpy",
     "huggingface_hub",
     "seaborn",
     "networkx",
+    "optuna",
+    "wandb>=0.12.1",
+    "optuna-integration",
 ]
 
 test_requirements = [
@@ -41,6 +44,7 @@ setup(
     entry_points={
         "console_scripts": [
             "fintorch=fintorch.cli:fintorch",
+            "fintrainer=fintorch.cli:trainer",
         ],
     },
     install_requires=requirements,
@@ -53,6 +57,6 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/AI4FinTech/fintorch",
-    version="0.1.2",
+    version="0.1.3",
     zip_safe=False,
 )

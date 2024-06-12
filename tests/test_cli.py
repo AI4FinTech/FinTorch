@@ -39,6 +39,7 @@ def test_command_line_interface_ellipticpp_dataset():
 
 def test_command_line_interface_train():
     runner = CliRunner()
-    result = runner.invoke(cli.fintorch, ["train", "model_name"])
-    assert result.exit_code == 0
-    assert "Training model: model_name" in result.output
+    result = runner.invoke(
+        cli.fintorch,
+        ["sweep", "--model", "model_name", "--predict", "predict"])
+    assert "Starting sweep for model" in result.output

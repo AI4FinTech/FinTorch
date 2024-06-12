@@ -23,10 +23,7 @@ AI4FinTech project repository
 * Documentation: https://fintorch.readthedocs.io.
 
 
-Features
---------
 
-* TODO8
 
 FinTorch - Machine Learning for FinTech
 =========================================
@@ -65,6 +62,31 @@ Impact
 ------
 FinTorch will not only streamline the process of regulatory compliance for FinTech companies but also foster innovation and research in AI-driven financial technologies. It will serve as a crucial tool for industry professionals, researchers, and government institutions, aligning with the AI4FinTech community's objectives of knowledge dissemination and development of responsible, cutting-edge financial solutions.
 
+
+Getting started
+---------------
+Please install the package as follows
+
+.. code-block:: bash
+
+   pip install fintorch
+
+**Required Dependencies**
+
+The following dependencies must be installed:
+
+.. code-block:: bash
+
+   pip install pyg-lib -f https://data.pyg.org/whl/torch-${TORCH}+${CUDA}.html
+   pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-${TORCH}+${CUDA}.html
+
+**Important Notes**
+
+* Replace `${TORCH}` and `${CUDA}` with the appropriate version numbers for your environment (e.g., "1.12.0" and "cu113").
+* These installation commands use custom index URLs provided by PyTorch Geometric (PyG).
+
+
+
 Description of the Structure
 -----------------------------
 
@@ -81,12 +103,3 @@ Description of the Structure
 - `docker` Directory: Dockerfile and related resources for containerizing the FinTorch library.
 - `conda` Directory: Scripts and files needed for building a Conda package of the library.
 - `tutorials` Directory: Jupyter notebooks that provide tutorials on how to use the library for various FinTech applications.
-
-
-Credits
--------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage

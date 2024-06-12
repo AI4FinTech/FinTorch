@@ -1,5 +1,5 @@
 pip==23.3
-bump2version==0.5.11
+bump-my-version
 wheel==0.38.1
 watchdog
 flake8==3.7.8
@@ -21,3 +21,6 @@ pandoc
 sphinx-rtd-theme
 huggingface_hub
 jinja2
+lightning
+optuna
+optuna_integration

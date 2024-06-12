@@ -1,10 +1,14 @@
-from typing import Callable, List, Optional
+import multiprocessing
+from typing import Callable, List, Optional, Tuple
 
+import lightning.pytorch as pl
 import numpy as np
 import polars as pol
 import torch
+import torch_geometric.transforms as T
 from huggingface_hub import hf_hub_download
 from torch_geometric.data import HeteroData, InMemoryDataset
+from torch_geometric.loader import LinkNeighborLoader
 from tqdm import tqdm
 
 
@@ -14,6 +18,7 @@ class TransactionActorDataset(InMemoryDataset):
 
     Extends the Elliptic Data Set by incorporating wallet addresses (actors) to
     enable the detection of illicit activity in the Bitcoin network.
+
 
     Purpose:
 
@@ -39,6 +44,18 @@ class TransactionActorDataset(InMemoryDataset):
     features please see the elliptic.TransactionDataset.
 
     Note: we replaced all null values with 0 values.
+
+    Class distribution for transactions:
+
+    * Illicit (0)	4,545
+    * Licit (1)	42,019
+    * Unknown (2)	157,205
+
+    Class distribution for wallets:
+
+    * Illicit (0) 28,601
+    * Licit (1) 338,871
+    * Unknown (2) 900,788
 
     **Transaction related:**
 
@@ -101,6 +118,9 @@ class TransactionActorDataset(InMemoryDataset):
         data = self.get(0)
         self.data, self.slices = self.collate([data])
 
+        if force_reload:
+            print("Forcing reload of the dataset")
+
         assert isinstance(self._data, HeteroData)
 
     @property
@@ -148,13 +168,13 @@ class TransactionActorDataset(InMemoryDataset):
             DataFrame: The modified DataFrame with the 'class' column mapped to numerical values.
         """
         # Mapping 'class' column to numerics
-        # The dataset has licit (0), illicit (1), and unknown (2) entities.
+        # The dataset has illicit (0), licit (1), and unknown (2) entities.
         return df.with_columns(
             pol.col("class").cast(pol.Utf8).map_elements(
                 lambda x: {
-                    "unknown": 2,
-                    "1": 1,
-                    "2": 0
+                    "3": 2,
+                    "2": 1,
+                    "1": 0
                 }.get(x),
                 return_dtype=pol.Int64))
 
@@ -251,7 +271,8 @@ class TransactionActorDataset(InMemoryDataset):
         features_transaction = features_transaction.fill_null(0)
 
         # Load wallets features and classes into Polars DataFrame
-        features_wallets = pol.read_csv(self.downloaded_files[6])
+        features_wallets = self.map_classes(
+            pol.read_csv(self.downloaded_files[6]))
         features_wallets = features_wallets.fill_null(0)
 
         # Prepare labels
@@ -351,3 +372,173 @@ class TransactionActorDataset(InMemoryDataset):
         df["wallets", "wallets"].edge_index = addr_addr_edge_index
 
         self.save([df], self.processed_paths[0])
+
+
+class EllipticppDataModule(pl.LightningDataModule):
+    """
+    LightningDataModule for handling the Elliptic++ dataset. The EllipticDataModule class is responsible for loading,
+    preprocessing, and preparing the Elliptic++ dataset for use in Lightning Model Modules.
+    It handles tasks like splitting the data into training, validation, and testing sets, generating data loaders,
+    and implementing neighbor sampling strategies for efficient training.
+
+
+    Args:
+        edge (Tuple[str, str, str]): A tuple representing the edge types in the dataset.
+        num_val (float, optional): The ratio of validation data to the total dataset. Defaults to 0.1.
+        num_test (float, optional): The ratio of test data to the total dataset. Defaults to 0.1.
+        disjoint_train_ratio (float, optional): The ratio of disjoint training data to the total dataset.
+                                                Defaults to 0.3.
+        neg_sampling_ratio (float, optional): The ratio of negative samples to positive samples. Defaults to 2.0.
+        num_neighbors (List[int], optional): A list of integers representing the number of neighbors to consider.
+                                             Defaults to [10, 30].
+        batch_size (int, optional): The batch size for data loading. Defaults to 128.
+        neg_sampling (str, optional): The type of negative sampling. Defaults to "binary".
+        num_workers (int, optional): The number of workers for data loading. Defaults to -1.
+
+    """
+
+    def __init__(
+        self,
+        edge: Tuple[str, str, str],
+        num_val: float = 0.1,
+        num_test: float = 0.1,
+        disjoint_train_ratio: float = 0.3,
+        neg_sampling_ratio: float = 2.0,
+        num_neighbors: List[int] = [10, 30],
+        batch_size: int = 128,
+        neg_sampling: str = "binary",
+        num_workers: int = -1,
+        force_reload=False,
+    ) -> None:
+        super().__init__()
+
+        assert (isinstance(edge, tuple)
+                and len(edge) == 3), "edge must be a tuple of length 3"
+        assert (isinstance(num_val, float) and
+                0 <= num_val <= 1), "num_val must be a float between 0 and 1"
+        assert (isinstance(num_test, float) and
+                0 <= num_test <= 1), "num_test must be a float between 0 and 1"
+        assert (isinstance(disjoint_train_ratio, float)
+                and 0 <= disjoint_train_ratio <= 1
+                ), "disjoint_train_ratio must be a float between 0 and 1"
+        assert (isinstance(neg_sampling_ratio, float) and neg_sampling_ratio
+                > 0), "neg_sampling_ratio must be a positive float"
+        assert isinstance(num_neighbors, list) and all(
+            isinstance(n, int)
+            for n in num_neighbors), "num_neighbors must be a list of integers"
+        assert (isinstance(batch_size, int)
+                and batch_size > 0), "batch_size must be a positive integer"
+        assert isinstance(neg_sampling, str), "neg_sampling must be a string"
+
+        self.edge = edge
+        self.num_val = num_val
+        self.num_test = num_test
+        self.disjoint_train_ratio = disjoint_train_ratio
+        self.neg_sampling_ratio = neg_sampling_ratio
+        self.num_neighbors = num_neighbors
+        self.batch_size = batch_size
+        self.neg_sampling = neg_sampling
+        self.force_reload = force_reload
+
+        if num_workers == -1:
+            self.num_workers = multiprocessing.cpu_count() - 1
+        else:
+            self.num_workers = num_workers
+
+    def setup(self, stage=None):
+        dataset = TransactionActorDataset("~/.fintorch_data",
+                                          force_reload=self.force_reload)
+        self.dataset = dataset[0]
+        self.split_dataset(dataset[0])
+
+    def split_dataset(self, dataset):
+        """
+        Splits the given dataset into training, validation, and test sets and makes them available
+        as self.train_data, self.val_data, and self.test_data
+
+        Args:
+            dataset: The input dataset to be split.
+
+        Returns:
+            None
+        """
+
+        transform = T.RandomLinkSplit(
+            num_val=0.1,
+            num_test=0.1,
+            disjoint_train_ratio=0.3,
+            neg_sampling_ratio=2.0,
+            edge_types=[
+                ("wallets", "to", "transactions"),
+                ("transactions", "to", "wallets"),
+                ("wallets", "to", "wallets"),
+                ("transactions", "to", "transactions"),
+            ],
+        )
+        self.train_data, self.val_data, self.test_data = transform(dataset)
+
+    def train_dataloader(self):
+        """
+        Returns a DataLoader object for training.
+        """
+        src, to, dst = self.edge
+
+        loader = LinkNeighborLoader(
+            self.train_data,
+            num_neighbors=self.num_neighbors,
+            batch_size=self.batch_size,
+            shuffle=True,
+            edge_label_index=(
+                (src, to, dst),
+                self.train_data[src, to, dst].edge_index,
+            ),
+            neg_sampling=self.neg_sampling,
+            num_workers=self.num_workers,
+        )
+
+        return loader
+
+    def val_dataloader(self):
+        """
+        Returns a data loader for the validation data.
+
+        Returns:
+            loader (LinkNeighborLoader): A data loader for the validation data.
+        """
+        src, to, dst = self.edge
+
+        loader = LinkNeighborLoader(
+            self.val_data,
+            num_neighbors=self.num_neighbors,
+            batch_size=self.batch_size,
+            edge_label_index=(
+                (src, to, dst),
+                self.val_data[src, to, dst].edge_index,
+            ),
+            neg_sampling=self.neg_sampling,
+            num_workers=self.num_workers,
+        )
+
+        return loader
+
+    def test_dataloader(self):
+        """
+        Returns a DataLoader object for testing the dataset.
+
+        Returns:
+            DataLoader: A DataLoader object that loads test data for the dataset.
+        """
+        src, to, dst = self.edge
+        loader = LinkNeighborLoader(
+            self.test_data,
+            num_neighbors=self.num_neighbors,
+            batch_size=self.batch_size,
+            edge_label_index=(
+                (src, to, dst),
+                self.test_data[src, to, dst].edge_index,
+            ),
+            neg_sampling=self.neg_sampling,
+            num_workers=self.num_workers,
+        )
+
+        return loader

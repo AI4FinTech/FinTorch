@@ -1,0 +1,20 @@
+model:
+  class_path: fintorch.models.graph.graphbean.graphBEAN.GraphBEANModule
+  init_args:
+    edge:
+      - wallets
+      - to
+      - transactions
+    edge_types: ['transactions_to_wallets', 'wallets_to_transactions']
+    classifier: True
+    predict: 'transactions'
+trainer:
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+data:
+  class_path: fintorch.datasets.ellipticpp.EllipticppDataModule
+  init_args:
+    edge:
+      - wallets
+      - to
+      - transactions

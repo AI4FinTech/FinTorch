@@ -7,12 +7,12 @@ Welcome to FinTorch's documentation!
 
    readme
    installation
-   console_script_setup
+   fintorch_cli
    usage
    modules
    contributing
    troubleshooting
-   tutorials/elliptical/Elliptic
+   tutorials
    history
 
 Indices and tables
