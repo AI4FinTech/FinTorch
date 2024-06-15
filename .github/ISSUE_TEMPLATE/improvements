@@ -1,0 +1,48 @@
+name: Suggest an Improvement
+description: Help us enhance the FinTorch package by sharing your improvement ideas.
+title: "[IMPROVEMENT]: Short Description of Your Suggestion"
+labels: ["enhancement", "triage", "python"]
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for wanting to contribute to the FinTorch package! Please provide the following details about your improvement suggestion:
+
+  - type: textarea
+    id: improvement_description
+    attributes:
+      label: Describe Your Improvement
+      description: Explain the current feature or aspect you'd like to enhance and how you envision the improvement.
+    validations:
+      required: true
+
+  - type: textarea
+    id: concrete_suggestion
+    attributes:
+      label: Concrete Suggestion
+      description: Detail your specific proposal for making the improvement. You can include code snippets, revised documentation examples, or other relevant information.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area of Improvement
+      multiple: true
+      options:
+        - Documentation
+        - Performance
+        - Code Quality
+        - Tutorials/Examples
+        - Error Handling
+        - User Interface (if applicable)
+        - Other (please specify)
+
+  - type: textarea
+    id: reasoning
+    attributes:
+      label: Reasoning
+      description: Explain why you think this improvement is valuable. How would it benefit users or the overall project?
+    validations:
+      required: true
