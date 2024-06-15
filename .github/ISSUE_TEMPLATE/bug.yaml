@@ -1,0 +1,67 @@
+name: Report a Bug in FinTorch
+description: Help us improve our FinTorch package by reporting issues.
+title: "[BUG]: Short Description of Issue"
+labels: ["bug", "triage", "python"]
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug in our FinTorch Python package! Please provide the following information:
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: Explain the incorrect behavior and what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Give a minimal code example or the steps to replicate the issue.
+      placeholder: |
+        ```python
+        import fintorch
+
+        # Your code to reproduce the bug
+        ```
+    validations:
+      required: true
+
+  - type: input
+    id: package_version
+    attributes:
+      label: Package Version
+      description: Specify the version of the Python package you are using.
+      placeholder: e.g., mypackage==1.2.3
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version
+      description: Share your Python version.
+      placeholder: e.g., Python 3.9.5
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment Details (Optional)
+      description: Include relevant OS, virtual environment, etc.
+      placeholder: e.g., macOS 12.4, venv, conda
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs or Traceback (Optional)
+      description: Paste any error messages or the full traceback if available.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Additional Information (Optional)
+      options:
+        - label: I have searched for similar issues.
+        - label: I am willing to help debug further.
