@@ -91,7 +91,7 @@ def main():
     )
 
     # Create a PyTorch Lightning Trainer and train the module
-    trainer = L.Trainer(max_epochs=100, accelerator="gpu")
+    trainer = L.Trainer(max_epochs=100, accelerator="auto")
 
     trainer.fit(module, datamodule=data_module)
 
