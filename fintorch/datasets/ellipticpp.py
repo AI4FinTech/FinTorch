@@ -464,10 +464,10 @@ class EllipticppDataModule(pl.LightningDataModule):
         """
 
         transform = T.RandomLinkSplit(
-            num_val=0.1,
-            num_test=0.1,
-            disjoint_train_ratio=0.3,
-            neg_sampling_ratio=2.0,
+            num_val=self.num_val,
+            num_test=self.num_test,
+            disjoint_train_ratio=self.disjoint_train_ratio,
+            neg_sampling_ratio=self.neg_sampling_ratio,
             edge_types=[
                 ("wallets", "to", "transactions"),
                 ("transactions", "to", "wallets"),
