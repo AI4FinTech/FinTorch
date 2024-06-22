@@ -178,7 +178,7 @@ class TransactionActorDataset(InMemoryDataset):
                 }.get(x),
                 return_dtype=pol.Int64))
 
-    def split_data(self, num_data, splits=[0.8, 0.1]):
+    def split_data(self, num_data, splits=None):
         """
         Splits the data into training, validation, and test sets based on the given splits.
 
@@ -190,6 +190,9 @@ class TransactionActorDataset(InMemoryDataset):
         Returns:
             tuple: A tuple containing the masks for the training, validation, and test sets.
         """
+
+        if splits is None:
+            splits = [0.8, 0.1]
 
         assert len(splits) == 2, "The length of splits should be 2"
         assert sum(splits) < 1, "The sum of splits should be less than 1"
@@ -262,10 +265,13 @@ class TransactionActorDataset(InMemoryDataset):
             pol.read_csv(self.downloaded_files[3]))
         features_transaction = pol.read_csv(self.downloaded_files[5])
 
-        features_transaction = features_transaction.join(transaction_classes,
-                                                         how="left",
-                                                         left_on="txId",
-                                                         right_on="txId")
+        features_transaction = features_transaction.join(
+            transaction_classes,
+            how="left",
+            left_on="txId",
+            right_on="txId",
+            coalesce=True,
+        )
 
         # Replace null values with 0
         features_transaction = features_transaction.fill_null(0)
@@ -404,7 +410,7 @@ class EllipticppDataModule(pl.LightningDataModule):
         num_test: float = 0.1,
         disjoint_train_ratio: float = 0.3,
         neg_sampling_ratio: float = 2.0,
-        num_neighbors: List[int] = [10, 30],
+        num_neighbors: List[int] = None,
         batch_size: int = 128,
         neg_sampling: str = "binary",
         num_workers: int = -1,
@@ -423,12 +429,17 @@ class EllipticppDataModule(pl.LightningDataModule):
                 ), "disjoint_train_ratio must be a float between 0 and 1"
         assert (isinstance(neg_sampling_ratio, float) and neg_sampling_ratio
                 > 0), "neg_sampling_ratio must be a positive float"
-        assert isinstance(num_neighbors, list) and all(
-            isinstance(n, int)
-            for n in num_neighbors), "num_neighbors must be a list of integers"
+
         assert (isinstance(batch_size, int)
                 and batch_size > 0), "batch_size must be a positive integer"
         assert isinstance(neg_sampling, str), "neg_sampling must be a string"
+
+        if num_neighbors is None:
+            num_neighbors = [10, 30]
+
+        assert isinstance(num_neighbors, list) and all(
+            isinstance(n, int)
+            for n in num_neighbors), "num_neighbors must be a list of integers"
 
         self.edge = edge
         self.num_val = num_val
@@ -464,10 +475,10 @@ class EllipticppDataModule(pl.LightningDataModule):
         """
 
         transform = T.RandomLinkSplit(
-            num_val=0.1,
-            num_test=0.1,
-            disjoint_train_ratio=0.3,
-            neg_sampling_ratio=2.0,
+            num_val=self.num_val,
+            num_test=self.num_test,
+            disjoint_train_ratio=self.disjoint_train_ratio,
+            neg_sampling_ratio=self.neg_sampling_ratio,
             edge_types=[
                 ("wallets", "to", "transactions"),
                 ("transactions", "to", "wallets"),
