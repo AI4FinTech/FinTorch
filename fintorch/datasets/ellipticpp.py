@@ -178,7 +178,7 @@ class TransactionActorDataset(InMemoryDataset):
                 }.get(x),
                 return_dtype=pol.Int64))
 
-    def split_data(self, num_data, splits=[0.8, 0.1]):
+    def split_data(self, num_data, splits=None):
         """
         Splits the data into training, validation, and test sets based on the given splits.
 
@@ -193,6 +193,9 @@ class TransactionActorDataset(InMemoryDataset):
 
         assert len(splits) == 2, "The length of splits should be 2"
         assert sum(splits) < 1, "The sum of splits should be less than 1"
+
+        if splits is None:
+            splits = [0.8, 0.1]
 
         # Generate numbers
         num_train = int(splits[0] * num_data)
@@ -404,7 +407,7 @@ class EllipticppDataModule(pl.LightningDataModule):
         num_test: float = 0.1,
         disjoint_train_ratio: float = 0.3,
         neg_sampling_ratio: float = 2.0,
-        num_neighbors: List[int] = [10, 30],
+        num_neighbors: List[int] = None,
         batch_size: int = 128,
         neg_sampling: str = "binary",
         num_workers: int = -1,
@@ -429,6 +432,9 @@ class EllipticppDataModule(pl.LightningDataModule):
         assert (isinstance(batch_size, int)
                 and batch_size > 0), "batch_size must be a positive integer"
         assert isinstance(neg_sampling, str), "neg_sampling must be a string"
+
+        if num_neighbors is None:
+            num_neighbors = [10, 30]
 
         self.edge = edge
         self.num_val = num_val
