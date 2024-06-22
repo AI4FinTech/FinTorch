@@ -429,15 +429,17 @@ class EllipticppDataModule(pl.LightningDataModule):
                 ), "disjoint_train_ratio must be a float between 0 and 1"
         assert (isinstance(neg_sampling_ratio, float) and neg_sampling_ratio
                 > 0), "neg_sampling_ratio must be a positive float"
-        assert isinstance(num_neighbors, list) and all(
-            isinstance(n, int)
-            for n in num_neighbors), "num_neighbors must be a list of integers"
+
         assert (isinstance(batch_size, int)
                 and batch_size > 0), "batch_size must be a positive integer"
         assert isinstance(neg_sampling, str), "neg_sampling must be a string"
 
         if num_neighbors is None:
             num_neighbors = [10, 30]
+
+        assert isinstance(num_neighbors, list) and all(
+            isinstance(n, int)
+            for n in num_neighbors), "num_neighbors must be a list of integers"
 
         self.edge = edge
         self.num_val = num_val
