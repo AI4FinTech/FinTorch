@@ -235,8 +235,8 @@ class TransactionActorDataset(InMemoryDataset):
         """
         for k, v in mapping_dict.items():
             edgelist = edgelist.with_columns(
-                pol.col(k).alias(k).map_elements(
-                    lambda x: mapping_dict.get(x, x), return_dtype=pol.Int64))
+                pol.col(k).alias(k).map_elements(lambda x: v.get(x, x),
+                                                 return_dtype=pol.Int64))
 
         # Preparing edge_index for PyTorch
         edgelist = np.array(edgelist.to_numpy()).T
@@ -265,10 +265,13 @@ class TransactionActorDataset(InMemoryDataset):
             pol.read_csv(self.downloaded_files[3]))
         features_transaction = pol.read_csv(self.downloaded_files[5])
 
-        features_transaction = features_transaction.join(transaction_classes,
-                                                         how="left",
-                                                         left_on="txId",
-                                                         right_on="txId")
+        features_transaction = features_transaction.join(
+            transaction_classes,
+            how="left",
+            left_on="txId",
+            right_on="txId",
+            coalesce=True,
+        )
 
         # Replace null values with 0
         features_transaction = features_transaction.fill_null(0)
