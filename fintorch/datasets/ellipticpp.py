@@ -235,8 +235,8 @@ class TransactionActorDataset(InMemoryDataset):
         """
         for k, v in mapping_dict.items():
             edgelist = edgelist.with_columns(
-                pol.col(k).alias(k).map_elements(lambda x: v.get(x, x),
-                                                 return_dtype=pol.Int64))
+                pol.col(k).alias(k).map_elements(
+                    lambda x: mapping_dict.get(x, x), return_dtype=pol.Int64))
 
         # Preparing edge_index for PyTorch
         edgelist = np.array(edgelist.to_numpy()).T
