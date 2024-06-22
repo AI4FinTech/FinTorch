@@ -191,11 +191,11 @@ class TransactionActorDataset(InMemoryDataset):
             tuple: A tuple containing the masks for the training, validation, and test sets.
         """
 
-        assert len(splits) == 2, "The length of splits should be 2"
-        assert sum(splits) < 1, "The sum of splits should be less than 1"
-
         if splits is None:
             splits = [0.8, 0.1]
+
+        assert len(splits) == 2, "The length of splits should be 2"
+        assert sum(splits) < 1, "The sum of splits should be less than 1"
 
         # Generate numbers
         num_train = int(splits[0] * num_data)
