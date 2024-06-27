@@ -269,8 +269,7 @@ class TransactionActorDataset(InMemoryDataset):
             transaction_classes,
             how="left",
             left_on="txId",
-            right_on="txId",
-            coalesce=True,
+            right_on="txId"
         )
 
         # Replace null values with 0
