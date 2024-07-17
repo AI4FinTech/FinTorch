@@ -14,7 +14,7 @@ def main():
         # Get the dimensionalities for the auto-encoder part
         mapping = dict()
         for key in data_module.dataset.metadata()[0]:
-            mapping[key] = data_module.dataset.dataset[key].x.shape[1]
+            mapping[key] = data_module.dataset[key].x.shape[1]
     except Exception as e:
         print(f"Error setting up data module or retrieving metadata: {e}")
         raise

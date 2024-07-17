@@ -605,10 +605,8 @@ class GraphBEANModule(L.LightningModule):
 
         if self.classifier:
             node_ground_truth = batch[self.predict].y
-            # print(f"unique:{batch[self.predict].y.unique()}")
             idx = node_ground_truth != 2
             batch_subset = node_ground_truth[idx]
-            # print(f"batch:{batch[self.predict].y.shape} sub:{sum(idx)}")
             output_class = torch.argmax(class_probs[self.predict],
                                         dim=1).long()
             output_class_subset = output_class[idx]
