@@ -13,13 +13,15 @@ def main():
     data_module = EllipticppDataModule(("transactions", "to", "wallets"),
                                        force_reload=False)
 
-    data_module.setup()
-
-    # Get the dimensionalities for the auto-encoder part
-    mapping = dict()
-    for key in data_module.dataset.metadata()[0]:
-        mapping[key] = data_module.dataset[key].x.shape[1]
-
+    try:
+        data_module.setup()
+        # Get the dimensionalities for the auto-encoder part
+        mapping = dict()
+        for key in data_module.dataset.metadata()[0]:
+            mapping[key] = data_module.dataset[key].x.shape[1]
+    except Exception as e:
+        print(f"Error setting up data module or retrieving metadata: {e}")
+        raise
     # Create an instance of the GraphBEANModule
     module = GraphBEANModule(
         ("transactions", "to", "wallets"),
