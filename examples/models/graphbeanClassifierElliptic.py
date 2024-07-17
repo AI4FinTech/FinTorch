@@ -13,6 +13,13 @@ def main():
     data_module = EllipticppDataModule(("transactions", "to", "wallets"),
                                        force_reload=False)
 
+    data_module.setup()
+
+    # Get the dimensionalities for the auto-encoder part
+    mapping = dict()
+    for key in data_module.dataset.metadata()[0]:
+        mapping[key] = data_module.dataset[key].x.shape[1]
+
     # Create an instance of the GraphBEANModule
     module = GraphBEANModule(
         ("transactions", "to", "wallets"),
@@ -20,6 +27,7 @@ def main():
             ("wallets", "to", "transactions"),
             ("transactions", "to", "wallets"),
         ],
+        mapping=mapping,
         learning_rate=0.0001,
         conv_type=BEANConvSimple,
         encoder_layers=5,
@@ -29,6 +37,7 @@ def main():
         class_head_layers=100,
         classifier=True,
         predict="wallets",
+        node_types=list(mapping.keys()),
     )
 
     # Create a PyTorch Lightning Trainer and train the module
