@@ -310,7 +310,7 @@ class GraphBeanClassifier(nn.Module):
 
 
     Args:
-        hetero_data (torch_geometric.data.HeteroData): The heterogeneous input graph data.
+        node_types (list): A list of classes to predict.
         n_encoder_layers (int): The number of layers in the encoder.
         n_feature_decoder_layers (int): The number of layers in the feature decoder.
         hidden_channels (int): The number of hidden channels in the model.
@@ -332,7 +332,7 @@ class GraphBeanClassifier(nn.Module):
 
     def __init__(
         self,
-        hetero_data,
+        node_types,
         n_encoder_layers: int,
         n_feature_decoder_layers: int,
         hidden_channels: int,
@@ -348,7 +348,7 @@ class GraphBeanClassifier(nn.Module):
 
         super().__init__()
 
-        self.data_types = hetero_data.metadata()[0]
+        self.node_types = node_types
 
         self.graph_bean_layer = GraphBEAN(
             n_encoder_layers,
@@ -364,16 +364,15 @@ class GraphBeanClassifier(nn.Module):
 
         self.classifierHead = nn.ModuleList([
             nng.HeteroDictLinear(hidden_channels, hidden_channels,
-                                 hetero_data.metadata()[0])
+                                 self.node_types)
         ])
 
         for _ in range(class_head_layers):
             self.classifierHead.append(
                 nng.HeteroDictLinear(hidden_channels, hidden_channels,
-                                     hetero_data.metadata()[0]))
+                                     self.node_types))
         self.classifierHead.append(
-            nng.HeteroDictLinear(hidden_channels, classes,
-                                 hetero_data.metadata()[0]))
+            nng.HeteroDictLinear(hidden_channels, classes, self.node_types))
 
     def forward(self, data, edge):
         """
@@ -400,7 +399,7 @@ class GraphBeanClassifier(nn.Module):
             class_probs = layer(class_probs)
 
         output = {}
-        for key in self.data_types:
+        for key in self.node_types:
             output[key] = torch.sigmoid(class_probs[key])
 
         return class_probs, hidden_representation, feature_out, edge_prediction
@@ -413,6 +412,7 @@ class GraphBEANModule(L.LightningModule):
     Args:
         edge: The input edge.
         edge_types: The types of edges in the graph.
+        mapping: a mapping of the different node types to feature dimensionality of the nodes
         loss_fn: The loss function to use. Defaults to None.
         learning_rate: The learning rate for the optimizer. Defaults to 0.01.
         encoder_layers: The number of layers in the encoder. Defaults to 2.
@@ -425,15 +425,16 @@ class GraphBEANModule(L.LightningModule):
         class_head_layers: The number of layers in the class head. Defaults to 3.
         classes: The number of classes. Defaults to 2.
         predict: The attribute to predict. Defaults to None.
-        data: The dataset. Defaults to None.
         conv_type: The type of convolutional layer to use. Defaults to SAGEConv.
         aggr: The aggregation method for the convolutional layer. Defaults to 'sum'.
+        node_types: A list of classes to predict.
     """
 
     def __init__(
         self,
         edge,
         edge_types,
+        mapping,
         loss_fn=None,
         learning_rate=0.01,
         encoder_layers=2,
@@ -445,26 +446,24 @@ class GraphBEANModule(L.LightningModule):
         class_head_layers=3,
         classes=2,
         predict=None,
-        data=None,
         conv_type=SAGEConv,
         aggr="sum",
+        node_types=None,
     ):
         super().__init__()
+        self.save_hyperparameters()
         self.edge = edge
         self.predict = predict
 
         if classifier:
             assert predict is not None
 
-        if data:
-            self.dataset = data
-        else:
-            self.dataset = None
-
         if classifier:
             self.loss_fn = loss_fn if loss_fn is not None else GraphBEANLossClassifier
         else:
             self.loss_fn = loss_fn if loss_fn is not None else GraphBEANLoss
+
+        self.node_types = node_types
 
         self.learning_rate = learning_rate
         self.encoder_layers = encoder_layers
@@ -477,6 +476,7 @@ class GraphBEANModule(L.LightningModule):
         self.structure_decoder_head_out_channels = structure_decoder_head_out_channels
         self.structure_decoder_head_layers = structure_decoder_head_layers
         self.aggr = aggr
+        self.mapping = mapping
 
         self.edge_types = edge_types
         if isinstance(self.edge_types, str):
@@ -488,6 +488,40 @@ class GraphBEANModule(L.LightningModule):
             if isinstance(edge_type, str) else edge_type
             for edge_type in self.edge_types
         ]
+
+        if self.classifier:
+            # Initialize your model using the dataset
+            self.model = GraphBeanClassifier(
+                self.node_types,
+                self.encoder_layers,
+                self.decoder_layers,
+                self.hidden_layers,
+                self.mapping,
+                self.structure_decoder_head_out_channels,
+                self.structure_decoder_head_layers,
+                self.class_head_layers,
+                self.classes,
+                self.conv_type,
+                self.edge_types,
+                self.aggr,
+            )
+
+        else:
+            # Initialize your model using the dataset
+            self.model = GraphBEAN(
+                self.encoder_layers,
+                self.decoder_layers,
+                self.hidden_layers,
+                self.mapping,
+                self.structure_decoder_head_out_channels,
+                self.structure_decoder_head_layers,
+                self.conv_type,
+                self.edge_types,
+                self.aggr,
+            )
+
+        self.optimizers = optim.Adam(self.model.parameters(),
+                                     lr=self.learning_rate)
 
         self.accuracy = torchmetrics.classification.Accuracy(
             task="multiclass", num_classes=classes, average="macro")
@@ -511,63 +545,6 @@ class GraphBEANModule(L.LightningModule):
                                                         average="macro")
 
         self.validation_step_outputs = []
-
-        self.save_hyperparameters()
-
-    def setup(self, stage=None):
-        """
-        Function called before validate and fit.
-        Sets up the model and optimizers based on the provided dataset and configuration.
-
-        Args:
-            stage: Optional[str], the current stage of training. Defaults to None.
-
-        Returns:
-            None
-        """
-
-        # Get the dataset from the datamodule
-        if self.dataset is None:
-            self.dataset = self.trainer.datamodule.dataset
-
-        # Required for the feature encoder-decoder
-        mapping = dict()
-        for key in self.dataset.metadata()[0]:
-            mapping[key] = self.dataset[key].x.shape[1]
-
-        if self.classifier:
-            # Initialize your model using the dataset
-            self.model = GraphBeanClassifier(
-                self.dataset,
-                self.encoder_layers,
-                self.decoder_layers,
-                self.hidden_layers,
-                mapping,
-                self.structure_decoder_head_out_channels,
-                self.structure_decoder_head_layers,
-                self.class_head_layers,
-                self.classes,
-                self.conv_type,
-                self.edge_types,
-                self.aggr,
-            )
-
-        else:
-            # Initialize your model using the dataset
-            self.model = GraphBEAN(
-                self.encoder_layers,
-                self.decoder_layers,
-                self.hidden_layers,
-                mapping,
-                self.structure_decoder_head_out_channels,
-                self.structure_decoder_head_layers,
-                self.conv_type,
-                self.edge_types,
-                self.aggr,
-            )
-
-        self.optimizers = optim.Adam(self.model.parameters(),
-                                     lr=self.learning_rate)
 
     def forward(self, batch, edge):
         """
@@ -628,10 +605,8 @@ class GraphBEANModule(L.LightningModule):
 
         if self.classifier:
             node_ground_truth = batch[self.predict].y
-            # print(f"unique:{batch[self.predict].y.unique()}")
             idx = node_ground_truth != 2
             batch_subset = node_ground_truth[idx]
-            # print(f"batch:{batch[self.predict].y.shape} sub:{sum(idx)}")
             output_class = torch.argmax(class_probs[self.predict],
                                         dim=1).long()
             output_class_subset = output_class[idx]

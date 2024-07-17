@@ -73,6 +73,14 @@ def main():
     data = T.ToUndirected()(dataset[0])
     data_module = OGBDataModule(data, ("author", "writes", "paper"))
 
+    try:
+        # Get the dimensionalities for the auto-encoder part
+        mapping = dict()
+        for key in data_module.dataset.metadata()[0]:
+            mapping[key] = data_module.dataset[key].x.shape[1]
+    except Exception as e:
+        print(f"Error retrieving metadata: {e}")
+        raise
     # # Create an instance of the GraphBEANModule
     module = GraphBEANModule(
         ("author", "writes", "paper"),
@@ -82,6 +90,7 @@ def main():
             ("author", "affiliated_with", "institution"),
             ("institution", "rev_affiliated_with", "author"),
         ],
+        mapping=mapping,
         learning_rate=0.001,
         conv_type=BEANConvSimple,
         encoder_layers=5,

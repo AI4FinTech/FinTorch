@@ -19,8 +19,9 @@ def test_command_line_interface_elliptic_dataset():
     result = runner.invoke(cli.fintorch, ["datasets", "elliptic"])
     assert result.exit_code == 0
     assert "Downloading dataset: elliptic" in result.output
+    root = "/tmp/data/fintorch/"
     assert isinstance(
-        elliptic.TransactionDataset("~/.fintorch_data", force_reload=True),
+        elliptic.TransactionDataset(root, force_reload=True),
         elliptic.TransactionDataset,
     )
 
@@ -30,9 +31,9 @@ def test_command_line_interface_ellipticpp_dataset():
     result = runner.invoke(cli.fintorch, ["datasets", "ellipticpp"])
     assert result.exit_code == 0
     assert "Downloading dataset: ellipticpp" in result.output
+    root = "/tmp/data/fintorch/"
     assert isinstance(
-        ellipticpp.TransactionActorDataset("~/.fintorch_data",
-                                           force_reload=True),
+        ellipticpp.TransactionActorDataset(root, force_reload=True),
         ellipticpp.TransactionActorDataset,
     )
 

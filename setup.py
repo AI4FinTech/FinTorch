@@ -50,7 +50,7 @@ setup(
     install_requires=requirements,
     license="MIT license",
     long_description=readme + "\n\n" + history,
-    long_description_content_type='text/x-rst',
+    long_description_content_type="text/x-rst",
     include_package_data=True,
     keywords="fintorch",
     name="fintorch",
@@ -58,6 +58,6 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/AI4FinTech/fintorch",
-    version="0.1.13",
+    version="0.1.11",
     zip_safe=False,
 )

@@ -172,9 +172,6 @@ class TransactionDataset(InMemoryDataset):
                                  left_on="column_1",
                                  right_on="txId")
 
-        # Drop redundant column
-        df_merge = df_merge.drop("txId")
-
         nodes = df_merge.select("column_1").to_numpy().flatten()
         self.map_id = dict(zip(nodes, range(len(nodes))))
 
