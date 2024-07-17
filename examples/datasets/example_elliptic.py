@@ -150,10 +150,10 @@ def train_node_classifier(dataset, **model_kwargs):
         accelerator="gpu",
         devices=1,
         max_epochs=1000,
-        enable_progress_bar=False)  # False because epoch size is 1
+        enable_progress_bar=True)  # False because epoch size is 1
 
     # Note: the dimensions are specific for the Elliptic dataset
-    model = GNN(c_in=167, c_out=3, **model_kwargs)
+    model = GNN(**model_kwargs)
     trainer.fit(model,
                 train_dataloaders=node_data_loader,
                 val_dataloaders=node_data_loader)
@@ -165,6 +165,8 @@ def train_node_classifier(dataset, **model_kwargs):
 
 
 node_gnn_model = train_node_classifier(dataset=elliptic_dataset,
+                                       c_in=166,
                                        c_hidden=256,
-                                       num_layers=5,
+                                       c_out=3,
+                                       num_layers=4,
                                        dp_rate=0.1)
