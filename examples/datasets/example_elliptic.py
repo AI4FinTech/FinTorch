@@ -10,8 +10,8 @@ from torch_geometric.loader import DataLoader
 from fintorch.datasets import elliptic
 
 # Load the elliptic dataset
-elliptic_dataset = elliptic.EllipticDataset("~/.fintorch_data",
-                                            force_reload=True)
+elliptic_dataset = elliptic.TransactionDataset("~/.fintorch_data",
+                                               force_reload=True)
 
 
 class GNNModel(nn.Module):

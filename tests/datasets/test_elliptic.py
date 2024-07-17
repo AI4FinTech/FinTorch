@@ -8,7 +8,7 @@ from fintorch.datasets.elliptic import TransactionDataset
 @pytest.fixture
 def dataset():
     root = "/tmp/data/fintorch/"
-    return TransactionDataset(root)
+    return TransactionDataset(root, force_reload=True)
 
 
 def test_raw_file_names(dataset):
