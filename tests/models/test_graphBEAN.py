@@ -1,9 +1,49 @@
+import subprocess
+
 import lightning as L
+import torch
 import torch.nn as nn
 
 from fintorch.datasets.ellipticpp import EllipticppDataModule
 from fintorch.graph.layers.beanconv import BEANConvSimple
 from fintorch.models.graph.graphbean.graphBEAN import GraphBEANModule
+
+
+def install(package):
+    subprocess.check_call(["pip", "install", package])
+
+
+def install_pyg_and_dependencies():
+    install(
+        f"pyg-lib -f https://data.pyg.org/whl/torch-{torch.__version__}.html")
+    install(
+        f"torch-scatter -f https://data.pyg.org/whl/torch-{torch.__version__}.html"
+    )
+    install(
+        f"torch-sparse -f https://data.pyg.org/whl/torch-{torch.__version__}.html"
+    )
+
+
+# Detect PyTorch version
+if torch.__version__ >= "1.13.0":
+    print(
+        "PyTorch version 1.13.0 or newer detected. Installing PyG and dependencies..."
+    )
+    install_pyg_and_dependencies()
+else:
+    print(
+        "PyTorch version is older than 1.13.0. PyG might not work correctly. Please upgrade PyTorch"
+    )
+
+# Verify installation
+try:
+    import torch_geometric
+
+    print(
+        f"PyTorch Geometric successfully installed. Version: {torch_geometric.__version__}"
+    )
+except ImportError:
+    print("PyTorch Geometric not found. Installation might have failed.")
 
 
 def test_graphbeanmodule_init():
