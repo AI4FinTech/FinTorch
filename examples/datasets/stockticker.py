@@ -1,7 +1,16 @@
+from datetime import date
+
 from fintorch.datasets import stockticker
 
 # Load the stock dataset
-stockdata = stockticker.StockTicker('~/.fintorch_data')
+tickers = ["AAPL", "MSFT", "GOOG"]
+# Load the stock dataset
+stockdata = stockticker.StockTicker(
+    "~/.fintorch_data/stocktickers/",
+    tickers=tickers,
+    start_date=date(2015, 1, 1),
+    end_date=date(2023, 6, 30),
+)
 
 # class GNN(torch.nn.Module):
 

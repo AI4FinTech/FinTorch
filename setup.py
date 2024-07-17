@@ -23,6 +23,7 @@ requirements = [
     "optuna",
     "wandb>=0.12.1",
     "optuna-integration",
+    "yfinance",
 ]
 
 test_requirements = [
@@ -50,7 +51,7 @@ setup(
     install_requires=requirements,
     license="MIT license",
     long_description=readme + "\n\n" + history,
-    long_description_content_type='text/x-rst',
+    long_description_content_type="text/x-rst",
     include_package_data=True,
     keywords="fintorch",
     name="fintorch",
