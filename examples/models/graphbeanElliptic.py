@@ -9,6 +9,11 @@ def main():
     # We use an example data module from the elliptic dataset which is bipartite
     data_module = EllipticppDataModule(("wallets", "to", "transactions"),
                                        force_reload=False)
+    data_module.setup()
+    # Get the dimensionalities for the auto-encoder part
+    mapping = dict()
+    for key in data_module.dataset.metadata()[0]:
+        mapping[key] = data_module.dataset[key].x.shape[1]
 
     # Create an instance of the GraphBEANModule
     module = GraphBEANModule(
@@ -17,6 +22,7 @@ def main():
             ("wallets", "to", "transactions"),
             ("transactions", "to", "wallets"),
         ],
+        mapping=mapping,
         learning_rate=0.001,
         conv_type=BEANConvSimple,
         encoder_layers=5,
