@@ -4,6 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fintorch"
+version = "0.1.15"
 authors = [
     { name = "Marcel Boersma", email = "boersma.marcel@gmail.com" }
 ]
@@ -39,7 +40,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pip==23.3",
-    "poetry",
+    "bump-my-version",
     "wheel==0.38.1",
     "watchdog",
     "flake8==3.7.8",
@@ -92,3 +93,6 @@ commit_args = "--no-verify"
 
 [[tool.bumpversion.files]]
 filename = "fintorch/__init__.py"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
