@@ -23,7 +23,8 @@ repos:
         exclude: |
           (?x)^(
               conda/meta.yaml|
-              conda/conda_build_config.yaml
+              conda/conda_build_config.yaml|
+              .github/workflows/lint.yml | .github/workflows/codecov.yml | .github/workflows/pypi.yml
           )$
 
   - repo: https://github.com/adrienverge/yamllint.git
@@ -32,33 +33,16 @@ repos:
       - id: yamllint
         name: Lint yaml
         args: [-d, '{extends: default, rules: {line-length: disable, document-start: disable, braces: {max-spaces-inside: 1}}}']
+        exclude: '^(.github/workflows/)'
 
-  - repo: https://github.com/google/yapf
-    rev: v0.40.2
-    hooks:
-      - id: yapf
-        name: Format code
-        additional_dependencies: [toml]
-
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        name: Sort imports
-
-  - repo: https://github.com/PyCQA/flake8
-    rev: 6.1.0
-    hooks:
-      - id: flake8
-        name: Check PEP8
-        additional_dependencies: [Flake8-pyproject]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.9
+    rev: v0.2.1
     hooks:
       - id: ruff
         name: Ruff formatting
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [--fix, --exit-non-zero-on-fix, "--line-length", "120"]
+
 
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.17
