@@ -7,8 +7,9 @@ from fintorch.models.graph.graphbean.graphBEAN import GraphBEANModule
 
 def main():
     # We use an example data module from the elliptic dataset which is bipartite
-    data_module = EllipticppDataModule(("wallets", "to", "transactions"),
-                                       force_reload=False)
+    data_module = EllipticppDataModule(
+        ("wallets", "to", "transactions"), force_reload=False
+    )
     try:
         data_module.setup()
         # Get the dimensionalities for the auto-encoder part

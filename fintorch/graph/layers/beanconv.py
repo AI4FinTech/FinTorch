@@ -63,23 +63,17 @@ class BeanAggregation(Aggregation):
         output_sum = self.reduce(x, index, ptr, dim_size, dim, reduce="max")
 
         # Edge aggregation
-        output_edge_mean = self.reduce(edge_attr,
-                                       index,
-                                       ptr,
-                                       dim_size,
-                                       dim,
-                                       reduce="mean")
-        output_edge_sum = self.reduce(edge_attr,
-                                      index,
-                                      ptr,
-                                      dim_size,
-                                      dim,
-                                      reduce="max")
+        output_edge_mean = self.reduce(
+            edge_attr, index, ptr, dim_size, dim, reduce="mean"
+        )
+        output_edge_sum = self.reduce(
+            edge_attr, index, ptr, dim_size, dim, reduce="max"
+        )
 
         # Concatenate outputs
         output = torch.cat(
-            (output_mean, output_sum, output_edge_mean, output_edge_sum),
-            dim=1)
+            (output_mean, output_sum, output_edge_mean, output_edge_sum), dim=1
+        )
 
         return output
 
@@ -255,8 +249,10 @@ class BEANConvSimple(MessagePassing):
             str: The string representation of the layer.
 
         """
-        return (f"{self.__class__.__name__}({self.in_channels}, "
-                f"{self.out_channels}, aggr={self.aggr})")
+        return (
+            f"{self.__class__.__name__}({self.in_channels}, "
+            f"{self.out_channels}, aggr={self.aggr})"
+        )
 
 
 class BEANConv(MessagePassing):
@@ -420,11 +416,7 @@ class BEANConv(MessagePassing):
 
         """
         # Overwrite standard aggr_module call
-        return self.aggr_module(inputs,
-                                index,
-                                ptr,
-                                dim_size,
-                                edge_attr=edge_attr)
+        return self.aggr_module(inputs, index, ptr, dim_size, edge_attr=edge_attr)
 
     def edge_update(self, x_j: Tensor, x_i: Tensor) -> Tensor:
         r"""
@@ -448,5 +440,7 @@ class BEANConv(MessagePassing):
             str: The string representation of the BEANConv layer.
 
         """
-        return (f"{self.__class__.__name__}({self.in_channels}, "
-                f"{self.out_channels}, aggr={self.aggr})")
+        return (
+            f"{self.__class__.__name__}({self.in_channels}, "
+            f"{self.out_channels}, aggr={self.aggr})"
+        )

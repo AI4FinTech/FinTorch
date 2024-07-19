@@ -10,12 +10,10 @@ from torch_geometric.loader import DataLoader
 from fintorch.datasets import elliptic
 
 # Load the elliptic dataset
-elliptic_dataset = elliptic.TransactionDataset("~/.fintorch_data",
-                                               force_reload=True)
+elliptic_dataset = elliptic.TransactionDataset("~/.fintorch_data", force_reload=True)
 
 
 class GNNModel(nn.Module):
-
     def __init__(
         self,
         c_in: int,
@@ -47,16 +45,12 @@ class GNNModel(nn.Module):
         in_channels, out_channels = c_in, c_hidden
         for _ in range(num_layers - 1):
             layers += [
-                gnn_layer(in_channels=in_channels,
-                          out_channels=out_channels,
-                          **kwargs),
+                gnn_layer(in_channels=in_channels, out_channels=out_channels, **kwargs),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dp_rate),
             ]
             in_channels = c_hidden
-        layers += [
-            gnn_layer(in_channels=in_channels, out_channels=c_out, **kwargs)
-        ]
+        layers += [gnn_layer(in_channels=in_channels, out_channels=c_out, **kwargs)]
         self.layers = nn.ModuleList(layers)
 
     def forward(self, x: Tensor, edge_index: Tensor) -> Tensor:
@@ -82,13 +76,13 @@ class GNNModel(nn.Module):
 
 
 class GNN(pl.LightningModule):
-
     def __init__(self, **model_kwargs):
         super().__init__()
         self.save_hyperparameters()
 
-        self.accuracy = torchmetrics.classification.Accuracy(task="multiclass",
-                                                             num_classes=3)
+        self.accuracy = torchmetrics.classification.Accuracy(
+            task="multiclass", num_classes=3
+        )
 
         self.model = GNNModel(**model_kwargs)
         self.loss_module = nn.CrossEntropyLoss()
@@ -147,16 +141,14 @@ def train_node_classifier(dataset, **model_kwargs):
 
     # Create a PyTorch Lightning trainer with the generation callback
     trainer = pl.Trainer(
-        accelerator="gpu",
-        devices=1,
-        max_epochs=1000,
-        enable_progress_bar=True)  # False because epoch size is 1
+        accelerator="gpu", devices=1, max_epochs=1000, enable_progress_bar=True
+    )  # False because epoch size is 1
 
     # Note: the dimensions are specific for the Elliptic dataset
     model = GNN(**model_kwargs)
-    trainer.fit(model,
-                train_dataloaders=node_data_loader,
-                val_dataloaders=node_data_loader)
+    trainer.fit(
+        model, train_dataloaders=node_data_loader, val_dataloaders=node_data_loader
+    )
 
     # Test best model on the test set
     trainer.test(model, node_data_loader, verbose=True)
@@ -164,9 +156,6 @@ def train_node_classifier(dataset, **model_kwargs):
     return model
 
 
-node_gnn_model = train_node_classifier(dataset=elliptic_dataset,
-                                       c_in=166,
-                                       c_hidden=256,
-                                       c_out=3,
-                                       num_layers=4,
-                                       dp_rate=0.1)
+node_gnn_model = train_node_classifier(
+    dataset=elliptic_dataset, c_in=166, c_hidden=256, c_out=3, num_layers=4, dp_rate=0.1
+)

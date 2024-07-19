@@ -31,11 +31,9 @@ def datasets(dataset):
 
 
 @fintorch.command()
-@click.option('--model', required=True, help='Name of the model to use.')
-@click.option('--predict',
-              required=True,
-              help='Type of prediction to perform.')
-@click.option('--max_epochs', required=False, help='Max epochs')
+@click.option("--model", required=True, help="Name of the model to use.")
+@click.option("--predict", required=True, help="Type of prediction to perform.")
+@click.option("--max_epochs", required=False, help="Max epochs")
 def sweep(model, predict, max_epochs):
     """Sweep your financial models"""
     # Implement your model training logic here
@@ -43,11 +41,11 @@ def sweep(model, predict, max_epochs):
 
     if model == "graphbean_elliptic":
         wandb_kwargs = {"project": f"graphbean-{predict}"}
-        wandbc = WeightsAndBiasesCallback(wandb_kwargs=wandb_kwargs,
-                                          as_multirun=True)
+        wandbc = WeightsAndBiasesCallback(wandb_kwargs=wandb_kwargs, as_multirun=True)
 
-        study = optuna.create_study(direction="maximize",
-                                    pruner=optuna.pruners.MedianPruner())
+        study = optuna.create_study(
+            direction="maximize", pruner=optuna.pruners.MedianPruner()
+        )
 
         def wrapped_objective(trial):
             return objective(trial, max_epochs, predict)
@@ -72,8 +70,7 @@ def trainer():
         run=False,
         save_config_callback=None,
         trainer_defaults={
-            "max_epochs":
-            10,
+            "max_epochs": 10,
             "callbacks": [
                 ModelCheckpoint(monitor="val_loss", mode="min"),
                 EarlyStopping(monitor="train_loss", mode="min"),

@@ -73,11 +73,9 @@ class TransactionDataset(InMemoryDataset):
         pre_filter: Optional[Callable] = None,
         force_reload: bool = False,
     ) -> None:
-        super().__init__(root,
-                         transform,
-                         pre_transform,
-                         pre_filter,
-                         force_reload=force_reload)
+        super().__init__(
+            root, transform, pre_transform, pre_filter, force_reload=force_reload
+        )
 
         self.load(self.processed_paths[0])
         data = self.get(0)
@@ -115,8 +113,9 @@ class TransactionDataset(InMemoryDataset):
         """
         # Download from Kaggle to `self.raw_dir`.
         downloader = KaggleDownloader()
-        downloader.download_dataset("ellipticco/elliptic-data-set",
-                                    download_dir=self.raw_dir)
+        downloader.download_dataset(
+            "ellipticco/elliptic-data-set", download_dir=self.raw_dir
+        )
 
     def process(self) -> None:
         """
@@ -135,16 +134,16 @@ class TransactionDataset(InMemoryDataset):
         if self.pre_transform is not None:
             data_list = [self.pre_transform(data) for data in data_list]
 
-        features_file_path = os.path.join(self.raw_dir,
-                                          "elliptic_bitcoin_dataset",
-                                          "elliptic_txs_features.csv")
+        features_file_path = os.path.join(
+            self.raw_dir, "elliptic_bitcoin_dataset", "elliptic_txs_features.csv"
+        )
 
-        edgelist_file_path = os.path.join(self.raw_dir,
-                                          "elliptic_bitcoin_dataset",
-                                          "elliptic_txs_edgelist.csv")
-        classes_file_path = os.path.join(self.raw_dir,
-                                         "elliptic_bitcoin_dataset",
-                                         "elliptic_txs_classes.csv")
+        edgelist_file_path = os.path.join(
+            self.raw_dir, "elliptic_bitcoin_dataset", "elliptic_txs_edgelist.csv"
+        )
+        classes_file_path = os.path.join(
+            self.raw_dir, "elliptic_bitcoin_dataset", "elliptic_txs_classes.csv"
+        )
 
         features = pol.read_csv(features_file_path, has_header=False)
         edgelist = pol.read_csv(edgelist_file_path)
@@ -153,46 +152,44 @@ class TransactionDataset(InMemoryDataset):
         # Mapping 'class' column to numerics
         # The dataset has licit (0), illicit (1), and unknown (2) entities.
         classes = classes.with_columns(
-            pol.col("class").cast(pol.Utf8).map_elements(
-                lambda x: {
-                    "unknown": 2,
-                    "1": 1,
-                    "2": 0
-                }.get(x),
-                return_dtype=pol.Int64))
+            pol.col("class")
+            .cast(pol.Utf8)
+            .map_elements(
+                lambda x: {"unknown": 2, "1": 1, "2": 0}.get(x), return_dtype=pol.Int64
+            )
+        )
 
         # Cast the classes to Int32 identifiers
-        classes = classes.with_columns(classes["txId"].cast(
-            pol.Int64).alias("txId"))
+        classes = classes.with_columns(classes["txId"].cast(pol.Int64).alias("txId"))
 
         # Merging DataFrames efficiently with Polars
         # The resulting DataFrame consists of the classes for each node
-        df_merge = features.join(classes,
-                                 how="left",
-                                 left_on="column_1",
-                                 right_on="txId")
+        df_merge = features.join(
+            classes, how="left", left_on="column_1", right_on="txId"
+        )
 
         nodes = df_merge.select("column_1").to_numpy().flatten()
         self.map_id = dict(zip(nodes, range(len(nodes))))
 
         edgelist = edgelist.with_columns(
-            txId1=pol.col("txId1").replace(self.map_id, default=-1))
+            txId1=pol.col("txId1").replace(self.map_id, default=-1)
+        )
 
         edgelist = edgelist.with_columns(
-            txId2=pol.col("txId2").replace(self.map_id, default=-1))
+            txId2=pol.col("txId2").replace(self.map_id, default=-1)
+        )
 
         # Preparing edge_index for PyTorch
         edge_index = np.array(edgelist.to_numpy()).T
         edge_index = torch.tensor(edge_index, dtype=torch.long).contiguous()
 
         # Extract labels
-        labels = torch.tensor(df_merge["class"].to_numpy(),
-                              dtype=torch.float32).long()
+        labels = torch.tensor(df_merge["class"].to_numpy(), dtype=torch.float32).long()
 
         # Extract node features (with optimization)
-        node_features = torch.tensor(df_merge.drop(["class",
-                                                    "column_1"]).to_numpy(),
-                                     dtype=torch.float32)
+        node_features = torch.tensor(
+            df_merge.drop(["class", "column_1"]).to_numpy(), dtype=torch.float32
+        )
 
         num_data = node_features.shape[0]
         num_train = int(0.8 * num_data)
@@ -200,12 +197,10 @@ class TransactionDataset(InMemoryDataset):
         num_test = num_data - num_train - num_val
 
         train_index = torch.arange(num_train, dtype=torch.long)
-        val_index = torch.arange(num_train,
-                                 num_train + num_val,
-                                 dtype=torch.long)
-        test_index = torch.arange(num_train + num_val,
-                                  num_train + num_val + num_test,
-                                  dtype=torch.long)
+        val_index = torch.arange(num_train, num_train + num_val, dtype=torch.long)
+        test_index = torch.arange(
+            num_train + num_val, num_train + num_val + num_test, dtype=torch.long
+        )
 
         train_mask = torch.zeros_like(labels, dtype=torch.bool)
         val_mask = torch.zeros_like(labels, dtype=torch.bool)

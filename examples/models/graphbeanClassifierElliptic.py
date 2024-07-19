@@ -10,8 +10,9 @@ torch.set_float32_matmul_precision("medium")
 
 def main():
     # We use an example data module from the elliptic dataset which is bipartite
-    data_module = EllipticppDataModule(("transactions", "to", "wallets"),
-                                       force_reload=False)
+    data_module = EllipticppDataModule(
+        ("transactions", "to", "wallets"), force_reload=False
+    )
 
     try:
         data_module.setup()

@@ -108,11 +108,9 @@ class TransactionActorDataset(InMemoryDataset):
         pre_filter: Optional[Callable] = None,
         force_reload: bool = False,
     ) -> None:
-        super().__init__(root,
-                         transform,
-                         pre_transform,
-                         pre_filter,
-                         force_reload=force_reload)
+        super().__init__(
+            root, transform, pre_transform, pre_filter, force_reload=force_reload
+        )
 
         self.load(self.processed_paths[0])
         data = self.get(0)
@@ -170,13 +168,12 @@ class TransactionActorDataset(InMemoryDataset):
         # Mapping 'class' column to numerics
         # The dataset has illicit (0), licit (1), and unknown (2) entities.
         return df.with_columns(
-            pol.col("class").cast(pol.Utf8).map_elements(
-                lambda x: {
-                    "3": 2,
-                    "2": 1,
-                    "1": 0
-                }.get(x),
-                return_dtype=pol.Int64))
+            pol.col("class")
+            .cast(pol.Utf8)
+            .map_elements(
+                lambda x: {"3": 2, "2": 1, "1": 0}.get(x), return_dtype=pol.Int64
+            )
+        )
 
     def split_data(self, num_data, splits=None):
         """
@@ -204,12 +201,10 @@ class TransactionActorDataset(InMemoryDataset):
 
         # Generate ranges
         train_index = torch.arange(num_train, dtype=torch.long)
-        val_index = torch.arange(num_train,
-                                 num_train + num_val,
-                                 dtype=torch.long)
-        test_index = torch.arange(num_train + num_val,
-                                  num_train + num_val + num_test,
-                                  dtype=torch.long)
+        val_index = torch.arange(num_train, num_train + num_val, dtype=torch.long)
+        test_index = torch.arange(
+            num_train + num_val, num_train + num_val + num_test, dtype=torch.long
+        )
 
         # Create masks
         train_mask = torch.zeros(num_data, dtype=torch.bool)
@@ -235,8 +230,10 @@ class TransactionActorDataset(InMemoryDataset):
         """
         for k, v in mapping_dict.items():
             edgelist = edgelist.with_columns(
-                pol.col(k).alias(k).map_elements(lambda x: v.get(x, x),
-                                                 return_dtype=pol.Int64))
+                pol.col(k)
+                .alias(k)
+                .map_elements(lambda x: v.get(x, x), return_dtype=pol.Int64)
+            )
 
         # Preparing edge_index for PyTorch
         edgelist = np.array(edgelist.to_numpy()).T
@@ -261,49 +258,45 @@ class TransactionActorDataset(InMemoryDataset):
         # Prepare features
 
         # Load transaction features and classes into a Polars DataFrame
-        transaction_classes = self.map_classes(
-            pol.read_csv(self.downloaded_files[3]))
+        transaction_classes = self.map_classes(pol.read_csv(self.downloaded_files[3]))
         features_transaction = pol.read_csv(self.downloaded_files[5])
 
         features_transaction = features_transaction.join(
-            transaction_classes,
-            how="left",
-            left_on="txId",
-            right_on="txId"
+            transaction_classes, how="left", left_on="txId", right_on="txId"
         )
 
         # Replace null values with 0
         features_transaction = features_transaction.fill_null(0)
 
         # Load wallets features and classes into Polars DataFrame
-        features_wallets = self.map_classes(
-            pol.read_csv(self.downloaded_files[6]))
+        features_wallets = self.map_classes(pol.read_csv(self.downloaded_files[6]))
         features_wallets = features_wallets.fill_null(0)
 
         # Prepare labels
         transaction_labels = torch.tensor(
-            features_transaction["class"].to_numpy(),
-            dtype=torch.float32).long()
-        wallet_labels = torch.tensor(features_wallets["class"].to_numpy(),
-                                     dtype=torch.float32).long()
+            features_transaction["class"].to_numpy(), dtype=torch.float32
+        ).long()
+        wallet_labels = torch.tensor(
+            features_wallets["class"].to_numpy(), dtype=torch.float32
+        ).long()
 
         # Mask data
         transaction_train_mask, transaction_val_mask, transaction_test_mask = (
-            self.split_data(features_transaction.shape[0]))
+            self.split_data(features_transaction.shape[0])
+        )
 
         wallet_train_mask, wallet_val_mask, wallet_test_mask = self.split_data(
-            features_wallets.shape[0])
+            features_wallets.shape[0]
+        )
 
         # PyTorch features
         tensor_features_wallets = torch.tensor(
-            features_wallets.drop(["class", "Time step",
-                                   "address"]).to_numpy(),
+            features_wallets.drop(["class", "Time step", "address"]).to_numpy(),
             dtype=torch.float32,
         )
 
         tensor_features_transaction = torch.tensor(
-            features_transaction.drop(["class", "Time step",
-                                       "txId"]).to_numpy(),
+            features_transaction.drop(["class", "Time step", "txId"]).to_numpy(),
             dtype=torch.float32,
         )
 
@@ -311,45 +304,38 @@ class TransactionActorDataset(InMemoryDataset):
 
         # Replace nodes with indices for transactions and wallets
         features_transaction = features_transaction.with_columns(
-            mapped_id=pol.arange(0, features_transaction.shape[0]))
+            mapped_id=pol.arange(0, features_transaction.shape[0])
+        )
 
         features_wallets = features_wallets.with_columns(
-            mapped_id=pol.arange(0, features_wallets.shape[0]))
+            mapped_id=pol.arange(0, features_wallets.shape[0])
+        )
 
         wallets_mapping = dict(
-            zip(features_wallets["address"], features_wallets["mapped_id"]))
+            zip(features_wallets["address"], features_wallets["mapped_id"])
+        )
         transaction_mapping = dict(
-            zip(features_transaction["txId"],
-                features_transaction["mapped_id"]))
+            zip(features_transaction["txId"], features_transaction["mapped_id"])
+        )
 
         edgelist_addr_addr = pol.read_csv(self.downloaded_files[0])
         edgelist_addr_tx = pol.read_csv(self.downloaded_files[1])
         edgelist_tx_addr = pol.read_csv(self.downloaded_files[2])
         edgelist_tx_tx = pol.read_csv(self.downloaded_files[4])
 
-        tx_tx_dict = {
-            "txId1": transaction_mapping,
-            "txId2": transaction_mapping
-        }
+        tx_tx_dict = {"txId1": transaction_mapping, "txId2": transaction_mapping}
         addr_addr_dict = {
             "input_address": wallets_mapping,
             "output_address": wallets_mapping,
         }
-        addr_tx_dict = {
-            "input_address": wallets_mapping,
-            "txId": transaction_mapping
-        }
-        tx_addr_dict = {
-            "txId": transaction_mapping,
-            "output_address": wallets_mapping
-        }
+        addr_tx_dict = {"input_address": wallets_mapping, "txId": transaction_mapping}
+        tx_addr_dict = {"txId": transaction_mapping, "output_address": wallets_mapping}
 
-        addr_tx_edge_index = self.prepare_edge_index(edgelist_addr_tx,
-                                                     addr_tx_dict)
-        tx_addr_edge_index = self.prepare_edge_index(edgelist_tx_addr,
-                                                     tx_addr_dict)
-        addr_addr_edge_index = self.prepare_edge_index(edgelist_addr_addr,
-                                                       addr_addr_dict)
+        addr_tx_edge_index = self.prepare_edge_index(edgelist_addr_tx, addr_tx_dict)
+        tx_addr_edge_index = self.prepare_edge_index(edgelist_tx_addr, tx_addr_dict)
+        addr_addr_edge_index = self.prepare_edge_index(
+            edgelist_addr_addr, addr_addr_dict
+        )
         tx_tx_edge_index = self.prepare_edge_index(edgelist_tx_tx, tx_tx_dict)
 
         # Construct HeteroData object and store it
@@ -417,28 +403,33 @@ class EllipticppDataModule(pl.LightningDataModule):
     ) -> None:
         super().__init__()
 
-        assert (isinstance(edge, tuple)
-                and len(edge) == 3), "edge must be a tuple of length 3"
-        assert (isinstance(num_val, float) and
-                0 <= num_val <= 1), "num_val must be a float between 0 and 1"
-        assert (isinstance(num_test, float) and
-                0 <= num_test <= 1), "num_test must be a float between 0 and 1"
-        assert (isinstance(disjoint_train_ratio, float)
-                and 0 <= disjoint_train_ratio <= 1
-                ), "disjoint_train_ratio must be a float between 0 and 1"
-        assert (isinstance(neg_sampling_ratio, float) and neg_sampling_ratio
-                > 0), "neg_sampling_ratio must be a positive float"
+        assert (
+            isinstance(edge, tuple) and len(edge) == 3
+        ), "edge must be a tuple of length 3"
+        assert (
+            isinstance(num_val, float) and 0 <= num_val <= 1
+        ), "num_val must be a float between 0 and 1"
+        assert (
+            isinstance(num_test, float) and 0 <= num_test <= 1
+        ), "num_test must be a float between 0 and 1"
+        assert (
+            isinstance(disjoint_train_ratio, float) and 0 <= disjoint_train_ratio <= 1
+        ), "disjoint_train_ratio must be a float between 0 and 1"
+        assert (
+            isinstance(neg_sampling_ratio, float) and neg_sampling_ratio > 0
+        ), "neg_sampling_ratio must be a positive float"
 
-        assert (isinstance(batch_size, int)
-                and batch_size > 0), "batch_size must be a positive integer"
+        assert (
+            isinstance(batch_size, int) and batch_size > 0
+        ), "batch_size must be a positive integer"
         assert isinstance(neg_sampling, str), "neg_sampling must be a string"
 
         if num_neighbors is None:
             num_neighbors = [10, 30]
 
         assert isinstance(num_neighbors, list) and all(
-            isinstance(n, int)
-            for n in num_neighbors), "num_neighbors must be a list of integers"
+            isinstance(n, int) for n in num_neighbors
+        ), "num_neighbors must be a list of integers"
 
         self.edge = edge
         self.num_val = num_val
@@ -456,8 +447,9 @@ class EllipticppDataModule(pl.LightningDataModule):
             self.num_workers = num_workers
 
     def setup(self, stage=None):
-        dataset = TransactionActorDataset("~/.fintorch_data",
-                                          force_reload=self.force_reload)
+        dataset = TransactionActorDataset(
+            "~/.fintorch_data", force_reload=self.force_reload
+        )
         self.dataset = dataset[0]
         self.split_dataset(dataset[0])
 

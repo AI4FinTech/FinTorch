@@ -110,8 +110,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass
 # [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "fintorch.tex", "FinTorch Documentation", "Marcel Boersma",
-     "manual"),
+    (master_doc, "fintorch.tex", "FinTorch Documentation", "Marcel Boersma", "manual"),
 ]
 
 # -- Options for manual page output ------------------------------------

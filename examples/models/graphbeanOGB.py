@@ -8,9 +8,7 @@ from fintorch.models.graph.graphbean.graphBEAN import GraphBEANModule
 
 
 def main():
-
     class OGBDataModule(L.LightningDataModule):
-
         def __init__(self, data, edge):
             super().__init__()
             self.dataset = data
