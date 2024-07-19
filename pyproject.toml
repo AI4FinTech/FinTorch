@@ -90,4 +90,5 @@ message = "Bump version: {current_version} → {new_version}"
 commit_args = "--no-verify"
 
 
-[tool.bumpversion.file."fintorch/__init__.py"]
+[[tool.bumpversion.files]]
+filename = "fintorch/__init__.py"
