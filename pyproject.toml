@@ -4,7 +4,6 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fintorch"
-version = "0.1.14"
 authors = [
     { name = "Marcel Boersma", email = "boersma.marcel@gmail.com" }
 ]
@@ -40,7 +39,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pip==23.3",
-    "bump-my-version",
+    "poetry",
     "wheel==0.38.1",
     "watchdog",
     "flake8==3.7.8",
@@ -89,3 +88,6 @@ allow_dirty = true
 commit = true
 message = "Bump version: {current_version} → {new_version}"
 commit_args = "--no-verify"
+
+
+[tool.bumpversion.file."fintorch/__init__.py"]
