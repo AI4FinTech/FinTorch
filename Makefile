@@ -85,8 +85,8 @@ install: clean ## install the package to the active Python's site-packages
 
 
 fmt:	## Run autoformatting and linting
-	ruff check
 	ruff format
+	ruff check
 
 mypy:	## Run mypy type analysis
 	mypy -p fintorch --config-file pyproject.toml
