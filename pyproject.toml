@@ -1,0 +1,98 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fintorch"
+version = "0.1.15"
+authors = [
+    { name = "Marcel Boersma", email = "boersma.marcel@gmail.com" }
+]
+description = "AI4FinTech project repository"
+readme = "README.rst"
+requires-python = ">=3.10"
+keywords = ["fintorch"]
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3.10",
+]
+
+dependencies = [
+    "Click>=7.0",
+    "torch",
+    "torch_geometric",
+    "lightning",
+    "kaggle",
+    "polars",
+    "numpy",
+    "huggingface_hub",
+    "seaborn",
+    "networkx",
+    "optuna",
+    "wandb>=0.12.1",
+    "optuna-integration",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pip==23.3",
+    "bump-my-version",
+    "wheel==0.38.1",
+    "watchdog",
+    "flake8==3.7.8",
+    "tox==3.14.0",
+    "coverage==4.5.4",
+    "Sphinx==1.8.5",
+    "twine==1.14.0",
+    "pytest==6.2.4",
+    "black==24.3.0",
+    "nbsphinx",
+    "pandoc",
+    "sphinx-rtd-theme",
+    "jinja2",
+    "ruff",
+    "mypy",
+    "pip-tools",
+    "pre_commit"
+]
+
+
+[project.urls]
+Homepage = "https://github.com/AI4FinTech/fintorch"
+
+[project.scripts]
+fintorch = "fintorch.cli:fintorch"
+fintrainer = "fintorch.cli:trainer"
+
+[tool.mypy]
+strict = true
+warn_unused_ignores = false
+
+[tool.bumpversion]
+current_version = "0.1.15"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+serialize = ["{major}.{minor}.{patch}"]
+search = "{current_version}"
+replace = "{new_version}"
+regex = false
+ignore_missing_version = false
+ignore_missing_files = false
+tag = false
+sign_tags = false
+tag_name = "v{new_version}"
+tag_message = "Bump version: {current_version} → {new_version}"
+allow_dirty = true
+commit = true
+message = "Bump version: {current_version} → {new_version}"
+commit_args = "--no-verify"
+
+
+[[tool.bumpversion.files]]
+filename = "fintorch/__init__.py"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"

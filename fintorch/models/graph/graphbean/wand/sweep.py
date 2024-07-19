@@ -19,9 +19,11 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
     hidden_layers = trial.suggest_int("hidden_layers", 8, 128)
     learning_rate = trial.suggest_float("learning_rate", 0.0001, 0.005)
     structure_decoder_head_layers = trial.suggest_int(
-        "structure_decoder_head_layers", 2, 16)
+        "structure_decoder_head_layers", 2, 16
+    )
     structure_decoder_head_out_channel = trial.suggest_int(
-        "structure_decoder_head_out_channel", 8, 64)
+        "structure_decoder_head_out_channel", 8, 64
+    )
 
     if predict == "transactions":
         edge = ("wallets", "to", "transactions")
@@ -49,11 +51,8 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
         max_epochs=50,
         accelerator="auto",
         devices=1,
-        logger=L.pytorch.loggers.WandbLogger(
-            project=f"graphbean-sweep-{predict}"),
-        callbacks=[
-            PyTorchLightningPruningCallback(trial, monitor="val_acc_step")
-        ],
+        logger=L.pytorch.loggers.WandbLogger(project=f"graphbean-sweep-{predict}"),
+        callbacks=[PyTorchLightningPruningCallback(trial, monitor="val_acc_step")],
     )
     hyperparameters = dict(
         encoder_layers=encoder_layers,

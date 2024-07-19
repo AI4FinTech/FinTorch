@@ -10,8 +10,9 @@ import torchmetrics
 from torch_geometric.nn import SAGEConv
 
 
-def GraphBEANLoss(feature_predictions, edge_predictions,
-                  ground_truth_sampled_data, edge):
+def GraphBEANLoss(
+    feature_predictions, edge_predictions, ground_truth_sampled_data, edge
+):
     """
     Calculates the loss function for the GraphBEAN model.
 
@@ -28,13 +29,15 @@ def GraphBEANLoss(feature_predictions, edge_predictions,
     # Loss of the feature reconstruction per node type
     feature_loss = 0
     for key in feature_predictions.keys():
-        feature_loss += nn.MSELoss()(feature_predictions[key],
-                                     ground_truth_sampled_data[key].x)
+        feature_loss += nn.MSELoss()(
+            feature_predictions[key], ground_truth_sampled_data[key].x
+        )
 
     # Edge prediction loss (one edge type)
     src, to, dst = edge
     edge_loss = F.binary_cross_entropy_with_logits(
-        edge_predictions, ground_truth_sampled_data[src, to, dst].edge_label)
+        edge_predictions, ground_truth_sampled_data[src, to, dst].edge_label
+    )
     # Total loss function
     total_loss = feature_loss + edge_loss
     return total_loss
@@ -67,8 +70,9 @@ def GraphBEANLossClassifier(
     """
 
     # Loss of the feature reconstruction per node type
-    loss = GraphBEANLoss(feature_predictions, edge_predictions,
-                         ground_truth_sampled_data, edge)
+    loss = GraphBEANLoss(
+        feature_predictions, edge_predictions, ground_truth_sampled_data, edge
+    )
 
     classification_loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -82,8 +86,7 @@ def GraphBEANLossClassifier(
 
     weight = 3  # weight > 1, then class loss is weighted more
     # Harmonic mean of feature_loss and total_loss
-    harmonic_mean = (1 + weight) * (loss * class_loss) / (weight * loss +
-                                                          class_loss)
+    harmonic_mean = (1 + weight) * (loss * class_loss) / (weight * loss + class_loss)
     total_loss = harmonic_mean
 
     return total_loss
@@ -112,15 +115,13 @@ class StructureDecoder(nn.Module):
         self.mlp_layers_src = nn.ModuleList()
         self.mlp_layers_src.append(nn.Linear(in_channels, hidden_channels))
         for _ in range(num_layers - 2):
-            self.mlp_layers_src.append(
-                nn.Linear(hidden_channels, hidden_channels))
+            self.mlp_layers_src.append(nn.Linear(hidden_channels, hidden_channels))
         self.mlp_layers_src.append(nn.Linear(hidden_channels, out_channels))
 
         self.mlp_layers_dst = nn.ModuleList()
         self.mlp_layers_dst.append(nn.Linear(in_channels, hidden_channels))
         for _ in range(num_layers - 2):
-            self.mlp_layers_dst.append(
-                nn.Linear(hidden_channels, hidden_channels))
+            self.mlp_layers_dst.append(nn.Linear(hidden_channels, hidden_channels))
         self.mlp_layers_dst.append(nn.Linear(hidden_channels, out_channels))
 
     def forward(self, src, dst, edge_label_index):
@@ -193,17 +194,14 @@ class GraphBEAN(nn.Module):
 
         assert n_encoder_layers > 0, "Number of encoder layers must be greater than 0."
         assert (
-            n_feature_decoder_layers
-            > 0), "Number of feature decoder layers must be greater than 0."
+            n_feature_decoder_layers > 0
+        ), "Number of feature decoder layers must be greater than 0."
         assert hidden_channels > 0, "Number of hidden channels must be greater than 0."
 
         # Encoder layers
         self.encoder_layers = nn.ModuleList()
         first_encoder_layer = nng.HeteroConv(
-            {
-                edge_type: conv_type(-1, hidden_channels)
-                for edge_type in edge_types
-            },
+            {edge_type: conv_type(-1, hidden_channels) for edge_type in edge_types},
             aggr=aggr,
         )
 
@@ -217,7 +215,8 @@ class GraphBEAN(nn.Module):
                         for edge_type in edge_types
                     },
                     aggr=aggr,
-                ))  # Pass conv_type argument
+                )
+            )  # Pass conv_type argument
 
         # FeatureDecoder layers
         self.decoder_layers = nn.ModuleList()
@@ -229,12 +228,12 @@ class GraphBEAN(nn.Module):
                         for edge_type in edge_types
                     },
                     aggr=aggr,
-                ))
+                )
+            )
 
         decoder_last_conv_layer = nng.HeteroConv(
             {
-                edge_type:
-                conv_type(hidden_channels, features_channels[edge_type[2]])
+                edge_type: conv_type(hidden_channels, features_channels[edge_type[2]])
                 for edge_type in edge_types
             },
             aggr=aggr,
@@ -274,8 +273,7 @@ class GraphBEAN(nn.Module):
                 data.edge_index_dict,
             )
             hidden_representation = {
-                key: F.relu(x)
-                for key, x in hidden_representation.items()
+                key: F.relu(x) for key, x in hidden_representation.items()
             }
 
         # Obtain the feature decoding output after looping through the feature decoding layers
@@ -345,7 +343,6 @@ class GraphBeanClassifier(nn.Module):
         edge_types=None,
         aggr="sum",
     ):
-
         super().__init__()
 
         self.node_types = node_types
@@ -362,17 +359,17 @@ class GraphBeanClassifier(nn.Module):
             aggr,
         )
 
-        self.classifierHead = nn.ModuleList([
-            nng.HeteroDictLinear(hidden_channels, hidden_channels,
-                                 self.node_types)
-        ])
+        self.classifierHead = nn.ModuleList(
+            [nng.HeteroDictLinear(hidden_channels, hidden_channels, self.node_types)]
+        )
 
         for _ in range(class_head_layers):
             self.classifierHead.append(
-                nng.HeteroDictLinear(hidden_channels, hidden_channels,
-                                     self.node_types))
+                nng.HeteroDictLinear(hidden_channels, hidden_channels, self.node_types)
+            )
         self.classifierHead.append(
-            nng.HeteroDictLinear(hidden_channels, classes, self.node_types))
+            nng.HeteroDictLinear(hidden_channels, classes, self.node_types)
+        )
 
     def forward(self, data, edge):
         """
@@ -392,7 +389,8 @@ class GraphBeanClassifier(nn.Module):
         """
 
         _, hidden_representation, feature_out, edge_prediction = self.graph_bean_layer(
-            data, edge)
+            data, edge
+        )
 
         class_probs = hidden_representation
         for layer in self.classifierHead:
@@ -484,8 +482,7 @@ class GraphBEANModule(L.LightningModule):
 
         # Convert edge_type strings to tuples
         self.edge_types = [
-            tuple(edge_type.split("_"))
-            if isinstance(edge_type, str) else edge_type
+            tuple(edge_type.split("_")) if isinstance(edge_type, str) else edge_type
             for edge_type in self.edge_types
         ]
 
@@ -520,29 +517,31 @@ class GraphBEANModule(L.LightningModule):
                 self.aggr,
             )
 
-        self.optimizers = optim.Adam(self.model.parameters(),
-                                     lr=self.learning_rate)
+        self.optimizers = optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
         self.accuracy = torchmetrics.classification.Accuracy(
-            task="multiclass", num_classes=classes, average="macro")
+            task="multiclass", num_classes=classes, average="macro"
+        )
 
-        self.f1 = torchmetrics.classification.F1Score(task="multiclass",
-                                                      num_classes=classes,
-                                                      average="macro")
+        self.f1 = torchmetrics.classification.F1Score(
+            task="multiclass", num_classes=classes, average="macro"
+        )
 
-        self.recall = torchmetrics.classification.Recall(task="multiclass",
-                                                         num_classes=classes,
-                                                         average="macro")
+        self.recall = torchmetrics.classification.Recall(
+            task="multiclass", num_classes=classes, average="macro"
+        )
 
         self.precision = torchmetrics.classification.Precision(
-            task="multiclass", num_classes=classes, average="macro")
+            task="multiclass", num_classes=classes, average="macro"
+        )
 
         self.confmat = torchmetrics.classification.ConfusionMatrix(
-            task="multiclass", num_classes=classes)
+            task="multiclass", num_classes=classes
+        )
 
-        self.aucroc = torchmetrics.classification.AUROC(task="multiclass",
-                                                        num_classes=classes,
-                                                        average="macro")
+        self.aucroc = torchmetrics.classification.AUROC(
+            task="multiclass", num_classes=classes, average="macro"
+        )
 
         self.validation_step_outputs = []
 
@@ -607,8 +606,7 @@ class GraphBEANModule(L.LightningModule):
             node_ground_truth = batch[self.predict].y
             idx = node_ground_truth != 2
             batch_subset = node_ground_truth[idx]
-            output_class = torch.argmax(class_probs[self.predict],
-                                        dim=1).long()
+            output_class = torch.argmax(class_probs[self.predict], dim=1).long()
             output_class_subset = output_class[idx]
             self.accuracy(output_class_subset, batch_subset)
             self.log(
@@ -649,8 +647,7 @@ class GraphBEANModule(L.LightningModule):
             node_ground_truth = batch[self.predict].y
             idx_filter = node_ground_truth != 2
             batch_subset = node_ground_truth[idx_filter]
-            output_class = torch.argmax(class_probs[self.predict],
-                                        dim=1).long()
+            output_class = torch.argmax(class_probs[self.predict], dim=1).long()
             output_class_subset = output_class[idx_filter]
             self.accuracy(output_class_subset, batch_subset)
             self.log(
@@ -720,8 +717,7 @@ class GraphBEANModule(L.LightningModule):
             node_ground_truth = batch[self.predict].y
             idx_filter = node_ground_truth != 2
             batch_subset = node_ground_truth[idx_filter]
-            output_class = torch.argmax(class_probs[self.predict],
-                                        dim=1).long()
+            output_class = torch.argmax(class_probs[self.predict], dim=1).long()
             output_class_subset = output_class[idx_filter]
             self.accuracy(output_class_subset, batch_subset)
             self.log(
