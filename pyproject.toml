@@ -8,7 +8,7 @@ version = "0.1.15"
 authors = [
     { name = "Marcel Boersma", email = "boersma.marcel@gmail.com" }
 ]
-description = "AI4FinTech project repository"
+description = "AI4FinTech project repository "
 readme = "README.rst"
 requires-python = ">=3.10"
 keywords = ["fintorch"]
