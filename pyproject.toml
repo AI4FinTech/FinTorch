@@ -96,3 +96,6 @@ filename = "fintorch/__init__.py"
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"
+
+[tool.hatch.build.targets.wheel]
+packages = ["fintorch"] 
