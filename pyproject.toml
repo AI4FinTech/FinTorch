@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fintorch"
-version = "0.1.15"
+version = "0.1.16"
 authors = [
     { name = "Marcel Boersma", email = "boersma.marcel@gmail.com" }
 ]
-description = "AI4FinTech project repository"
+description = "AI4FinTech project  repository"
 readme = "README.rst"
 requires-python = ">=3.10"
 keywords = ["fintorch"]
@@ -73,7 +73,7 @@ strict = true
 warn_unused_ignores = false
 
 [tool.bumpversion]
-current_version = "0.1.15"
+current_version = "0.1.16"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
@@ -98,4 +98,4 @@ filename = "fintorch/__init__.py"
 filename = "pyproject.toml"
 
 [tool.hatch.build.targets.wheel]
-packages = ["fintorch"] 
+packages = ["fintorch"]
