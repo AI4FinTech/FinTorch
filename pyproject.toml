@@ -35,6 +35,9 @@ dependencies = [
     "optuna",
     "wandb>=0.12.1",
     "optuna-integration",
+    "yfinance",
+    "entmax",
+    "neuralforecast"
 ]
 
 [project.optional-dependencies]
