@@ -65,7 +65,6 @@ class Stockformer(nn.Module):
         self.final_projection_trend = nn.Linear()  # TODO
 
     def forward(self, trend, seasonal, temporal_one_hot, spatial_graph_emb):
-
         trend = self.trend_projection(trend)
         seasonal = self.seasonal_projection(seasonal)
         temporal_embedding = self.temporal_projection(temporal_one_hot)

@@ -10,7 +10,6 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
-
     try:
         # Load the stock dataset
         tickers = ["AAPL", "MSFT", "GOOG", "NVDA"]

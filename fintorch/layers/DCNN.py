@@ -1,5 +1,6 @@
 import torch.nn as nn
 
+
 class DilatedConvolution(nn.Module):
     """
 
@@ -8,7 +9,14 @@ class DilatedConvolution(nn.Module):
 
     """
 
-    def __init__(self, number_of_layers: int, in_channels:int, out_channels:int, kernel_size: int, stride: int) -> None:
+    def __init__(
+        self,
+        number_of_layers: int,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: int,
+    ) -> None:
         super().__init__()
 
         # We have L dilation layers and the 2^{L-1} item is connected to the next 2^L items
@@ -23,20 +31,17 @@ class DilatedConvolution(nn.Module):
         self.layers = nn.ModuleList()
         for i in range(number_of_layers):
             dilation_size = 2**i
-            padding = (kernel_size-1) * dilation_size
+            padding = (kernel_size - 1) * dilation_size
             layer = nn.Conv1d(
                 in_channels=in_channels,
                 out_channels=out_channels,
                 kernel_size=kernel_size,
                 stride=stride,
                 padding=padding,
-                dilation=dilation_size
+                dilation=dilation_size,
             )
             self.layers.append(layer)
             self.layers.append(nn.ReLU())
-
-
-
 
     def forward(self, x):
         # migth need a transpose to get the right shape

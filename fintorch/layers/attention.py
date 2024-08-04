@@ -8,10 +8,12 @@ from entmax import sparsemax, entmax15
 
 from enum import Enum
 
+
 class ActivationType(Enum):
     SOFTMAX = softmax
     SPARSEMAX = sparsemax
     ENTMAX15 = entmax15
+
 
 class MultiHeadAttention(nn.Module):
     def __init__(
@@ -19,7 +21,7 @@ class MultiHeadAttention(nn.Module):
         dim_input: int,
         dim_embedding: int,
         number_of_heads: int,
-        activation: ActivationType = ActivationType.SOFTMAX
+        activation: ActivationType = ActivationType.SOFTMAX,
     ) -> None:
         """
         Initializes the Attention module.
@@ -70,7 +72,9 @@ class MultiHeadAttention(nn.Module):
         values = torch.matmul(attention, v)
         return values, attention
 
-    def forward(self, x: Tensor, x2: Optional[Tensor] = None, mask: Optional[Tensor] = None) -> tuple[Tensor, Tensor]:
+    def forward(
+        self, x: Tensor, x2: Optional[Tensor] = None, mask: Optional[Tensor] = None
+    ) -> tuple[Tensor, Tensor]:
         """
         Forward pass of the attention module. Supports cross-attention.
 
@@ -116,9 +120,18 @@ class MultiHeadAttention(nn.Module):
 
         return o, attention
 
-class EncoderBlock(nn.Module):
 
-    def __init__(self, dim_input, dim_embedding, number_of_heads, dim_feedforward, dropout = 0.0, number_of_layers_ff = 2, activation: ActivationType = ActivationType.SOFTMAX) -> None:
+class EncoderBlock(nn.Module):
+    def __init__(
+        self,
+        dim_input,
+        dim_embedding,
+        number_of_heads,
+        dim_feedforward,
+        dropout=0.0,
+        number_of_layers_ff=2,
+        activation: ActivationType = ActivationType.SOFTMAX,
+    ) -> None:
         super().__init__()
         assert number_of_layers_ff >= 2, "num_layers must be larger than 2"
 
@@ -142,14 +155,12 @@ class EncoderBlock(nn.Module):
         self.norm2 = nn.LayerNorm(dim_input)
         self.dropout = nn.Dropout(dropout)
 
-
-    def forward(self, x, x2 = None, mask = None):
-
-        if x2 is None: # self-attention
+    def forward(self, x, x2=None, mask=None):
+        if x2 is None:  # self-attention
             x2 = x
 
         # Calculate attention scores
-        attention, attention_map = self.attention(x, x2, mask = mask)
+        attention, attention_map = self.attention(x, x2, mask=mask)
         # skip connection
         x = x + self.dropout(attention)
         # normalize layer
@@ -164,19 +175,21 @@ class EncoderBlock(nn.Module):
 
         return x, attention_map
 
-class TransformerEncoder(nn.Module):
 
+class TransformerEncoder(nn.Module):
     def __init__(self, number_of_encoder_blocks, **kwargs):
         super().__init__()
-        self.encoder_layers = nn.ModuleList([EncoderBlock(**kwargs) for _ in range(number_of_encoder_blocks)])
+        self.encoder_layers = nn.ModuleList(
+            [EncoderBlock(**kwargs) for _ in range(number_of_encoder_blocks)]
+        )
 
-    def forward(self, x, x2 = None, mask=None):
-        if x2 is None: # self-attention
+    def forward(self, x, x2=None, mask=None):
+        if x2 is None:  # self-attention
             x2 = x
 
         attention_maps = []
         for encoder_layer in self.encoder_layers:
-            x, attention_map = encoder_layer(x, x2, mask = mask)
+            x, attention_map = encoder_layer(x, x2, mask=mask)
             attention_maps.append(attention_map)
 
         return x, attention_maps
