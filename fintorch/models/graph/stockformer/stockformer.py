@@ -8,7 +8,7 @@ from fintorch.layers.DCNN import DilatedConvolution
 
 class temporalEmbedding(nn.Module):
     def __init__(self, D):
-        super(self).__init__()
+        super().__init__()
         self.linear_temporal_embedding_layer = nn.Linear()  # TODO: fix
 
     def forward(self, temporal_encoding):
@@ -17,7 +17,7 @@ class temporalEmbedding(nn.Module):
 
 class dualEncoder(nn.Module):
     def __init__(self, features, **kwargs):
-        super(dualEncoder, self).__init__()
+        super().__init__()
         self.dialated_conv = DilatedConvolution(3, features, features, 1, 1)
         self.temporalAttention = TransformerEncoder(
             number_of_encoder_blocks=1, activation=ActivationType.SOFTMAX, **kwargs
@@ -31,8 +31,7 @@ class dualEncoder(nn.Module):
         )
 
     def forward(self, trend_signal, seasonal_signal, temporal_emb, spatial_graph_emb):
-        trend_signal_ = trend_signal + temporal_emb
-        trend_signal = self.temporalAttention(trend_signal_)
+        trend_signal = self.temporalAttention(trend_signal + temporal_emb)
         seasonal_signal = self.dialated_conv(seasonal_signal)
 
         trend_signal += spatial_graph_emb
@@ -47,7 +46,7 @@ class dualEncoder(nn.Module):
 
 class Stockformer(nn.Module):
     def __init__(self, **kwargs):
-        super(Stockformer, self).__init__()
+        super().__init__()
         self.trend_projection = nn.Linear()  # TODO
         self.seasonal_projection = nn.Linear()  # TODO:
         self.temporal_projection = temporalEmbedding()
