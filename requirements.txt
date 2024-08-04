@@ -14,6 +14,8 @@ alembic==1.13.2
     # via optuna
 attrs==23.2.0
     # via aiohttp
+beautifulsoup4==4.12.3
+    # via yfinance
 bleach==6.1.0
     # via kaggle
 certifi==2024.7.4
@@ -42,6 +44,8 @@ filelock==3.15.4
     #   triton
 fonttools==4.53.1
     # via matplotlib
+frozendict==2.4.4
+    # via yfinance
 frozenlist==1.4.1
     # via
     #   aiohttp
@@ -59,6 +63,8 @@ gitpython==3.1.43
     # via wandb
 greenlet==3.0.3
     # via sqlalchemy
+html5lib==1.1
+    # via yfinance
 huggingface-hub==0.24.0
     # via fintorch (pyproject.toml)
 idna==3.7
@@ -82,6 +88,8 @@ lightning-utilities==0.11.5
     #   lightning
     #   pytorch-lightning
     #   torchmetrics
+lxml==5.2.2
+    # via yfinance
 mako==1.3.5
     # via alembic
 markupsafe==2.1.5
@@ -96,6 +104,8 @@ multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
+multitasking==0.0.11
+    # via yfinance
 networkx==3.3
     # via
     #   fintorch (pyproject.toml)
@@ -114,6 +124,7 @@ numpy==2.0.0
     #   seaborn
     #   torch-geometric
     #   torchmetrics
+    #   yfinance
 nvidia-cublas-cu12==12.1.3.1
     # via
     #   nvidia-cudnn-cu12
@@ -161,11 +172,17 @@ packaging==24.1
     #   pytorch-lightning
     #   torchmetrics
 pandas==2.2.2
-    # via seaborn
+    # via
+    #   seaborn
+    #   yfinance
+peewee==3.17.6
+    # via yfinance
 pillow==10.4.0
     # via matplotlib
 platformdirs==4.2.2
-    # via wandb
+    # via
+    #   wandb
+    #   yfinance
 polars==1.2.1
     # via fintorch (pyproject.toml)
 protobuf==5.27.2
@@ -188,7 +205,9 @@ python-slugify==8.0.4
 pytorch-lightning==2.3.3
     # via lightning
 pytz==2024.1
-    # via pandas
+    # via
+    #   pandas
+    #   yfinance
 pyyaml==6.0.1
     # via
     #   huggingface-hub
@@ -202,6 +221,7 @@ requests==2.32.3
     #   kaggle
     #   torch-geometric
     #   wandb
+    #   yfinance
 scikit-learn==1.5.1
     # via torch-geometric
 scipy==1.14.0
@@ -218,10 +238,13 @@ six==1.16.0
     # via
     #   bleach
     #   docker-pycreds
+    #   html5lib
     #   kaggle
     #   python-dateutil
 smmap==5.0.1
     # via gitdb
+soupsieve==2.5
+    # via beautifulsoup4
 sqlalchemy==2.0.31
     # via
     #   alembic
@@ -273,9 +296,13 @@ urllib3==2.2.2
 wandb==0.17.4
     # via fintorch (pyproject.toml)
 webencodings==0.5.1
-    # via bleach
+    # via
+    #   bleach
+    #   html5lib
 yarl==1.9.4
     # via aiohttp
+yfinance==0.2.41
+    # via fintorch (pyproject.toml)
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
