@@ -45,7 +45,7 @@ class DilatedConvolution(nn.Module):
 
     def forward(self, x):
         # migth need a transpose to get the right shape
-        for layer in self.layer:
+        for layer in self.layers:
             x = layer(x)
 
         return x

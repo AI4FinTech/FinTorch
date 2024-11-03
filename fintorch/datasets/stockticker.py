@@ -9,7 +9,7 @@ import polars as pol
 import torch
 import torch_geometric
 import yfinance as yf
-from neuralforecast.tsdataset import TimeSeriesDataset
+from neuralforecast.tsdataset import TimeSeriesDataset, TimeSeriesLoader
 from torch.utils.data import Dataset
 
 
@@ -81,15 +81,14 @@ class StockTicker(Dataset):
             os.makedirs(processed_dir)
 
     def __len__(self):
-        return len(self.xxx)
+        # The length of the dataset is the sequence length of all stocks
+        return len(self.timeseries_dataset)
 
     def __getitem__(self, idx):
-        # Should return a slice to train on
-        # Feed item:
-        # - timeseries
-        # - correlation graph
-        # - temporal graph
-        return NotImplementedError
+        # We return
+        # - stocktick data (TimeseriesDataset), possibly a slice
+        # - spatial_graph encoding
+        return self.timeseries_dataset.__getitem__(idx)
 
     def raw_file_names(self) -> list[str]:
         """
@@ -240,20 +239,38 @@ class StockTicker(Dataset):
         # Store spatial graph
         torch.save(spatial_graph_timeseries, self.processed_paths()[1])
 
-    def load(self):
-        concatenated_df = pol.read_parquet(self.processed_paths()[0])
-        self.timeseries_dataset, _, _, _ = TimeSeriesDataset.from_df(
-            concatenated_df, id_col="unique_ticker", time_col="ds", target_col="y"
-        )
+    def load(self) -> None:
+        """
+        Loads the dataset and associated graphs.
+
+        This method loads the dataset from a parquet file and creates the necessary graphs for further processing.
+        It also logs the loaded dataset, spatial graph, and temporal encoding.
+
+        Returns:
+            None
+        """
 
         self.spatial_graph = torch.load(self.processed_paths()[1])
-        self.temporal_graph = self.temporal_signal_encoding(concatenated_df["ds"])
+
+        concatenated_df = pol.read_parquet(self.processed_paths()[0])
+
+        temporal_embedding_graph_embedding = self.temporal_signal_encoding(
+            concatenated_df["ds"]
+        )
+
+        self.df_timeseries_dataset = concatenated_df
+
+        self.timeseries_dataset, _, _, _ = TimeSeriesDataset.from_df(
+            concatenated_df,
+            id_col="unique_ticker",
+            time_col="ds",
+            target_col="y",
+            static_df=temporal_embedding_graph_embedding,
+        )
 
         logging.info("All datsets loaded sucessfully")
 
         logging.info(f"loaded dataset:{self.timeseries_dataset}")
-        logging.info(f"loaded spatial-graph:{self.spatial_graph}")
-        logging.info(f"temporal_encoding:{self.temporal_graph.shape}")
 
     def spatial_graph_construction(self, df):
         """
@@ -340,7 +357,7 @@ class StockTicker(Dataset):
             trading_dates.dtype, pol.Date
         ), "trading_dates must be a pol.Series with dtype polars.Date"
 
-        encoded_dates = []
+        encoded_dates_list = []
         for trading_date in trading_dates:
             # Construct graph as a 12 x 21 grid
             # decompose to grid location
@@ -359,9 +376,10 @@ class StockTicker(Dataset):
 
             # Concatenate the encodings
             encoding = torch.cat((month_encoding, day_encoding), dim=-1)
-            encoded_dates.append(encoding)
+            encoded_dates_list.append(encoding)
 
-        encoded_dates = torch.stack(encoded_dates, dim=0)
+        encoded_dates_tensor = torch.stack(encoded_dates_list, dim=0)
+        encoded_dates = pol.DataFrame(encoded_dates_tensor.numpy())
 
         return encoded_dates
 
@@ -394,12 +412,9 @@ class StockTickerDataModule(pl.LightningDataModule):
             mapping=self.mapping,
             force_reload=self.force_reload,
         )
-        # Create a neuralforecast timeseries dataset
-        print("Data setup!")
-        # print(f"data loaded:\n{self.stocktickerdata.data}")
 
     def train_dataloader(self):
-        return super().train_dataloader()
+        return TimeSeriesLoader(self.stocktickerdata)
 
     def val_dataloader(self):
         return super().val_dataloader()

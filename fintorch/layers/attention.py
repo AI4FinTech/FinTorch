@@ -7,7 +7,7 @@ from torch.nn.functional import softmax
 from entmax import sparsemax, entmax15
 
 from enum import Enum
-
+import logging
 
 class ActivationType(Enum):
     SOFTMAX = softmax
@@ -90,13 +90,13 @@ class MultiHeadAttention(nn.Module):
         # For the cross-attention mechanism
         if x2 is None:
             x2 = x
-
         # We performed all multiplications in one go (q, k, v)
         qkv = self.qkv(
             x2
         )  # [Batch size, sequence length, feature size] -> [Batch size, sequence length, dim_embedding]
 
-        batch_size, seq_len, _ = x.size()
+        batch_size, seq_len, features = x.size()
+        logging.info(f'MultiHeadAttention::forward: Decomposing the input, we have a batch_size:{batch_size} a sequence length:{seq_len} and features length:{features}')
 
         # TODO: implement masking such that it cannot look into the future!
 
@@ -107,11 +107,14 @@ class MultiHeadAttention(nn.Module):
         )
         # Swap dimensionality of the heads and sequence length
         # [Batch size, sequence length, heads, dim_emb] -> [Batch size, heads, sequence length, dim_emb]
-        qkv = qkv.permutate(0, 2, 1, 3)
+        qkv = qkv.permute(0, 2, 1, 3)
         # Get individual matrices Q, K, V
         q, k, v = qkv.chunk(3, dim=-1)
 
         values, attention = self.scaled_dot_product(q, k, v, mask=mask)
+
+        logging.info(f'MultiHeadAttention::forward: we calculated a attention vector of shape:{attention.shape}')
+
         # Invert the earlier transformation
         # [Batch size, heads, sequence length, dim_emb] -> [Batch size, sequence length, head, dim_emb]
         values = values.permute(0, 2, 1, 3)
@@ -134,7 +137,7 @@ class EncoderBlock(nn.Module):
     ) -> None:
         super().__init__()
         assert number_of_layers_ff >= 2, "num_layers must be larger than 2"
-
+        logging.info(f'MultiheadAttention dim_input:{dim_input}, dim_embedding:{dim_embedding}, number_of_heads:{number_of_heads}')
         self.attention = MultiHeadAttention(dim_input, dim_embedding, number_of_heads)
 
         feedforward_layers = []
@@ -159,8 +162,11 @@ class EncoderBlock(nn.Module):
         if x2 is None:  # self-attention
             x2 = x
 
+        logging.info(f'EncoderBlock::Forward input x:{x.shape}')
         # Calculate attention scores
         attention, attention_map = self.attention(x, x2, mask=mask)
+
+        logging.info(f"EncoderBlock::Forward attention:{attention.shape}")
         # skip connection
         x = x + self.dropout(attention)
         # normalize layer
