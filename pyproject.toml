@@ -28,7 +28,7 @@ dependencies = [
     "lightning",
     "kaggle",
     "polars",
-    "numpy",
+    "numpy<2",
     "huggingface_hub",
     "seaborn",
     "networkx",
@@ -37,7 +37,8 @@ dependencies = [
     "optuna-integration",
     "yfinance",
     "entmax",
-    "neuralforecast"
+    "neuralforecast",
+    "ray[tune]==2.10 "
 ]
 
 [project.optional-dependencies]

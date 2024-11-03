@@ -25,3 +25,5 @@ stockdata = stockticker.StockTicker(
     mapping=ticker_index,
     force_reload=True,
 )
+
+print(stockdata.df_timeseries_dataset.to_pandas().describe())

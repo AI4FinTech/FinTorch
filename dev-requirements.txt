@@ -229,7 +229,7 @@ nh3==0.2.18
     # via readme-renderer
 nodeenv==1.9.1
     # via pre-commit
-numpy==2.0.0
+numpy==1.26.4
     # via
     #   contourpy
     #   coreforecast
@@ -421,8 +421,10 @@ pyzmq==26.0.3
     # via jupyter-client
 questionary==2.0.1
     # via bump-my-version
-ray[tune]==2.33.0
-    # via neuralforecast
+ray[tune]==2.10.0
+    # via
+    #   fintorch (pyproject.toml)
+    #   neuralforecast
 readme-renderer==43.0
     # via twine
 referencing==0.35.1

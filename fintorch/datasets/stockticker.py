@@ -3,16 +3,14 @@ import os
 from datetime import date as Date
 from typing import List
 
-import lightning.pytorch as pl
 import pandas as pd
 import polars as pol
-import torch
-import torch_geometric
 import yfinance as yf
-from neuralforecast.tsdataset import TimeSeriesDataset, TimeSeriesLoader
+from neuralforecast.tsdataset import TimeSeriesDataset
 from torch.utils.data import Dataset
 
 
+# TODO: directly subclass TimeSeriesDataset from neural forcast
 class StockTicker(Dataset):
     def __init__(
         self,
@@ -179,12 +177,12 @@ class StockTicker(Dataset):
             hist.reset_index(inplace=True)
 
             hist.rename(
-                columns={"Date": "ds", "Ticker": "unique_ticker", self.value_name: "y"},
+                columns={"Date": "ds", "Ticker": "unique_id", self.value_name: "y"},
                 inplace=True,
             )
 
             # Split the hist dataframe based on unique_id
-            grouped_data = hist.groupby("unique_ticker")
+            grouped_data = hist.groupby("unique_id")
 
             # Save a csv file per unique_id
             for ticker, group in grouped_data:
@@ -218,26 +216,21 @@ class StockTicker(Dataset):
         # Concatenate the files into one data frame
         concatenated_df = pol.concat(dfs)
         concatenated_df = concatenated_df.with_columns(
-            pol.col("unique_ticker").replace(self.mapping, default=None),
+            pol.col("unique_id").replace(self.mapping, default=None),
             pol.col("ds").str.to_date(),
         )
 
         # Reshape the data to wide format based on unique_id
-        wide_df = concatenated_df.pivot(index="ds", columns="unique_ticker", values="y")
+        wide_df = concatenated_df.pivot(index="ds", columns="unique_id", values="y")
         wide_df = wide_df.drop(["ds"])
-
-        spatial_graph_timeseries = self.spatial_graph_construction(wide_df)
 
         # Store time-series data
         concatenated_df.write_parquet(
             self.processed_paths()[0],
             compression="zstd",
             use_pyarrow=True,
-            pyarrow_options={"partition_cols": ["unique_ticker"]},
+            pyarrow_options={"partition_cols": ["unique_id"]},
         )
-
-        # Store spatial graph
-        torch.save(spatial_graph_timeseries, self.processed_paths()[1])
 
     def load(self) -> None:
         """
@@ -250,174 +243,15 @@ class StockTicker(Dataset):
             None
         """
 
-        self.spatial_graph = torch.load(self.processed_paths()[1])
-
-        concatenated_df = pol.read_parquet(self.processed_paths()[0])
-
-        temporal_embedding_graph_embedding = self.temporal_signal_encoding(
-            concatenated_df["ds"]
-        )
-
-        self.df_timeseries_dataset = concatenated_df
+        self.df_timeseries_dataset = pol.read_parquet(self.processed_paths()[0])
 
         self.timeseries_dataset, _, _, _ = TimeSeriesDataset.from_df(
-            concatenated_df,
-            id_col="unique_ticker",
+            self.df_timeseries_dataset,
+            id_col="unique_id",
             time_col="ds",
             target_col="y",
-            static_df=temporal_embedding_graph_embedding,
         )
 
         logging.info("All datsets loaded sucessfully")
 
         logging.info(f"loaded dataset:{self.timeseries_dataset}")
-
-    def spatial_graph_construction(self, df):
-        """
-        Constructs a spatial graph from a given DataFrame.
-
-        Args:
-            df (pandas.DataFrame): The input DataFrame containing the data.
-
-        Returns:
-            torch_geometric.data.Data: The constructed spatial graph.
-
-        """
-        # Calculate the Spearman correlation matrix
-        corr_matrix = df.corr()
-
-        # Get unique column names
-        columns = corr_matrix.columns
-
-        # Create an empty list to store results
-        results = []
-
-        # Iterate through the lower triangle of the correlation matrix
-        for i, row in enumerate(columns):
-            for j, col in enumerate(columns):
-                if i < j:
-                    results.append((row, col, corr_matrix.iloc[i, j]))
-
-        result_df = pol.DataFrame(
-            {
-                "src": [row[0] for row in results],
-                "dst": [row[1] for row in results],
-                "weight": [row[2] for row in results],
-            }
-        )
-
-        result_df = result_df.with_columns(
-            [
-                pol.col("src").cast(pol.Int64),  # or pl.Int32 if IDs are smaller
-                pol.col("dst").cast(pol.Int64),
-            ]
-        )
-
-        # Create a PyG data object from the edge list
-        edge_index = torch.tensor(
-            result_df.select(["src", "dst"]).to_numpy().T, dtype=torch.long
-        )
-        edge_attr = torch.tensor(
-            result_df["weight"].to_numpy(), dtype=torch.float32
-        )  # Adjust dtype if needed
-
-        graph = torch_geometric.data.Data(
-            x=df.transpose(include_header=False).to_torch(),
-            edge_index=edge_index,
-            edge_attr=edge_attr,
-        )
-
-        return graph
-
-    def temporal_signal_encoding(self, trading_dates: pol.Series):
-        """
-        Encodes the trading dates into a temporal representation using a one-hot encoding.
-
-        The one-hot encoding is used to represent the temporal information in the model. This method is inspired by the
-        work in the following references:
-
-        - Li, Y., Fu, K., Wang, Z., Shahabi, C., Ye, J., & Liu, Y. (2018). Multi-task representation learning for travel
-          time estimation. In Proceedings of the 24th ACM SIGKDD international conference on knowledge discovery & data
-          mining (pp. 1695–1704). doi:10.1145/3219819.3220033.
-
-        - Yuan, H., Li, G., Bao, Z., & Feng, L. (2020). Effective travel time estimation: When historical trajectories
-          over road networks matter. In Proceedings of the 2020 ACM SIGMOD international conference on management of data
-          (pp. 2135–2149) doi:10.1145/3318464.3389771
-
-        Args:
-            trading_dates (pol.Series): A series of trading dates.
-
-        Returns:
-            torch.Tensor: A tensor containing the encoded dates, where each date is represented as a one-hot encoding.
-        """
-        assert isinstance(
-            trading_dates, pol.Series
-        ), "trading_dates must be a pol.Series"
-        assert isinstance(
-            trading_dates.dtype, pol.Date
-        ), "trading_dates must be a pol.Series with dtype polars.Date"
-
-        encoded_dates_list = []
-        for trading_date in trading_dates:
-            # Construct graph as a 12 x 21 grid
-            # decompose to grid location
-            day_of_week_num = trading_date.weekday()  # Monday is 0 and Sunday is 6
-            month_num = trading_date.month - 1  # 0 for January, 1 for February, etc.
-
-            # One-hot encode the row and column
-            # we have 12-months
-            month_encoding = torch.nn.functional.one_hot(
-                torch.tensor(month_num), num_classes=12
-            )
-            # and 21 trading days
-            day_encoding = torch.nn.functional.one_hot(
-                torch.tensor(day_of_week_num), num_classes=5
-            )
-
-            # Concatenate the encodings
-            encoding = torch.cat((month_encoding, day_encoding), dim=-1)
-            encoded_dates_list.append(encoding)
-
-        encoded_dates_tensor = torch.stack(encoded_dates_list, dim=0)
-        encoded_dates = pol.DataFrame(encoded_dates_tensor.numpy())
-
-        return encoded_dates
-
-
-class StockTickerDataModule(pl.LightningDataModule):
-    def __init__(
-        self,
-        tickers: list[str],
-        start_date: Date,
-        end_date: Date,
-        mapping: dict,
-        force_reload: bool = False,
-    ):
-        super().__init__()
-
-        assert start_date < end_date, "start_date must be before end_date"
-
-        self.start_date = start_date
-        self.end_date = end_date
-        self.tickers = tickers
-        self.mapping = mapping
-        self.force_reload = force_reload
-
-    def setup(self, stage=None):
-        self.stocktickerdata = StockTicker(
-            "~/.fintorch_data/stocktickers/",
-            tickers=self.tickers,
-            start_date=self.start_date,
-            end_date=self.end_date,
-            mapping=self.mapping,
-            force_reload=self.force_reload,
-        )
-
-    def train_dataloader(self):
-        return TimeSeriesLoader(self.stocktickerdata)
-
-    def val_dataloader(self):
-        return super().val_dataloader()
-
-    def test_dataloader(self):
-        return super().test_dataloader()
