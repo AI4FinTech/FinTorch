@@ -61,7 +61,9 @@ dev = [
     "ruff",
     "mypy",
     "pip-tools",
-    "pre-commit"
+    "pre-commit",
+    "types-tqdm",
+    "pandas-stubs"
 ]
 
 
@@ -75,6 +77,7 @@ fintrainer = "fintorch.cli:trainer"
 [tool.mypy]
 strict = true
 warn_unused_ignores = false
+ignore_missing_imports = true
 
 [tool.bumpversion]
 current_version = "0.1.15"

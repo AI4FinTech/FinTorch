@@ -30,7 +30,7 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
     else:
         edge = ("transactions", "to", "wallets")
 
-    model = GraphBEANModule(
+    model = GraphBEANModule(  # type: ignore[call-arg]
         edge,
         edge_types=[("wallets_to_transactions"), ("transactions_to_wallets")],
         encoder_layers=encoder_layers,
@@ -61,7 +61,7 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
         class_head_layers=class_head_layers,
         hidden_layers=hidden_layers,
     )
-    trainer.logger.log_hyperparams(hyperparameters)
+    trainer.logger.log_hyperparams(hyperparameters)  # type: ignore
     trainer.fit(model, datamodule=datamodule)
 
     return trainer.callback_metrics["val_f1"].item()

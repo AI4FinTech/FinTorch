@@ -1,11 +1,11 @@
 from typing import List, Optional, Union
 
-import torch
-from torch import Tensor
-from torch_geometric.nn.aggr import Aggregation
-from torch_geometric.nn.conv import MessagePassing
-from torch_geometric.nn.dense.linear import Linear
-from torch_geometric.typing import Adj, OptPairTensor, Size
+import torch # type: ignore
+from torch import Tensor # type: ignore
+from torch_geometric.nn.aggr import Aggregation # type: ignore
+from torch_geometric.nn.conv import MessagePassing # type: ignore
+from torch_geometric.nn.dense.linear import Linear # type: ignore
+from torch_geometric.typing import Adj, OptPairTensor, Size # type: ignore
 
 
 class BeanAggregation(Aggregation):
@@ -396,7 +396,7 @@ class BEANConv(MessagePassing):
         inputs: Tensor,
         index: Tensor,
         ptr: Optional[Tensor] = None,
-        edge_attr: Tensor = None,
+        edge_attr: Optional[Tensor] = None,
         dim_size: Optional[int] = None,
     ) -> Tensor:
         r"""

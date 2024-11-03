@@ -4,7 +4,7 @@ from typing import Callable, List, Optional
 import numpy as np
 import polars as pol
 import torch
-from torch_geometric.data import Data, InMemoryDataset
+from torch_geometric.data import Data, InMemoryDataset  # type: ignore
 
 from fintorch.datasets.kaggle.downloader import KaggleDownloader
 
@@ -126,7 +126,7 @@ class TransactionDataset(InMemoryDataset):
             None
         """
 
-        data_list = []
+        data_list = [] # type: ignore
 
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
@@ -181,7 +181,7 @@ class TransactionDataset(InMemoryDataset):
 
         # Preparing edge_index for PyTorch
         edge_index = np.array(edgelist.to_numpy()).T
-        edge_index = torch.tensor(edge_index, dtype=torch.long).contiguous()
+        edge_index = torch.tensor(edge_index, dtype=torch.long).contiguous()  # type: ignore
 
         # Extract labels
         labels = torch.tensor(df_merge["class"].to_numpy(), dtype=torch.float32).long()

@@ -1,6 +1,7 @@
 import os
+from typing import Optional
 
-from kaggle.api.kaggle_api_extended import KaggleApi
+from kaggle.api.kaggle_api_extended import KaggleApi # type: ignore
 
 
 class KaggleDownloader:
@@ -11,11 +12,11 @@ class KaggleDownloader:
         api (KaggleApi): The Kaggle API object used for authentication and downloading.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.api = KaggleApi()
         self.api.authenticate()
 
-    def download_dataset(self, dataset_name, download_dir=None):
+    def download_dataset(self, dataset_name: str, download_dir: Optional[str] = None) -> None:
         """
         Downloads the specified dataset from Kaggle.
 
@@ -28,7 +29,9 @@ class KaggleDownloader:
             None
         """
         if download_dir is None:
-            download_dir = self.create_fintorch_data_directory()
+            download_dir = os.path.join(os.getcwd(), 'kaggledata')
+            os.makedirs(download_dir, exist_ok=True)
+
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
         self.api.dataset_download_files(dataset_name,

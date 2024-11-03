@@ -27,10 +27,7 @@ num_samples = 10
 freq = "1d"
 
 
-
-
 def main():
-
     max_steps = tune.choice([500, 1500, 2000])
 
     tft_config = {
@@ -128,7 +125,7 @@ def main():
             config=nhits_config,
             num_samples=num_samples,
             refit_with_val=True,
-        )
+        ),
     ]
 
     stockdata = stockticker.StockTicker(
@@ -176,7 +173,6 @@ def main():
         print(f"\nModel: {model_name}")
         print(f"MSE: {mse_score}")
         print(f"MAE: {mae_score}")
-
 
 
 if __name__ == "__main__":

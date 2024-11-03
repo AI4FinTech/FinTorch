@@ -5,10 +5,10 @@ import lightning.pytorch as pl
 import numpy as np
 import polars as pol
 import torch
-import torch_geometric.transforms as T
-from huggingface_hub import hf_hub_download
-from torch_geometric.data import HeteroData, InMemoryDataset
-from torch_geometric.loader import LinkNeighborLoader
+import torch_geometric.transforms as T  # type: ignore
+from huggingface_hub import hf_hub_download  # type: ignore
+from torch_geometric.data import HeteroData, InMemoryDataset  # type: ignore
+from torch_geometric.loader import LinkNeighborLoader  # type: ignore
 from tqdm import tqdm
 
 
@@ -395,7 +395,7 @@ class EllipticppDataModule(pl.LightningDataModule):
         num_test: float = 0.1,
         disjoint_train_ratio: float = 0.3,
         neg_sampling_ratio: float = 2.0,
-        num_neighbors: List[int] = None,
+        num_neighbors: List[int] = [10, 30],
         batch_size: int = 128,
         neg_sampling: str = "binary",
         num_workers: int = -1,
@@ -423,9 +423,6 @@ class EllipticppDataModule(pl.LightningDataModule):
             isinstance(batch_size, int) and batch_size > 0
         ), "batch_size must be a positive integer"
         assert isinstance(neg_sampling, str), "neg_sampling must be a string"
-
-        if num_neighbors is None:
-            num_neighbors = [10, 30]
 
         assert isinstance(num_neighbors, list) and all(
             isinstance(n, int) for n in num_neighbors

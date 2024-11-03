@@ -5,8 +5,8 @@ from typing import List
 
 import pandas as pd
 import polars as pol
-import yfinance as yf
-from neuralforecast.tsdataset import TimeSeriesDataset
+import yfinance as yf # type: ignore
+from neuralforecast.tsdataset import TimeSeriesDataset # type: ignore
 from torch.utils.data import Dataset
 
 
@@ -80,7 +80,7 @@ class StockTicker(Dataset):
 
     def __len__(self):
         """Return the length of the dataset."""
-        if not hasattr(self, 'timeseries_dataset'):
+        if not hasattr(self, "timeseries_dataset"):
             raise RuntimeError("Dataset not loaded. Call load() first.")
         return len(self.timeseries_dataset)
 
@@ -97,9 +97,10 @@ class StockTicker(Dataset):
         Raises:
             RuntimeError: If the dataset hasn't been loaded
         """
-        if not hasattr(self, 'timeseries_dataset'):
+        if not hasattr(self, "timeseries_dataset"):
             raise RuntimeError("Dataset not loaded. Call load() first.")
         return self.timeseries_dataset.__getitem__(idx)
+
     def raw_file_names(self) -> list[str]:
         """
         Generates a list of raw file names based on the tickers, start date, and end date.
@@ -233,7 +234,7 @@ class StockTicker(Dataset):
         )
 
         # Reshape the data to wide format based on unique_id
-        wide_df = concatenated_df.pivot(index="ds", columns="unique_id", values="y")
+        wide_df = concatenated_df.pivot(index="ds", on="unique_id", values="y")
         wide_df = wide_df.drop(["ds"])
 
         # Store time-series data

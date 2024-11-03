@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import torch_geometric.nn as nng
+import torch_geometric.nn as nng  # type: ignore
 import torchmetrics
 from torch_geometric.nn import SAGEConv
 
@@ -186,7 +186,7 @@ class GraphBEAN(nn.Module):
         features_channels: dict,
         structure_decoder_head_out_channels: int,
         structure_decoder_head_layers: int,
-        conv_type: callable,
+        conv_type: callable,  # type: ignore
         edge_types,
         aggr: str = "sum",
     ):
@@ -201,7 +201,7 @@ class GraphBEAN(nn.Module):
         # Encoder layers
         self.encoder_layers = nn.ModuleList()
         first_encoder_layer = nng.HeteroConv(
-            {edge_type: conv_type(-1, hidden_channels) for edge_type in edge_types},
+            {edge_type: conv_type(-1, hidden_channels) for edge_type in edge_types},  # type: ignore
             aggr=aggr,
         )
 
@@ -211,7 +211,7 @@ class GraphBEAN(nn.Module):
             self.encoder_layers.append(
                 nng.HeteroConv(
                     {
-                        edge_type: conv_type(hidden_channels, hidden_channels)
+                        edge_type: conv_type(hidden_channels, hidden_channels)  # type: ignore
                         for edge_type in edge_types
                     },
                     aggr=aggr,
@@ -224,7 +224,7 @@ class GraphBEAN(nn.Module):
             self.decoder_layers.append(
                 nng.HeteroConv(
                     {
-                        edge_type: conv_type(hidden_channels, hidden_channels)
+                        edge_type: conv_type(hidden_channels, hidden_channels)  # type: ignore
                         for edge_type in edge_types
                     },
                     aggr=aggr,
@@ -233,7 +233,7 @@ class GraphBEAN(nn.Module):
 
         decoder_last_conv_layer = nng.HeteroConv(
             {
-                edge_type: conv_type(hidden_channels, features_channels[edge_type[2]])
+                edge_type: conv_type(hidden_channels, features_channels[edge_type[2]])  # type: ignore
                 for edge_type in edge_types
             },
             aggr=aggr,
@@ -339,7 +339,7 @@ class GraphBeanClassifier(nn.Module):
         structure_decoder_head_layers: int,
         class_head_layers: int = 1,
         classes: int = 3,
-        conv_type: callable = SAGEConv,
+        conv_type: callable = SAGEConv,  # type: ignore
         edge_types=None,
         aggr="sum",
     ):
