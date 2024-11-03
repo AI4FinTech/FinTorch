@@ -77,7 +77,6 @@ fintrainer = "fintorch.cli:trainer"
 [tool.mypy]
 strict = true
 warn_unused_ignores = false
-ignore_missing_imports = true
 
 [tool.bumpversion]
 current_version = "0.1.15"
@@ -103,3 +102,6 @@ filename = "fintorch/__init__.py"
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"
+
+["mypy-torch.*"]
+ignore_missing_imports = true
