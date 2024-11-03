@@ -86,7 +86,7 @@ class StockTicker(Dataset):
 
     def __getitem__(self, idx):
         """
-        Get an item from the dataset.
+        Get an item from the dataset
 
         Args:
             idx: Index of the item to retrieve
