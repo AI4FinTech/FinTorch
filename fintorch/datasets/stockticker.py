@@ -296,7 +296,7 @@ class StockTicker(Dataset):
         for i, row in enumerate(columns):
             for j, col in enumerate(columns):
                 if i < j:
-                    results.append((row, col, corr_matrix[i, j]))
+                    results.append((row, col, corr_matrix.iloc[i, j]))
 
         result_df = pol.DataFrame(
             {
