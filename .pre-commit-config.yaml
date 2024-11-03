@@ -18,6 +18,7 @@ repos:
         name: Remove trailing whitespaces
       - id: check-toml
         name: Check toml
+        exclude: "^pyproject.toml"
       - id: check-yaml
         name: Check yaml
         exclude: |
