@@ -1,5 +1,6 @@
 import logging
 from datetime import date
+from pathlib import Path
 
 from fintorch.datasets import stockticker
 
@@ -8,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Parameters
 tickers = ["AAPL", "MSFT", "GOOG"]
-data_path = "~/.fintorch_data/stocktickers/"
+data_path = Path("~/.fintorch_data/stocktickers/").expanduser()
 start_date = date(2015, 1, 1)
 end_date = date(2023, 6, 30)
 

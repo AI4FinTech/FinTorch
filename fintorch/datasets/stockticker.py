@@ -371,7 +371,7 @@ class StockTicker(Dataset):
             )
             # and 21 trading days
             day_encoding = torch.nn.functional.one_hot(
-                torch.tensor(day_of_week_num), num_classes=6
+                torch.tensor(day_of_week_num), num_classes=5
             )
 
             # Concatenate the encodings
@@ -395,7 +395,7 @@ class StockTickerDataModule(pl.LightningDataModule):
     ):
         super().__init__()
 
-        assert start_date < end_date, "start_date must be larger than end_date"
+        assert start_date < end_date, "start_date must be before end_date"
 
         self.start_date = start_date
         self.end_date = end_date
