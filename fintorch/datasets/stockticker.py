@@ -79,15 +79,27 @@ class StockTicker(Dataset):
             os.makedirs(processed_dir)
 
     def __len__(self):
-        # The length of the dataset is the sequence length of all stocks
+        """Return the length of the dataset."""
+        if not hasattr(self, 'timeseries_dataset'):
+            raise RuntimeError("Dataset not loaded. Call load() first.")
         return len(self.timeseries_dataset)
 
     def __getitem__(self, idx):
-        # We return
-        # - stocktick data (TimeseriesDataset), possibly a slice
-        # - spatial_graph encoding
-        return self.timeseries_dataset.__getitem__(idx)
+        """
+        Get an item from the dataset.
 
+        Args:
+            idx: Index of the item to retrieve
+
+        Returns:
+            TimeseriesDataset: A slice of stock tick data with spatial graph encoding
+
+        Raises:
+            RuntimeError: If the dataset hasn't been loaded
+        """
+        if not hasattr(self, 'timeseries_dataset'):
+            raise RuntimeError("Dataset not loaded. Call load() first.")
+        return self.timeseries_dataset.__getitem__(idx)
     def raw_file_names(self) -> list[str]:
         """
         Generates a list of raw file names based on the tickers, start date, and end date.
