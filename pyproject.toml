@@ -104,10 +104,6 @@ filename = "fintorch/__init__.py"
 filename = "pyproject.toml"
 
 
-[mypy-torch.*]
-ignore_missing_imports = true
-
-
 [tool.hatch.build.targets.wheel]
 packages = ["fintorch"]
 
