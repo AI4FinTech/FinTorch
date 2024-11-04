@@ -1,3 +1,4 @@
+from typing import Any
 import lightning as L
 import optuna
 import torch
@@ -11,7 +12,7 @@ from fintorch.models.graph.graphbean.graphBEAN import GraphBEANModule
 torch.set_float32_matmul_precision("medium")
 
 
-def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
+def objective(trial: optuna.trial.Trial, max_epochs: int, predict: Any) -> float:
     # We optimize the number of layers, hidden units in each layer and dropouts.
     encoder_layers = trial.suggest_int("encoder_layers", 1, 4)
     decoder_layers = trial.suggest_int("decoder_layers", 1, 4)

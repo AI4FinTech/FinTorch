@@ -1,24 +1,24 @@
 import logging
 import os
 from datetime import date as Date
-from typing import List
+from typing import Any, Dict, List
 
 import pandas as pd
 import polars as pol
-import yfinance as yf # type: ignore
-from neuralforecast.tsdataset import TimeSeriesDataset # type: ignore
+import yfinance as yf  # type: ignore
+from neuralforecast.tsdataset import TimeSeriesDataset  # type: ignore
 from torch.utils.data import Dataset
 
 
 # TODO: directly subclass TimeSeriesDataset from neural forcast
-class StockTicker(Dataset):
+class StockTicker(Dataset):  # type: ignore
     def __init__(
         self,
         root: str,
         tickers: List[str],
         start_date: Date,
         end_date: Date,
-        mapping: dict,
+        mapping: Dict[str, str],  # TODO: check dict type
         value_name: str = "Adj Close",
         force_reload: bool = False,
     ) -> None:
@@ -50,7 +50,7 @@ class StockTicker(Dataset):
 
         self.load()
 
-    def setupDirectories(self):
+    def setupDirectories(self) -> None:
         """
         Sets up the necessary directories for storing raw and processed data.
 
@@ -78,13 +78,13 @@ class StockTicker(Dataset):
         if not os.path.exists(processed_dir):
             os.makedirs(processed_dir)
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Return the length of the dataset."""
         if not hasattr(self, "timeseries_dataset"):
             raise RuntimeError("Dataset not loaded. Call load() first.")
         return len(self.timeseries_dataset)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Any:
         """
         Get an item from the dataset
 

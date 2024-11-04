@@ -1,5 +1,6 @@
 # """Console script for fintorch."""
 
+from typing import Any
 import click
 import optuna
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -13,14 +14,14 @@ from fintorch.models.graph.graphbean.wand.sweep import objective
 
 
 @click.group()
-def fintorch():
+def fintorch() -> None:
     """FinTorch CLI - Your financial AI toolkit"""
     pass
 
 
 @fintorch.command()
 @click.argument("dataset")
-def datasets(dataset):
+def datasets(dataset: str) -> None:
     """Download financial datasets"""
     # Implement your dataset download logic here
     click.echo(f"Downloading dataset: {dataset}")
@@ -34,7 +35,7 @@ def datasets(dataset):
 @click.option("--model", required=True, help="Name of the model to use.")
 @click.option("--predict", required=True, help="Type of prediction to perform.")
 @click.option("--max_epochs", required=False, help="Max epochs")
-def sweep(model, predict, max_epochs):
+def sweep(model: str, predict: Any, max_epochs: int) -> None:
     """Sweep your financial models"""
     # Implement your model training logic here
     click.echo(f"Starting sweep for model: {model}")
@@ -47,7 +48,7 @@ def sweep(model, predict, max_epochs):
             direction="maximize", pruner=optuna.pruners.MedianPruner()
         )
 
-        def wrapped_objective(trial):
+        def wrapped_objective(trial: Any) -> float:
             return objective(trial, max_epochs, predict)
 
         # study.optimize(objective, n_trials=100)
@@ -65,7 +66,7 @@ def sweep(model, predict, max_epochs):
             print("    {}: {}".format(key, value))
 
 
-def trainer():
+def trainer() -> None:
     cli = LightningCLI(
         run=False,
         save_config_callback=None,

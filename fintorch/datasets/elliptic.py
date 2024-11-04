@@ -9,7 +9,7 @@ from torch_geometric.data import Data, InMemoryDataset  # type: ignore
 from fintorch.datasets.kaggle.downloader import KaggleDownloader
 
 
-class TransactionDataset(InMemoryDataset):
+class TransactionDataset(InMemoryDataset):  # type: ignore[misc]
     """
     The Elliptic Data Set: Understanding Bitcoin Transactions
 
@@ -68,9 +68,9 @@ class TransactionDataset(InMemoryDataset):
     def __init__(
         self,
         root: str,
-        transform: Optional[Callable] = None,
-        pre_transform: Optional[Callable] = None,
-        pre_filter: Optional[Callable] = None,
+        transform: Optional[Callable] = None,  # type: ignore
+        pre_transform: Optional[Callable] = None,  # type: ignore
+        pre_filter: Optional[Callable] = None,  # type: ignore
         force_reload: bool = False,
     ) -> None:
         super().__init__(
@@ -84,7 +84,7 @@ class TransactionDataset(InMemoryDataset):
         assert isinstance(self._data, Data)
 
     @property
-    def raw_file_names(self):
+    def raw_file_names(self) -> List[str]:
         """
         Returns a list of raw file names for the elliptic dataset.
 
@@ -126,7 +126,7 @@ class TransactionDataset(InMemoryDataset):
             None
         """
 
-        data_list = [] # type: ignore
+        data_list = []  # type: ignore
 
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
