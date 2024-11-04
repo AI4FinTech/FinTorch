@@ -239,6 +239,7 @@ numpy==1.26.4
     #   neuralforecast
     #   optuna
     #   pandas
+    #   pandas-stubs
     #   pyarrow
     #   pytorch-lightning
     #   scikit-learn
@@ -312,6 +313,8 @@ pandas==2.2.2
     #   seaborn
     #   utilsforecast
     #   yfinance
+pandas-stubs==2.2.3.241009
+    # via fintorch (pyproject.toml)
 pandoc==2.3
     # via fintorch (pyproject.toml)
 pandocfilters==1.5.1
@@ -555,6 +558,10 @@ traitlets==5.14.3
 triton==2.3.1
     # via torch
 twine==1.14.0
+    # via fintorch (pyproject.toml)
+types-pytz==2024.2.0.20241003
+    # via pandas-stubs
+types-tqdm==4.66.0.20240417
     # via fintorch (pyproject.toml)
 typing-extensions==4.12.2
     # via
