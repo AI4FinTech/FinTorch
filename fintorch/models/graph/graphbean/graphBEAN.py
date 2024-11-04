@@ -13,7 +13,10 @@ from torch import Tensor
 
 
 def GraphBEANLoss(
-    feature_predictions: Dict[Any, Any], edge_predictions: Tensor, ground_truth_sampled_data: Dict[Any, Any], edge: Tuple[Any, Any, Any]
+    feature_predictions: Dict[Any, Any],
+    edge_predictions: Tensor,
+    ground_truth_sampled_data: Dict[Any, Any],
+    edge: Tuple[Any, Any, Any],
 ) -> Tensor:
     """
     Calculates the loss function for the GraphBEAN model.
@@ -43,6 +46,7 @@ def GraphBEANLoss(
     # Total loss function
     total_loss = feature_loss + edge_loss
     return total_loss
+
 
 def GraphBEANLossClassifier(
     feature_predictions: Dict[Any, Any],
@@ -108,7 +112,9 @@ class StructureDecoder(nn.Module):
         mlp_layers_dst (nn.ModuleList): List of MLP layers for destination node features.
     """
 
-    def __init__(self, in_channels: int, hidden_channels: int, out_channels: int, num_layers: int) -> None:
+    def __init__(
+        self, in_channels: int, hidden_channels: int, out_channels: int, num_layers: int
+    ) -> None:
         super().__init__()
 
         assert num_layers >= 2
@@ -125,7 +131,9 @@ class StructureDecoder(nn.Module):
             self.mlp_layers_dst.append(nn.Linear(hidden_channels, hidden_channels))
         self.mlp_layers_dst.append(nn.Linear(hidden_channels, out_channels))
 
-    def forward(self, src: Tensor, dst: Tensor, edge_label_index: Tuple[Any, Any]) -> Tensor:
+    def forward(
+        self, src: Tensor, dst: Tensor, edge_label_index: Tuple[Any, Any]
+    ) -> Tensor:
         """
         Performs the forward pass of the StructureDecoder model.
 
@@ -250,7 +258,9 @@ class GraphBEAN(nn.Module):
             structure_decoder_head_layers,
         )
 
-    def forward(self, data: Any, edge: Tuple[Any, Any, Any]) -> Tuple[ None, Tensor, Tensor, Tensor]:
+    def forward(
+        self, data: Any, edge: Tuple[Any, Any, Any]
+    ) -> Tuple[None, Tensor, Tensor, Tensor]:
         """
         Forward pass of the GraphBEAN model.
 
@@ -342,7 +352,7 @@ class GraphBeanClassifier(nn.Module):
         classes: int = 3,
         conv_type: callable = SAGEConv,  # type: ignore
         edge_types: Any = None,
-        aggr: str="sum",
+        aggr: str = "sum",
     ):
         super().__init__()
 
@@ -372,7 +382,9 @@ class GraphBeanClassifier(nn.Module):
             nng.HeteroDictLinear(hidden_channels, classes, self.node_types)
         )
 
-    def forward(self, data: Any, edge: Tuple[Any, Any, Any]) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(
+        self, data: Any, edge: Tuple[Any, Any, Any]
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """
         Forward pass of the GraphBeanClassifier.
 
@@ -436,18 +448,18 @@ class GraphBEANModule(L.LightningModule):
         mapping: Any,
         loss_fn: Any = None,
         learning_rate: float = 0.01,
-        encoder_layers: int=2,
-        decoder_layers: int=2,
-        hidden_layers: int=128,
-        structure_decoder_head_out_channels: int=50,
-        structure_decoder_head_layers: int=10,
-        classifier: bool=False,
-        class_head_layers: int=3,
-        classes: int=2,
+        encoder_layers: int = 2,
+        decoder_layers: int = 2,
+        hidden_layers: int = 128,
+        structure_decoder_head_out_channels: int = 50,
+        structure_decoder_head_layers: int = 10,
+        classifier: bool = False,
+        class_head_layers: int = 3,
+        classes: int = 2,
         predict: Any = None,
-        conv_type: Any =SAGEConv,
-        aggr: str ="sum",
-        node_types: Any=None,
+        conv_type: Any = SAGEConv,
+        aggr: str = "sum",
+        node_types: Any = None,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -559,7 +571,9 @@ class GraphBEANModule(L.LightningModule):
         """
         return self.model(batch, edge)
 
-    def loss(self, batch: Any, class_probs: Tensor, pred_features: Tensor, pred_edges: Tensor) -> Any:
+    def loss(
+        self, batch: Any, class_probs: Tensor, pred_features: Tensor, pred_edges: Tensor
+    ) -> Any:
         """
         Computes the loss for the given batch.
 

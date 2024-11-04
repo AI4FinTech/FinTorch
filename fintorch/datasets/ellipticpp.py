@@ -177,7 +177,9 @@ class TransactionActorDataset(InMemoryDataset):  # type: ignore
             )
         )
 
-    def split_data(self, num_data: int, splits: Optional[List[Any] | None ] = None) -> Tuple[Tensor, Tensor, Tensor]:
+    def split_data(
+        self, num_data: int, splits: Optional[List[Any] | None] = None
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         """
         Splits the data into training, validation, and test sets based on the given splits.
 
