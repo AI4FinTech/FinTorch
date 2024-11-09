@@ -7,11 +7,10 @@ import polars as pol
 import torch
 import torch_geometric.transforms as T  # type: ignore
 from huggingface_hub import hf_hub_download  # type: ignore
+from torch import Tensor
 from torch_geometric.data import HeteroData, InMemoryDataset  # type: ignore
 from torch_geometric.loader import LinkNeighborLoader  # type: ignore
 from tqdm import tqdm
-
-from torch import Tensor
 
 
 class TransactionActorDataset(InMemoryDataset):  # type: ignore
@@ -157,7 +156,7 @@ class TransactionActorDataset(InMemoryDataset):  # type: ignore
             )
             self.downloaded_files.append(a_downloaded_files)
 
-    def map_classes(self, df: pol.Dataframe) -> pol.Dataframe:
+    def map_classes(self, df: pol.DataFrame) -> pol.DataFrame:
         """
         Maps the classes in the DataFrame to numerical values.
 

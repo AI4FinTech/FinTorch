@@ -1,7 +1,6 @@
 from datetime import date
 from pathlib import Path
 
-
 import torch
 from neuralforecast import NeuralForecast
 from neuralforecast.auto import AutoNBEATS, AutoNHITS, AutoTFT

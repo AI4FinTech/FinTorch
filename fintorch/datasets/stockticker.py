@@ -7,6 +7,7 @@ import pandas as pd
 import polars as pol
 import yfinance as yf  # type: ignore
 from neuralforecast.tsdataset import TimeSeriesDataset  # type: ignore
+from tenacity import retry, stop_after_attempt, wait_exponential
 from torch.utils.data import Dataset
 
 
@@ -142,6 +143,12 @@ class StockTicker(Dataset):  # type: ignore
             "spatial_graph_v1.pt",
         ]
 
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
+    )
+    def download_with_retry(self, tickers: List[str], start_date: str, end_date: str):
+        return yf.download(tickers, start=start_date, end=end_date)
+
     def download(self, force_reload: bool = False) -> None:
         """
         Downloads the raw stock data from Yahoo Finance for the specified tickers and time range.
@@ -166,8 +173,8 @@ class StockTicker(Dataset):  # type: ignore
                 ]
                 logging.info(f"Only downloading missing tickers: {missing_tickers}")
 
-            raw_data = yf.download(
-                missing_tickers, start=self.start_date, end=self.end_date
+            raw_data = self.download_with_retry(
+                missing_tickers, self.start_date, self.end_date
             )
 
             # Check if self.value_name exists as a column in the raw_data dataframe
