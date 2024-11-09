@@ -141,7 +141,9 @@ class StockTicker(Dataset):  # type: ignore
     @retry(
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
     )
-    def download_with_retry(self, tickers: List[str], start_date: str, end_date: str):
+    def download_with_retry(
+        self, tickers: List[str], start_date: Date, end_date: Date
+    ) -> Any:
         return yf.download(tickers, start=start_date, end=end_date)
 
     def download(self, force_reload: bool = False) -> None:
