@@ -305,6 +305,8 @@ sqlalchemy==2.0.31
     #   optuna
 sympy==1.13.1
     # via torch
+tenacity==9.0.0
+    # via fintorch (pyproject.toml)
 tensorboardx==2.6.2.2
     # via ray
 text-unidecode==1.3

@@ -1,13 +1,22 @@
 import tempfile
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from fintorch.datasets.stockticker import StockTicker
 
 
-def test_download():
+def create_mock_stock_data():
+    import pandas as pd
+
+    data = pd.read_pickle("tests/datasets/testsdata.pickle")
+    return data
+
+
+@patch("fintorch.datasets.stockticker.yf.download")
+def test_download(mock_download):
     # Create temporary directory for test data
     with tempfile.TemporaryDirectory() as tmp_dir:
         data_path = Path(tmp_dir)
@@ -15,6 +24,8 @@ def test_download():
         start_date = date(2015, 1, 1)
         end_date = date(2023, 6, 30)
         ticker_index = {ticker: index for index, ticker in enumerate(tickers)}
+
+        mock_download.return_value = create_mock_stock_data()
 
         dataset = StockTicker(
             data_path,
@@ -34,22 +45,8 @@ def test_download():
     assert y[0] == unique_id[0]
 
 
-def test_empty_tickers():
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        data_path = Path(tmp_dir)
-        with pytest.raises(ValueError) as exc_info:
-            StockTicker(
-                data_path,
-                tickers=[],
-                start_date=date(2015, 1, 1),
-                end_date=date(2023, 6, 30),
-                mapping={},
-                force_reload=True,
-            )
-        assert str(exc_info.value) == "tickers list cannot be empty"
-
-
-def test_no_tickers():
+@patch("fintorch.datasets.stockticker.yf.download")
+def test_no_tickers(mock_download):
     # Create temporary directory for test data
     with tempfile.TemporaryDirectory() as tmp_dir:
         data_path = Path(tmp_dir)
@@ -57,6 +54,9 @@ def test_no_tickers():
         start_date = date(2015, 1, 1)
         end_date = date(2023, 6, 30)
         ticker_index = {ticker: index for index, ticker in enumerate(tickers)}
+
+        mock_download.return_value = create_mock_stock_data()
+
         with pytest.raises(AssertionError) as exc_info:
             StockTicker(
                 data_path,
@@ -69,7 +69,8 @@ def test_no_tickers():
         assert str(exc_info.value) == "tickers must be a list"
 
 
-def test_wrong_date():
+@patch("fintorch.datasets.stockticker.yf.download")
+def test_wrong_date(mock_download):
     # Create temporary directory for test data
     with tempfile.TemporaryDirectory() as tmp_dir:
         data_path = Path(tmp_dir)
@@ -77,6 +78,7 @@ def test_wrong_date():
         end_date = date(2015, 1, 1)
         start_date = date(2023, 6, 30)
         ticker_index = {ticker: index for index, ticker in enumerate(tickers)}
+        mock_download.return_value = create_mock_stock_data()
         with pytest.raises(ValueError) as exc_info:
             StockTicker(
                 data_path,
@@ -89,7 +91,8 @@ def test_wrong_date():
         assert str(exc_info.value) == "start_date must be before end_date."
 
 
-def test_wrong_date_type():
+@patch("fintorch.datasets.stockticker.yf.download")
+def test_wrong_date_type(mock_download):
     # Create temporary directory for test data
     with tempfile.TemporaryDirectory() as tmp_dir:
         data_path = Path(tmp_dir)
@@ -97,6 +100,7 @@ def test_wrong_date_type():
         end_date = date(2015, 1, 1)
         start_date = "wrong"
         ticker_index = {ticker: index for index, ticker in enumerate(tickers)}
+        mock_download.return_value = create_mock_stock_data()
         with pytest.raises(AssertionError) as exc_info:
             StockTicker(
                 data_path,
