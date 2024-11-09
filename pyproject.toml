@@ -64,7 +64,8 @@ dev = [
     "pip-tools",
     "pre-commit",
     "types-tqdm",
-    "pandas-stubs"
+    "pandas-stubs",
+    "types-tenacity"
 ]
 
 
