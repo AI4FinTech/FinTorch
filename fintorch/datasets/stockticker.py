@@ -7,7 +7,7 @@ import pandas as pd
 import polars as pol
 import yfinance as yf  # type: ignore
 from neuralforecast.tsdataset import TimeSeriesDataset  # type: ignore
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential  # type: ignore
 from torch.utils.data import Dataset
 
 
