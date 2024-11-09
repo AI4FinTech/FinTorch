@@ -267,15 +267,18 @@ class StockTicker(Dataset):  # type: ignore
             None
         """
 
-        self.df_timeseries_dataset = pol.read_parquet(self.processed_paths()[0])
+        try:
+            self.df_timeseries_dataset = pol.read_parquet(self.processed_paths()[0])
 
-        self.timeseries_dataset, _, _, _ = TimeSeriesDataset.from_df(
-            self.df_timeseries_dataset,
-            id_col="unique_id",
-            time_col="ds",
-            target_col="y",
-        )
-
+            self.timeseries_dataset, _, _, _ = TimeSeriesDataset.from_df(
+                self.df_timeseries_dataset,
+                id_col="unique_id",
+                time_col="ds",
+                target_col="y",
+            )
+        except Exception as e:
+            logging.error(f"Failed to load dataset: {str(e)}")
+            raise RuntimeError("Failed to load dataset") from e
         logging.info("All datsets loaded sucessfully")
 
         logging.info(f"loaded dataset:{self.timeseries_dataset}")
