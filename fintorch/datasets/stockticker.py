@@ -135,7 +135,6 @@ class StockTicker(Dataset):  # type: ignore
         """
         return [
             "timeseries_stocks_v1_partitioned",
-            "spatial_graph_v1.pt",
         ]
 
     @retry(  # type: ignore[misc]
