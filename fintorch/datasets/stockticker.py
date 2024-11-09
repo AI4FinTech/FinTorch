@@ -223,7 +223,14 @@ class StockTicker(Dataset):  # type: ignore
         # Read all the csv files provided by raw_files with polars
         dfs = []
         for file_path in self.raw_paths():
-            df = pol.read_csv(file_path)
+            try:
+                df = pol.read_csv(file_path)
+                if df.is_empty():
+                    raise ValueError(f"Empty data in file {file_path}")
+            except Exception as e:
+                logging.error(f"Failed to process {file_path}: {str(e)}")
+                raise
+
             dfs.append(df)
 
         # Concatenate the files into one data frame
