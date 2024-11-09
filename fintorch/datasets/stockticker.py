@@ -65,19 +65,14 @@ class StockTicker(Dataset):  # type: ignore
         Returns:
             None
         """
-        # Check if the root directory exists, if not create it
-        if not os.path.exists(self.root):
-            os.makedirs(self.root)
 
-        # Check if the raw directory exists, if not create it
-        raw_dir = os.path.join(self.root, "raw")
-        if not os.path.exists(raw_dir):
-            os.makedirs(raw_dir)
-
-        # Check if the processed directory exists, if not create it
-        processed_dir = os.path.join(self.root, "processed")
-        if not os.path.exists(processed_dir):
-            os.makedirs(processed_dir)
+        try:
+            os.makedirs(self.root, exist_ok=True)
+            os.makedirs(os.path.join(self.root, "raw"), exist_ok=True)
+            os.makedirs(os.path.join(self.root, "processed"), exist_ok=True)
+        except OSError as e:
+            logging.error(f"Failed to create directories: {str(e)}")
+            raise RuntimeError(f"Failed to setup directories: {str(e)}")
 
     def __len__(self) -> int:
         """Return the length of the dataset."""
