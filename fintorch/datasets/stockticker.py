@@ -27,6 +27,7 @@ class StockTicker(Dataset):  # type: ignore
         assert isinstance(tickers, list), "tickers must be a list"
         assert isinstance(start_date, Date), "start_date must be a Date object"
         assert isinstance(end_date, Date), "end_date must be a Date object"
+        assert len(tickers) == 0, "tickers list cannot be empty"
 
         # Check if the start_date is before the end_date
         if start_date >= end_date:
