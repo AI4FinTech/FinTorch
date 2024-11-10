@@ -5,7 +5,7 @@ from torch import Tensor  # type: ignore
 from torch_geometric.nn.aggr import Aggregation  # type: ignore
 from torch_geometric.nn.conv import MessagePassing  # type: ignore
 from torch_geometric.nn.dense.linear import Linear  # type: ignore
-from torch_geometric.typing import Adj, OptPairTensor, Size  # type: ignore
+from torch_geometric.typing import Adj, OptPairTensor, OptTensor, Size  # type: ignore
 
 
 class BeanAggregation(Aggregation):  # type: ignore[misc]
@@ -38,7 +38,7 @@ class BeanAggregation(Aggregation):  # type: ignore[misc]
         ptr: Optional[Tensor] = None,
         dim_size: Optional[int] = None,
         dim: int = -2,
-        edge_attr: Optional[Tensor] = None,
+        edge_attr: OptTensor = None,
         **kwargs: Any,
     ) -> Tensor:
         """
@@ -255,7 +255,7 @@ class BEANConvSimple(MessagePassing):  # type: ignore[misc]
         )
 
 
-class BEANConv(MessagePassing):  # type: ignore[misc]
+class BEANConv(MessagePassing):  # type: ignore
     r"""
     BEANConv is a message-passing graph convolutional layer implementation.
 
@@ -322,7 +322,7 @@ class BEANConv(MessagePassing):  # type: ignore[misc]
 
         aggr = BeanAggregation()
 
-        super().__init__(aggr, **kwargs)
+        super().__init__(aggr, **kwargs)  # type: ignore
         self.lin_l = Linear(-1, out_channels, bias=bias)
 
         if self.normalize:
@@ -398,7 +398,7 @@ class BEANConv(MessagePassing):  # type: ignore[misc]
         ptr: Optional[Tensor] = None,
         edge_attr: Optional[Tensor] = None,
         dim_size: Optional[int] = None,
-    ) -> Any:
+    ) -> Tensor:
         r"""
         Aggregates the input features according to the specified aggregation method, in this case we added
         the edge_attr as an additional parameter to facilitate edge message passing to nodes.
@@ -416,7 +416,7 @@ class BEANConv(MessagePassing):  # type: ignore[misc]
 
         """
         # Overwrite standard aggr_module call
-        return self.aggr_module(inputs, index, ptr, dim_size, edge_attr=edge_attr)  # type: ignore[misc]
+        return self.aggr_module(inputs, index, ptr, dim_size, edge_attr=edge_attr)  # type: ignore
 
     def edge_update(self, x_j: Tensor, x_i: Tensor) -> Tensor:
         r"""

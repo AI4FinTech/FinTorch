@@ -4,19 +4,6 @@ from torch_geometric.data import HeteroData
 from fintorch.graph.layers.beanconv import BeanAggregation, BEANConv, BEANConvSimple
 
 
-def handle_pytorch_geometric_attribute_error(func):
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except AttributeError as e:
-            if "type object 'Any' has no attribute '_name'" in str(e):
-                pass  # Ignore the specific AttributeError
-        else:
-            raise  # Re-raise if it's a different AttributeError
-
-    return wrapper
-
-
 def create_hetero_data():
     torch.manual_seed(43)
 
@@ -84,7 +71,6 @@ def create_hetero_data_no_edge_attr():
     return data
 
 
-@handle_pytorch_geometric_attribute_error
 def test_BEANConv_forward_with_hetero_data():
     in_channels = 3
     out_channels = 1
@@ -239,7 +225,6 @@ def test_BeanAggregation_forward():
     assert output.shape == (2, 48)
 
 
-@handle_pytorch_geometric_attribute_error
 def test_BEANConv_forward_self_loop():
     in_channels = 3
     out_channels = 2
@@ -329,7 +314,6 @@ def test_BEANConv_forward_self_loop():
     )
 
 
-@handle_pytorch_geometric_attribute_error
 def test_BEANConv_forward_no_bias():
     in_channels = 3
     out_channels = 2
@@ -420,7 +404,6 @@ def test_BEANConv_forward_no_bias():
     )
 
 
-@handle_pytorch_geometric_attribute_error
 def test_BEANConv_forward_normalize():
     in_channels = 3
     out_channels = 2
@@ -476,7 +459,6 @@ def test_BEANConv_forward_normalize():
     )
 
 
-@handle_pytorch_geometric_attribute_error
 def test_BEANConv_forward_edge_projection():
     in_channels = 3
     out_channels = 2
