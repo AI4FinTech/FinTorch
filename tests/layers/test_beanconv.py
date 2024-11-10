@@ -75,8 +75,8 @@ def test_BEANConv_forward_with_hetero_data():
     in_channels = 3
     out_channels = 1
     data = create_hetero_data()
-    conv = BEANConv(in_channels, out_channels, edge_in_channels=6)
 
+    conv = BEANConv(in_channels, out_channels, edge_in_channels=6)
     x_uv = (data.x_dict["U"], data.x_dict["V"])
     x_vu = (data.x_dict["V"], data.x_dict["U"])
 
@@ -229,6 +229,7 @@ def test_BEANConv_forward_self_loop():
     in_channels = 3
     out_channels = 2
     data = create_hetero_data()
+
     conv = BEANConv(
         in_channels,
         out_channels,
@@ -242,7 +243,9 @@ def test_BEANConv_forward_self_loop():
 
     # V to U
     output_nodes, output_edges = conv.forward(
-        x_vu, data["V", "to", "U"].edge_index, edge_attr=data["V", "to", "U"].edge_attr
+        x_vu,
+        data["V", "to", "U"].edge_index,
+        edge_attr=data["V", "to", "U"].edge_attr,
     )
     assert torch.allclose(
         output_nodes, torch.tensor([[-0.8591989278793335, -0.636704683303833]])
@@ -273,7 +276,9 @@ def test_BEANConv_forward_self_loop():
 
     # V to U
     output_nodes_2, output_edges_2 = conv.forward(
-        x_uv, data["U", "to", "V"].edge_index, edge_attr=data["U", "to", "V"].edge_attr
+        x_uv,
+        data["U", "to", "V"].edge_index,
+        edge_attr=data["U", "to", "V"].edge_attr,
     )
     assert torch.allclose(
         output_nodes_2,
@@ -313,6 +318,7 @@ def test_BEANConv_forward_no_bias():
     in_channels = 3
     out_channels = 2
     data = create_hetero_data()
+
     conv = BEANConv(
         in_channels,
         out_channels,
@@ -327,7 +333,9 @@ def test_BEANConv_forward_no_bias():
 
     # V to U
     output_nodes, output_edges = conv.forward(
-        x_vu, data["V", "to", "U"].edge_index, edge_attr=data["V", "to", "U"].edge_attr
+        x_vu,
+        data["V", "to", "U"].edge_index,
+        edge_attr=data["V", "to", "U"].edge_attr,
     )
     assert torch.allclose(
         output_nodes, torch.tensor([[-0.3630157709121704, 1.3030002117156982]])
@@ -358,7 +366,9 @@ def test_BEANConv_forward_no_bias():
 
     # V to U
     output_nodes_2, output_edges_2 = conv.forward(
-        x_uv, data["U", "to", "V"].edge_index, edge_attr=data["U", "to", "V"].edge_attr
+        x_uv,
+        data["U", "to", "V"].edge_index,
+        edge_attr=data["U", "to", "V"].edge_attr,
     )
     assert torch.allclose(
         output_nodes_2,
@@ -398,6 +408,7 @@ def test_BEANConv_forward_normalize():
     in_channels = 3
     out_channels = 2
     data = create_hetero_data()
+
     conv = BEANConv(
         in_channels,
         out_channels,
@@ -406,12 +417,13 @@ def test_BEANConv_forward_normalize():
         normalize=True,
         bias=False,
     )
-
     x_uv = (data.x_dict["U"], data.x_dict["V"])
 
     # V to U
     output_nodes_2, output_edges_2 = conv.forward(
-        x_uv, data["U", "to", "V"].edge_index, edge_attr=data["U", "to", "V"].edge_attr
+        x_uv,
+        data["U", "to", "V"].edge_index,
+        edge_attr=data["U", "to", "V"].edge_attr,
     )
     assert torch.allclose(
         output_nodes_2,
@@ -451,6 +463,7 @@ def test_BEANConv_forward_edge_projection():
     in_channels = 3
     out_channels = 2
     data = create_hetero_data()
+
     conv = BEANConv(
         in_channels,
         out_channels,
@@ -465,7 +478,9 @@ def test_BEANConv_forward_edge_projection():
 
     # V to U
     output_nodes_2, output_edges_2 = conv.forward(
-        x_uv, data["U", "to", "V"].edge_index, edge_attr=data["U", "to", "V"].edge_attr
+        x_uv,
+        data["U", "to", "V"].edge_index,
+        edge_attr=data["U", "to", "V"].edge_attr,
     )
     assert torch.allclose(
         output_nodes_2,
@@ -491,6 +506,7 @@ def test_BEANConv_no_edge_attributes():
     in_channels = 3
     out_channels = 2
     data = create_hetero_data_no_edge_attr()
+
     conv = BEANConvSimple(
         in_channels,
         out_channels,

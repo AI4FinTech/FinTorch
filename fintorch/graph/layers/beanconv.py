@@ -1,14 +1,14 @@
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
-import torch
-from torch import Tensor
-from torch_geometric.nn.aggr import Aggregation
-from torch_geometric.nn.conv import MessagePassing
-from torch_geometric.nn.dense.linear import Linear
-from torch_geometric.typing import Adj, OptPairTensor, Size
+import torch  # type: ignore
+from torch import Tensor  # type: ignore
+from torch_geometric.nn.aggr import Aggregation  # type: ignore
+from torch_geometric.nn.conv import MessagePassing  # type: ignore
+from torch_geometric.nn.dense.linear import Linear  # type: ignore
+from torch_geometric.typing import Adj, OptPairTensor, OptTensor, Size  # type: ignore
 
 
-class BeanAggregation(Aggregation):
+class BeanAggregation(Aggregation):  # type: ignore[misc]
     """
     BeanAggregation class performs node and edge aggregation operations.
 
@@ -38,8 +38,8 @@ class BeanAggregation(Aggregation):
         ptr: Optional[Tensor] = None,
         dim_size: Optional[int] = None,
         dim: int = -2,
-        edge_attr=None,
-        **kwargs,
+        edge_attr: OptTensor = None,
+        **kwargs: Any,
     ) -> Tensor:
         """
         Forward pass of the BeanAggregation layer.
@@ -78,7 +78,7 @@ class BeanAggregation(Aggregation):
         return output
 
 
-class BeanAggregationSimple(Aggregation):
+class BeanAggregationSimple(Aggregation):  # type: ignore[misc]
     """
     A simple bean aggregation layer (NOTE: only use this one if you don't have edge attributes).
 
@@ -112,7 +112,7 @@ class BeanAggregationSimple(Aggregation):
         ptr: Optional[Tensor] = None,
         dim_size: Optional[int] = None,
         dim: int = -2,
-        **kwargs,
+        **kwargs: Any,
     ) -> Tensor:
         """
         Forward pass of the bean aggregation layer.
@@ -141,7 +141,7 @@ class BeanAggregationSimple(Aggregation):
         return output
 
 
-class BEANConvSimple(MessagePassing):
+class BEANConvSimple(MessagePassing):  # type: ignore[misc]
     """
     BEANConvSimple is a graph convolutional layer. In comparison with the BEANConv layer, this layer does not
     use edge attributes.
@@ -185,8 +185,8 @@ class BEANConvSimple(MessagePassing):
         normalize: bool = True,
         node_self_loop: bool = True,
         aggr: Optional[Union[str, List[str], Aggregation]] = "mean",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.bias = bias
@@ -203,7 +203,7 @@ class BEANConvSimple(MessagePassing):
 
         self.reset_parameters()
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         """
         Resets the parameters of the layer.
         """
@@ -217,7 +217,7 @@ class BEANConvSimple(MessagePassing):
         x: Union[Tensor, OptPairTensor],
         edge_index: Adj,
         size: Size = None,
-    ):
+    ) -> Any:
         """
         Performs the forward pass of the layer.
 
@@ -255,7 +255,7 @@ class BEANConvSimple(MessagePassing):
         )
 
 
-class BEANConv(MessagePassing):
+class BEANConv(MessagePassing):  # type: ignore
     r"""
     BEANConv is a message-passing graph convolutional layer implementation.
 
@@ -307,9 +307,9 @@ class BEANConv(MessagePassing):
         normalize: bool = True,
         node_self_loop: bool = True,
         aggr: Optional[Union[str, List[str], Aggregation]] = "mean",
-        has_edge_features=True,
-        **kwargs,
-    ):
+        has_edge_features: bool = True,
+        **kwargs: Any,
+    ) -> None:
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.bias = bias
@@ -322,7 +322,7 @@ class BEANConv(MessagePassing):
 
         aggr = BeanAggregation()
 
-        super().__init__(aggr, **kwargs)
+        super().__init__(aggr, **kwargs)  # type: ignore
         self.lin_l = Linear(-1, out_channels, bias=bias)
 
         if self.normalize:
@@ -335,7 +335,7 @@ class BEANConv(MessagePassing):
 
         self.reset_parameters()
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         r"""
         Resets the parameters of the BEANConv layer.
         """
@@ -353,8 +353,8 @@ class BEANConv(MessagePassing):
         x: Union[Tensor, OptPairTensor],
         edge_index: Adj,
         size: Size = None,
-        edge_attr=None,
-    ):
+        edge_attr: Optional[Tensor] = None,
+    ) -> Any:
         r"""
         Performs a forward pass of the BEANConv layer.
 
@@ -396,7 +396,7 @@ class BEANConv(MessagePassing):
         inputs: Tensor,
         index: Tensor,
         ptr: Optional[Tensor] = None,
-        edge_attr: Tensor = None,
+        edge_attr: Optional[Tensor] = None,
         dim_size: Optional[int] = None,
     ) -> Tensor:
         r"""
@@ -416,7 +416,7 @@ class BEANConv(MessagePassing):
 
         """
         # Overwrite standard aggr_module call
-        return self.aggr_module(inputs, index, ptr, dim_size, edge_attr=edge_attr)
+        return self.aggr_module(inputs, index, ptr, dim_size, edge_attr=edge_attr)  # type: ignore
 
     def edge_update(self, x_j: Tensor, x_i: Tensor) -> Tensor:
         r"""

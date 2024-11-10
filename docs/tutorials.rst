@@ -6,3 +6,4 @@ Tutorials
 
    tutorials/elliptic/Elliptic
    tutorials/graphbean/graphbean
+   tutorials/stocktick/stocktick

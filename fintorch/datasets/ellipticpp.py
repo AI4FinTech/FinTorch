@@ -1,18 +1,19 @@
 import multiprocessing
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import lightning.pytorch as pl
 import numpy as np
 import polars as pol
 import torch
-import torch_geometric.transforms as T
-from huggingface_hub import hf_hub_download
-from torch_geometric.data import HeteroData, InMemoryDataset
-from torch_geometric.loader import LinkNeighborLoader
+import torch_geometric.transforms as T  # type: ignore
+from huggingface_hub import hf_hub_download  # type: ignore
+from torch import Tensor
+from torch_geometric.data import HeteroData, InMemoryDataset  # type: ignore
+from torch_geometric.loader import LinkNeighborLoader  # type: ignore
 from tqdm import tqdm
 
 
-class TransactionActorDataset(InMemoryDataset):
+class TransactionActorDataset(InMemoryDataset):  # type: ignore
     """
     The Elliptic++ Data Set: Understanding Bitcoin Transactions and Actors/Wallets
 
@@ -103,9 +104,9 @@ class TransactionActorDataset(InMemoryDataset):
     def __init__(
         self,
         root: str,
-        transform: Optional[Callable] = None,
-        pre_transform: Optional[Callable] = None,
-        pre_filter: Optional[Callable] = None,
+        transform: Optional[Callable] = None,  # type: ignore
+        pre_transform: Optional[Callable] = None,  # type: ignore
+        pre_filter: Optional[Callable] = None,  # type: ignore
         force_reload: bool = False,
     ) -> None:
         super().__init__(
@@ -122,7 +123,7 @@ class TransactionActorDataset(InMemoryDataset):
         assert isinstance(self._data, HeteroData)
 
     @property
-    def raw_file_names(self):
+    def raw_file_names(self) -> List[str]:
         return [
             "AddrAddr_edgelist.csv",
             "AddrTx_edgelist.csv",
@@ -143,7 +144,7 @@ class TransactionActorDataset(InMemoryDataset):
         """
         return ["transaction_actor_graph_v1.pt"]
 
-    def download(self):
+    def download(self) -> None:
         print("Start download from HuggingFace...")
         dataset_name = "AI4FinTech/ellipticpp"
         self.downloaded_files = []
@@ -155,7 +156,7 @@ class TransactionActorDataset(InMemoryDataset):
             )
             self.downloaded_files.append(a_downloaded_files)
 
-    def map_classes(self, df):
+    def map_classes(self, df: pol.DataFrame) -> pol.DataFrame:
         """
         Maps the classes in the DataFrame to numerical values.
 
@@ -175,7 +176,9 @@ class TransactionActorDataset(InMemoryDataset):
             )
         )
 
-    def split_data(self, num_data, splits=None):
+    def split_data(
+        self, num_data: int, splits: Optional[List[Any] | None] = None
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         """
         Splits the data into training, validation, and test sets based on the given splits.
 
@@ -216,7 +219,7 @@ class TransactionActorDataset(InMemoryDataset):
 
         return train_mask, val_mask, test_mask
 
-    def prepare_edge_index(self, edgelist, mapping_dict):
+    def prepare_edge_index(self, edgelist: Any, mapping_dict: Any) -> Tensor:
         """
         Prepares the edge index for PyTorch.
 
@@ -239,7 +242,7 @@ class TransactionActorDataset(InMemoryDataset):
         edgelist = np.array(edgelist.to_numpy()).T
         return torch.tensor(edgelist, dtype=torch.long).contiguous()
 
-    def process(self):
+    def process(self) -> None:
         """
         Process the dataset by preparing features and edge_index data, and constructing a HeteroData object.
 
@@ -395,11 +398,11 @@ class EllipticppDataModule(pl.LightningDataModule):
         num_test: float = 0.1,
         disjoint_train_ratio: float = 0.3,
         neg_sampling_ratio: float = 2.0,
-        num_neighbors: List[int] = None,
+        num_neighbors: List[int] = [10, 30],
         batch_size: int = 128,
         neg_sampling: str = "binary",
         num_workers: int = -1,
-        force_reload=False,
+        force_reload: bool = False,
     ) -> None:
         super().__init__()
 
@@ -424,9 +427,6 @@ class EllipticppDataModule(pl.LightningDataModule):
         ), "batch_size must be a positive integer"
         assert isinstance(neg_sampling, str), "neg_sampling must be a string"
 
-        if num_neighbors is None:
-            num_neighbors = [10, 30]
-
         assert isinstance(num_neighbors, list) and all(
             isinstance(n, int) for n in num_neighbors
         ), "num_neighbors must be a list of integers"
@@ -446,14 +446,14 @@ class EllipticppDataModule(pl.LightningDataModule):
         else:
             self.num_workers = num_workers
 
-    def setup(self, stage=None):
+    def setup(self, stage: Optional[Any | None] = None) -> None:
         dataset = TransactionActorDataset(
             "~/.fintorch_data", force_reload=self.force_reload
         )
         self.dataset = dataset[0]
         self.split_dataset(dataset[0])
 
-    def split_dataset(self, dataset):
+    def split_dataset(self, dataset: Any) -> None:
         """
         Splits the given dataset into training, validation, and test sets and makes them available
         as self.train_data, self.val_data, and self.test_data
@@ -479,7 +479,7 @@ class EllipticppDataModule(pl.LightningDataModule):
         )
         self.train_data, self.val_data, self.test_data = transform(dataset)
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> Any:
         """
         Returns a DataLoader object for training.
         """
@@ -500,7 +500,7 @@ class EllipticppDataModule(pl.LightningDataModule):
 
         return loader
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> Any:
         """
         Returns a data loader for the validation data.
 
@@ -523,7 +523,7 @@ class EllipticppDataModule(pl.LightningDataModule):
 
         return loader
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> Any:
         """
         Returns a DataLoader object for testing the dataset.
 

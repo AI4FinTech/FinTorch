@@ -1,5 +1,5 @@
 # from fintorch.datasets import elliptic
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch.nn as nn
 import torch.optim as optim
 import torch_geometric.nn as geom_nn

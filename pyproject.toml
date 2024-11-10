@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fintorch"
-version = "0.1.17"
+version = "0.2.0"
 authors = [
     { name = "Marcel Boersma", email = "boersma.marcel@gmail.com" }
 ]
@@ -28,13 +28,18 @@ dependencies = [
     "lightning",
     "kaggle==1.6.14",
     "polars",
-    "numpy",
+    "numpy<2",
     "huggingface_hub",
     "seaborn",
     "networkx",
     "optuna",
     "wandb>=0.12.1",
     "optuna-integration",
+    "yfinance",
+    "entmax",
+    "neuralforecast",
+    "ray[tune]==2.10 ",
+    "tenacity"
 ]
 
 [project.optional-dependencies]
@@ -57,7 +62,9 @@ dev = [
     "ruff",
     "mypy",
     "pip-tools",
-    "pre_commit"
+    "pre-commit",
+    "types-tqdm",
+    "pandas-stubs"
 ]
 
 
@@ -73,7 +80,7 @@ strict = true
 warn_unused_ignores = false
 
 [tool.bumpversion]
-current_version = "0.1.17"
+current_version = "0.2.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
@@ -96,6 +103,7 @@ filename = "fintorch/__init__.py"
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["fintorch"]

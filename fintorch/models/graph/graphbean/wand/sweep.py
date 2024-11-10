@@ -1,3 +1,4 @@
+from typing import Any
 import lightning as L
 import optuna
 import torch
@@ -11,7 +12,7 @@ from fintorch.models.graph.graphbean.graphBEAN import GraphBEANModule
 torch.set_float32_matmul_precision("medium")
 
 
-def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
+def objective(trial: optuna.trial.Trial, max_epochs: int, predict: Any) -> float:
     # We optimize the number of layers, hidden units in each layer and dropouts.
     encoder_layers = trial.suggest_int("encoder_layers", 1, 4)
     decoder_layers = trial.suggest_int("decoder_layers", 1, 4)
@@ -30,7 +31,7 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
     else:
         edge = ("transactions", "to", "wallets")
 
-    model = GraphBEANModule(
+    model = GraphBEANModule(  # type: ignore[call-arg]
         edge,
         edge_types=[("wallets_to_transactions"), ("transactions_to_wallets")],
         encoder_layers=encoder_layers,
@@ -61,7 +62,7 @@ def objective(trial: optuna.trial.Trial, max_epochs, predict) -> float:
         class_head_layers=class_head_layers,
         hidden_layers=hidden_layers,
     )
-    trainer.logger.log_hyperparams(hyperparameters)
+    trainer.logger.log_hyperparams(hyperparameters)  # type: ignore
     trainer.fit(model, datamodule=datamodule)
 
     return trainer.callback_metrics["val_f1"].item()

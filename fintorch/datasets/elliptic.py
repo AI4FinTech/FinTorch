@@ -4,12 +4,12 @@ from typing import Callable, List, Optional
 import numpy as np
 import polars as pol
 import torch
-from torch_geometric.data import Data, InMemoryDataset
+from torch_geometric.data import Data, InMemoryDataset  # type: ignore
 
 from fintorch.datasets.kaggle.downloader import KaggleDownloader
 
 
-class TransactionDataset(InMemoryDataset):
+class TransactionDataset(InMemoryDataset):  # type: ignore[misc]
     """
     The Elliptic Data Set: Understanding Bitcoin Transactions
 
@@ -68,9 +68,9 @@ class TransactionDataset(InMemoryDataset):
     def __init__(
         self,
         root: str,
-        transform: Optional[Callable] = None,
-        pre_transform: Optional[Callable] = None,
-        pre_filter: Optional[Callable] = None,
+        transform: Optional[Callable] = None,  # type: ignore
+        pre_transform: Optional[Callable] = None,  # type: ignore
+        pre_filter: Optional[Callable] = None,  # type: ignore
         force_reload: bool = False,
     ) -> None:
         super().__init__(
@@ -84,7 +84,7 @@ class TransactionDataset(InMemoryDataset):
         assert isinstance(self._data, Data)
 
     @property
-    def raw_file_names(self):
+    def raw_file_names(self) -> List[str]:
         """
         Returns a list of raw file names for the elliptic dataset.
 
@@ -126,7 +126,7 @@ class TransactionDataset(InMemoryDataset):
             None
         """
 
-        data_list = []
+        data_list = []  # type: ignore
 
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
@@ -181,7 +181,7 @@ class TransactionDataset(InMemoryDataset):
 
         # Preparing edge_index for PyTorch
         edge_index = np.array(edgelist.to_numpy()).T
-        edge_index = torch.tensor(edge_index, dtype=torch.long).contiguous()
+        edge_index = torch.tensor(edge_index, dtype=torch.long).contiguous()  # type: ignore
 
         # Extract labels
         labels = torch.tensor(df_merge["class"].to_numpy(), dtype=torch.float32).long()
