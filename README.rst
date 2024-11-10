@@ -79,8 +79,9 @@ Run
 
 and set
 .. code-block:: bash
-    export TORCH={your_pytorch_version}
-    export CUDA={your_cuda_version}
+
+   export TORCH={your_pytorch_version}
+   export CUDA={your_cuda_version}
 
 
 The following dependencies must be installed:
