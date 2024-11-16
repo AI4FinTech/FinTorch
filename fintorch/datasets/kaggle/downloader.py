@@ -16,6 +16,7 @@ class KaggleDownloader:
         self.api = KaggleApi()
         self.api.authenticate()
 
+
     def download_dataset(
         self, dataset_name: str, download_dir: Optional[str] = None
     ) -> None:
