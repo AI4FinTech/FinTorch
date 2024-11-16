@@ -20,7 +20,7 @@ input_size = 30
 days = 3
 steps_per_day = 55
 horizon = days * steps_per_day
-max_steps = 50
+max_steps = 10
 
 # Initialize the model
 models = [
