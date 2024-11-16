@@ -1,4 +1,5 @@
 import os
+import tempfile
 
 import pytest
 
@@ -7,7 +8,7 @@ from fintorch.datasets.elliptic import TransactionDataset
 
 @pytest.fixture
 def dataset():
-    root = "/tmp/data/fintorch/"
+    root = tempfile.mkdtemp()
     return TransactionDataset(root, force_reload=True)
 
 

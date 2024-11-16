@@ -1,13 +1,15 @@
 import logging
 import os
+from datetime import datetime
 from typing import Any, List
 from zipfile import ZipFile
 
 import polars as pol
+import torch
 from torch.utils.data import Dataset
 
 
-class AuctionDataset(Dataset):
+class AuctionDataset(Dataset):  # type: ignore
     """
     AuctionDataset Class Documentation
 
@@ -136,10 +138,10 @@ class AuctionDataset(Dataset):
         self.load()
 
     def __len__(self) -> int:
-        pass
+        return self.train.shape[0]
 
     def __getitem__(self, idx: int) -> Any:
-        pass
+        return torch.tensor(self.train.row(idx), dtype=torch.float32)
 
     def processed_paths(self) -> List[str]:
         return [
@@ -156,7 +158,7 @@ class AuctionDataset(Dataset):
         logging.info("Processing: apply transformations to auction data")
 
     def download(self) -> None:
-        from kaggle.api.kaggle_api_extended import KaggleApi
+        from kaggle.api.kaggle_api_extended import KaggleApi  # type: ignore
 
         logging.info("Downloading dataset from Kaggle")
         api = KaggleApi()
@@ -180,9 +182,7 @@ class AuctionDataset(Dataset):
         self.train = pol.read_csv(path_train)
 
         # Rename to NeuralForecast convention
-        self.train = self.train.rename(
-            {"target": "y", "date_id": "ds", "stock_id": "unique_id"}
-        )
+        self.train = self.train.rename({"target": "y", "stock_id": "unique_id"})
 
         # TODO: check exclusion, can we fill these columns?
         self.train = self.train.drop(["row_id", "near_price", "far_price"])
@@ -190,6 +190,40 @@ class AuctionDataset(Dataset):
         # TODO: check fill strategy, do we have better strategies?
         self.train = self.train.fill_nan(0)
         self.train = self.train.fill_null(0)
+
+        # filter overlap
+        # BUG: the train and test set overlap, split properly for time-series analysis
+        self.train = self.train.filter(~pol.col("date_id").is_in([478, 479, 480]))
+        self.train = self.train.filter(~pol.col("seconds_in_bucket").is_in([540]))
+
+        # map to proper ds
+        self.train = self.map_to_datetime(self.train)
+
+        path_test = os.path.join(self.root, "raw", "example_test_files", "test.csv")
+        self.test = pol.read_csv(path_test)
+
+        self.test = self.map_to_datetime(self.test)
+
+        # Rename to NeuralForecast convention
+        self.test = self.test.rename({"stock_id": "unique_id"})
+
+        # TODO: check exclusion, can we fill these columns?
+        self.test = self.test.drop(["near_price", "far_price"])
+
+        # TODO: check fill strategy, do we have better strategies?
+        self.test = self.test.fill_nan(0)
+        self.test = self.test.fill_null(0)
+
+    def map_to_datetime(self, df: pol.DataFrame) -> pol.DataFrame:
+        start_date = datetime(2023, 1, 1)
+        return df.with_columns(
+            (
+                pol.lit(start_date)
+                + (pol.col("date_id") * pol.duration(minutes=9))
+                + pol.duration(hours=12)
+                + (pol.col("seconds_in_bucket") * pol.duration(seconds=1))
+            ).alias("ds")
+        )
 
     def setupDirectories(self) -> None:
         try:
