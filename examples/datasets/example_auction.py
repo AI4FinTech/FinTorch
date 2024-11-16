@@ -112,8 +112,8 @@ for model_name in model_names:
     y_hat = y_hat.reshape(n_series, -1, horizon)
 
     # Compute MSE and MAE
-    mse_score = mse(y_hat, y_true)
-    mae_score = mae(y_hat, y_true)
+    mse_score = mse(y_true, y_hat)
+    mae_score = mae(y_true, y_hat)
 
     # Print results
     print(f"\nModel: {model_name}")
