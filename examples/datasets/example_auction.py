@@ -49,12 +49,13 @@ models = [
     NBEATS(input_size=input_size, h=horizon, max_steps=max_steps),
     NBEATSx(
         input_size=input_size,
+        h=horizon,
         futr_exog_list=[
             "wap",
             "bid_price",
             "ask_price",
         ],
-        h=horizon,
+        scaler_type="robust",
         max_steps=max_steps,
     ),
 ]
