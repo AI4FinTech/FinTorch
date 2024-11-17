@@ -55,6 +55,7 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://pypi.org/legacy/
+        verbose: true
 
   github-release:
     name: >-
@@ -123,3 +124,4 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
+        verbose: true
