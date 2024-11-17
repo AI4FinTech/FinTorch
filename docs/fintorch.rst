@@ -8,8 +8,9 @@ Subpackages
    :maxdepth: 4
 
    fintorch.datasets
-   fintorch.dl
    fintorch.graph
+   fintorch.layers
+   fintorch.models
 
 Submodules
 ----------
