@@ -66,10 +66,7 @@ class TestAuctionDataset(unittest.TestCase):
         dataset = AuctionDataset(root=self.test_dir)
         # Mock the train DataFrame
         dataset.train = pol.DataFrame(
-            {
-                "col1": [1, 2, 3],
-                "col2": [4, 5, 6],
-            }
+            {"col1": [1, 2, 3], "col2": [4, 5, 6], "ds": [7, 8, 9]}
         )
         item = dataset[1]
         expected_tensor = torch.tensor([2, 5], dtype=torch.float32)
