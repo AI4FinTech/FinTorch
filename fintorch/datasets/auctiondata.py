@@ -141,7 +141,7 @@ class AuctionDataset(Dataset):  # type: ignore
         return self.train.shape[0]
 
     def __getitem__(self, idx: int) -> Any:
-        return torch.tensor(self.train.row(idx), dtype=torch.float32)
+        return torch.tensor(self.train.drop("ds").row(idx), dtype=torch.float32)
 
     def processed_paths(self) -> List[str]:
         return [
