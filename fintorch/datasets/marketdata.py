@@ -1,0 +1,178 @@
+import logging
+import os
+import shutil
+from datetime import datetime
+from typing import List
+from zipfile import ZipFile
+
+import polars as pol
+from torch.utils.data import IterableDataset
+
+
+class MarketDataset(IterableDataset):  # type: ignore
+    # Directly extent dataset from PyTorch Utils
+
+    def __init__(
+        self,
+        root: str,
+        force_reload: bool = False,
+        batch_size: int = 10000000,
+    ):
+        super().__init__()
+
+        self.root = root
+        self.batch_size = batch_size
+        self.offset = 0
+
+        logging.info("Load market data")
+        self.setupDirectories()
+
+        if force_reload or not all(os.path.exists(path) for path in self.raw_paths()):
+            # if we want to force reload, or a processed file is missing. Start the processing
+            self.download()  # download auction data
+            self.process()
+
+        if force_reload or len(os.listdir(os.path.join(self.root, "processed"))) == 0:
+            self.process()
+
+        self.load()
+
+    def __iter__(self):
+        idx = 0
+        while True:
+            # Slice the LazyFrame to get the next batch
+            batch_df = self.train.slice(self.offset, self.batch_size).collect()
+
+            # If the batch is empty, we've reached the end of the dataset
+            if batch_df.is_empty():
+                break
+
+            # Yield the batch tensor
+            yield idx, batch_df
+
+            # Update the offset for the next batch
+            self.offset += self.batch_size
+            idx += 1
+
+    def raw_paths(self) -> List[str]:
+        return [
+            os.path.join(self.root, path)
+            for path in [
+                "raw/features.csv",
+                "raw/responders.csv",
+                "raw/sample_submission.csv",
+                "raw/train.parquet",
+                "raw/test.parquet",
+                "raw/lags.parquet",
+            ]
+        ]
+
+    def processed_paths(self) -> List[str]:
+
+        return [
+            os.path.join(self.root, path)
+            for path in [
+                "raw/features.csv",
+                "raw/responders.csv",
+                "raw/sample_submission.csv",
+                "raw/train.parquet",
+                "raw/test.parquet",
+                "raw/lags.parquet",
+            ]
+        ]
+
+    def batch_raw(self, raw_data):
+        idx = 0
+        while True:
+            # Slice the LazyFrame to get the next batch
+            batch_df = raw_data.slice(self.offset, self.batch_size).collect()
+
+            # If the batch is empty, we've reached the end of the dataset
+            if batch_df.is_empty():
+                break
+
+            # Yield the batch tensor
+            yield idx, batch_df
+
+            # Update the offset for the next batch
+            self.offset += self.batch_size
+            idx += 1
+
+    def process(self) -> None:
+        logging.info("Processing: apply transformations to market data")
+
+        path_train = os.path.join(self.root, "raw", "train.parquet")
+        train_raw = pol.scan_parquet(path_train)
+
+        if len(os.listdir(os.path.join(self.root, "processed"))) > 0:
+
+            # clean-up old files
+            try:
+                logging.info("Cleaning-up old processed files")
+                processed_dir = os.path.join(self.root, "processed")
+                shutil.rmtree(processed_dir)
+                os.mkdir(processed_dir)
+
+            except Exception as e:
+                logging.error(f"An error occurred cleaning up the files:{e}")
+
+        for idx, batch in self.batch_raw(train_raw):
+            batch_prep = self.preprocess_batch(batch)
+            batch_prep = batch_prep.with_columns(pol.lit(idx).alias("partition_id"))
+            batch_prep.write_parquet(
+                os.path.join(self.root, "processed", "train"),
+                partition_by=["partition_id", "unique_id"],
+            )
+            del batch_prep
+
+    def download(self) -> None:
+        from kaggle.api.kaggle_api_extended import KaggleApi  # type: ignore
+
+        logging.info("Downloading dataset from Kaggle")
+        api = KaggleApi()
+        api.read_config_file()
+        api.authenticate()
+        competition = "jane-street-real-time-market-data-forecasting"
+        api.competition_download_files(
+            competition, path=os.path.join(self.root, "raw"), quiet=False
+        )
+
+        path = os.path.join(self.root, "raw", competition + ".zip")
+        with ZipFile(path) as zObject:
+            zObject.extractall(os.path.join(self.root, "raw"))
+
+        os.remove(path)
+
+    def load(self) -> None:
+        path_train = os.path.join(self.root, "processed", "train")
+        self.train = pol.scan_parquet(path_train)
+
+    @staticmethod
+    def preprocess_batch(batch: pol.DataFrame):
+        return (
+            MarketDataset.map_to_datetime(batch)
+            .fill_nan(0)
+            .fill_null(0)
+            .rename({"responder_6": "y", "symbol_id": "unique_id"})
+        )
+
+    @staticmethod
+    def map_to_datetime(df: pol.DataFrame) -> pol.DataFrame:
+        start_date = datetime(2023, 1, 1)
+        return df.with_columns(
+            (
+                pol.lit(start_date)
+                + (pol.col("date_id") * pol.duration(minutes=9))
+                + pol.duration(hours=12)
+                + (pol.col("time_id") * pol.duration(seconds=1))
+            ).alias("ds")
+        )
+
+    def setupDirectories(self) -> None:
+        try:
+            os.makedirs(self.root, exist_ok=True)
+            os.makedirs(os.path.join(self.root, "raw"), exist_ok=True)
+            os.makedirs(os.path.join(self.root, "processed"), exist_ok=True)
+        except OSError as e:
+            logging.error(f"Failed to create directories: {str(e)}")
+            raise RuntimeError(f"Failed to setup directories: {str(e)}")

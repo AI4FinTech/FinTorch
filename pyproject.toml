@@ -27,7 +27,7 @@ dependencies = [
     "torch_geometric",
     "lightning",
     "kaggle==1.6.14",
-    "polars",
+    "polars>=1.14",
     "numpy<2",
     "huggingface_hub",
     "seaborn",

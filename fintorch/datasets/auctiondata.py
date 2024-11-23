@@ -164,7 +164,6 @@ class AuctionDataset(Dataset):  # type: ignore
         api = KaggleApi()
         api.read_config_file()
         api.authenticate()
-        competition = "jane-street-real-time-market-data-forecasting"
         competition = "optiver-trading-at-the-close"
         api.competition_download_files(
             competition, path=os.path.join(self.root, "raw"), quiet=False
