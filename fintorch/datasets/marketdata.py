@@ -10,11 +10,10 @@ from torch.utils.data import IterableDataset
 
 
 class MarketDataset(IterableDataset):  # type: ignore
-    # Directly extent dataset from PyTorch Utils
-
     def __init__(
         self,
         root: str,
+        split: str = "train",
         force_reload: bool = False,
         batch_size: int = 10000000,
     ):
@@ -23,16 +22,21 @@ class MarketDataset(IterableDataset):  # type: ignore
         self.root = root
         self.batch_size = batch_size
         self.offset = 0
+        self.split = split  # 'train' or 'test'
 
-        logging.info("Load market data")
-        self.setupDirectories()
+        logging.info(f"Load {self.split} market data")
+        self.setup_directories()
 
         if force_reload or not all(os.path.exists(path) for path in self.raw_paths()):
-            # if we want to force reload, or a processed file is missing. Start the processing
-            self.download()  # download auction data
+            # If we want to force reload, or a processed file is missing, start the processing
+            self.download()  # Download auction data
             self.process()
 
-        if force_reload or len(os.listdir(os.path.join(self.root, "processed"))) == 0:
+        if (
+            force_reload
+            or not os.path.exists(os.path.join(self.root, "processed", self.split))
+            or len(os.listdir(os.path.join(self.root, "processed", self.split))) == 0
+        ):
             self.process()
 
         self.load()
@@ -41,13 +45,13 @@ class MarketDataset(IterableDataset):  # type: ignore
         idx = 0
         while True:
             # Slice the LazyFrame to get the next batch
-            batch_df = self.train.slice(self.offset, self.batch_size).collect()
+            batch_df = self.data.slice(self.offset, self.batch_size).collect()
 
             # If the batch is empty, we've reached the end of the dataset
             if batch_df.is_empty():
                 break
 
-            # Yield the batch tensor
+            # Yield the batch data
             yield idx, batch_df
 
             # Update the offset for the next batch
@@ -55,20 +59,6 @@ class MarketDataset(IterableDataset):  # type: ignore
             idx += 1
 
     def raw_paths(self) -> List[str]:
-        return [
-            os.path.join(self.root, path)
-            for path in [
-                "raw/features.csv",
-                "raw/responders.csv",
-                "raw/sample_submission.csv",
-                "raw/train.parquet",
-                "raw/test.parquet",
-                "raw/lags.parquet",
-            ]
-        ]
-
-    def processed_paths(self) -> List[str]:
-
         return [
             os.path.join(self.root, path)
             for path in [
@@ -91,7 +81,7 @@ class MarketDataset(IterableDataset):  # type: ignore
             if batch_df.is_empty():
                 break
 
-            # Yield the batch tensor
+            # Yield the batch data
             yield idx, batch_df
 
             # Update the offset for the next batch
@@ -99,28 +89,26 @@ class MarketDataset(IterableDataset):  # type: ignore
             idx += 1
 
     def process(self) -> None:
-        logging.info("Processing: apply transformations to market data")
+        logging.info(f"Processing: apply transformations to {self.split} market data")
 
-        path_train = os.path.join(self.root, "raw", "train.parquet")
-        train_raw = pol.scan_parquet(path_train)
+        path = os.path.join(self.root, "raw", f"{self.split}.parquet")
+        raw = pol.scan_parquet(path)
 
-        if len(os.listdir(os.path.join(self.root, "processed"))) > 0:
-
-            # clean-up old files
+        processed_dir = os.path.join(self.root, "processed", self.split)
+        if os.path.exists(processed_dir) and len(os.listdir(processed_dir)) > 0:
+            # Clean up old files
             try:
-                logging.info("Cleaning-up old processed files")
-                processed_dir = os.path.join(self.root, "processed")
+                logging.info("Cleaning up old processed files")
                 shutil.rmtree(processed_dir)
                 os.mkdir(processed_dir)
-
             except Exception as e:
-                logging.error(f"An error occurred cleaning up the files:{e}")
+                logging.error(f"An error occurred cleaning up the files: {e}")
 
-        for idx, batch in self.batch_raw(train_raw):
+        for idx, batch in self.batch_raw(raw):
             batch_prep = self.preprocess_batch(batch)
             batch_prep = batch_prep.with_columns(pol.lit(idx).alias("partition_id"))
             batch_prep.write_parquet(
-                os.path.join(self.root, "processed", "train"),
+                processed_dir,
                 partition_by=["partition_id", "unique_id"],
             )
             del batch_prep
@@ -144,17 +132,19 @@ class MarketDataset(IterableDataset):  # type: ignore
         os.remove(path)
 
     def load(self) -> None:
-        path_train = os.path.join(self.root, "processed", "train")
-        self.train = pol.scan_parquet(path_train)
+        path = os.path.join(self.root, "processed", self.split)
+        self.data = pol.scan_parquet(path)
 
-    @staticmethod
-    def preprocess_batch(batch: pol.DataFrame):
-        return (
-            MarketDataset.map_to_datetime(batch)
+    def preprocess_batch(self, batch: pol.DataFrame):
+        df = (
+            self.map_to_datetime(batch)
             .fill_nan(0)
             .fill_null(0)
-            .rename({"responder_6": "y", "symbol_id": "unique_id"})
+            .rename({"symbol_id": "unique_id"})
         )
+        if self.split == "train":
+            df = df.rename({"responder_6": "y"})
+        return df
 
     @staticmethod
     def map_to_datetime(df: pol.DataFrame) -> pol.DataFrame:
@@ -168,11 +158,11 @@ class MarketDataset(IterableDataset):  # type: ignore
             ).alias("ds")
         )
 
-    def setupDirectories(self) -> None:
+    def setup_directories(self) -> None:
         try:
             os.makedirs(self.root, exist_ok=True)
             os.makedirs(os.path.join(self.root, "raw"), exist_ok=True)
             os.makedirs(os.path.join(self.root, "processed"), exist_ok=True)
         except OSError as e:
             logging.error(f"Failed to create directories: {str(e)}")
-            raise RuntimeError(f"Failed to setup directories: {str(e)}")
+            raise RuntimeError(f"Failed to set up directories: {str(e)}")
