@@ -37,7 +37,7 @@ dependencies = [
     "optuna-integration",
     "yfinance",
     "entmax",
-    "neuralforecast",
+    "neuralforecast>=1.7.6",
     "ray[tune]==2.10 ",
     "tenacity"
 ]
