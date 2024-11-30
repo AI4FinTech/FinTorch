@@ -6,8 +6,7 @@ from typing import List
 from zipfile import ZipFile
 
 import polars as pol
-import lightning.pytorch as pl
-from torch.utils.data import IterableDataset, DataLoader
+from torch.utils.data import IterableDataset
 
 
 class MarketDataset(IterableDataset):  # type: ignore
@@ -59,6 +58,7 @@ class MarketDataset(IterableDataset):  # type: ignore
             # Update the offset for the next batch
             self.offset += self.batch_size
             idx += 1
+
     def raw_paths(self) -> List[str]:
         return [
             os.path.join(self.root, path)
@@ -167,61 +167,3 @@ class MarketDataset(IterableDataset):  # type: ignore
         except OSError as e:
             logging.error(f"Failed to create directories: {str(e)}")
             raise RuntimeError(f"Failed to set up directories: {str(e)}") from e
-
-
-class MarketDataDataModule(pl.LightningDataModule):
-
-    def __init__(
-        self,
-        dataset: IterableDataset,
-        batch_size=32,
-        valid_batch_size=1024,
-        num_workers=0,
-        drop_last=False,
-        shuffle_train=True,
-    ):
-        super().__init__()
-        self.dataset = dataset
-        self.batch_size = batch_size
-        self.valid_batch_size = valid_batch_size
-        self.num_workers = num_workers
-        self.drop_last = drop_last
-        self.shuffle_train = shuffle_train
-
-    def prepare_data(self):
-        # Implement any data preparation logic here
-        print("prepare_data")
-
-    def setup(self, stage=None):
-        # Implement any setup logic here
-        print("setup data")
-
-
-    def train_dataloader(self):
-        loader = DataLoader(
-            self.dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            shuffle=self.shuffle_train,
-            drop_last=self.drop_last,
-        )
-        return loader
-
-    def val_dataloader(self):
-        loader = DataLoader(
-            self.dataset,
-            batch_size=self.valid_batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-            drop_last=self.drop_last,
-        )
-        return loader
-
-    def predict_dataloader(self):
-        loader = DataLoader(
-            self.dataset,
-            batch_size=self.valid_batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-        )
-        return loader
