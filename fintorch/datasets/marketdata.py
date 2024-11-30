@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 from datetime import datetime
-from typing import List
+from typing import Any, Generator, List
 from zipfile import ZipFile
 
 import polars as pol
@@ -41,7 +41,7 @@ class MarketDataset(IterableDataset):  # type: ignore
 
         self.load()
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[tuple[int, pol.DataFrame], Any, None]:
         self.offset = 0
         idx = 0
         while True:
@@ -72,7 +72,9 @@ class MarketDataset(IterableDataset):  # type: ignore
             ]
         ]
 
-    def batch_raw(self, raw_data):
+    def batch_raw(
+        self, raw_data: pol.LazyFrame
+    ) -> Generator[tuple[int, pol.DataFrame], Any, None]:
         idx = 0
         while True:
             # Slice the LazyFrame to get the next batch
@@ -136,7 +138,7 @@ class MarketDataset(IterableDataset):  # type: ignore
         path = os.path.join(self.root, "processed", self.split)
         self.data = pol.scan_parquet(path)
 
-    def preprocess_batch(self, batch: pol.DataFrame):
+    def preprocess_batch(self, batch: pol.DataFrame) -> pol.DataFrame:
         df = (
             self.map_to_datetime(batch)
             .fill_nan(0)
