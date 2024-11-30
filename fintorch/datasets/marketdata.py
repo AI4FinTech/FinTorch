@@ -43,6 +43,7 @@ class MarketDataset(IterableDataset):  # type: ignore
         self.load()
 
     def __iter__(self):
+        self.offset = 0
         idx = 0
         while True:
             # Slice the LazyFrame to get the next batch
@@ -58,7 +59,6 @@ class MarketDataset(IterableDataset):  # type: ignore
             # Update the offset for the next batch
             self.offset += self.batch_size
             idx += 1
-
     def raw_paths(self) -> List[str]:
         return [
             os.path.join(self.root, path)
