@@ -10,14 +10,24 @@ from torch.utils.data import IterableDataset
 
 
 class MarketDataset(IterableDataset):  # type: ignore
+    """PyTorch IterableDataset for Jane Street Market Data.
+
+    Args:
+        root (str): Root directory for dataset storage
+        split (str, optional): Data split ('train' or 'test'). Defaults to "train"
+        force_reload (bool, optional): Force data reprocessing. Defaults to False
+        batch_size (int, optional): Number of samples per batch. Defaults to 10000000
+    """
     def __init__(
         self,
         root: str,
         split: str = "train",
         force_reload: bool = False,
-        batch_size: int = 10000000,
+        batch_size: int = 100000,
     ):
         super().__init__()
+        if split not in ["train", "test"]:
+            raise ValueError("split must be either 'train' or 'test'")
 
         self.root = root
         self.batch_size = batch_size
@@ -40,7 +50,6 @@ class MarketDataset(IterableDataset):  # type: ignore
             self.process()
 
         self.load()
-
     def __iter__(self) -> Generator[tuple[int, pol.DataFrame], Any, None]:
         self.offset = 0
         idx = 0
