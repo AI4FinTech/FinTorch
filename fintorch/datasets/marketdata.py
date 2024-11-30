@@ -166,7 +166,7 @@ class MarketDataset(IterableDataset):  # type: ignore
             os.makedirs(os.path.join(self.root, "processed"), exist_ok=True)
         except OSError as e:
             logging.error(f"Failed to create directories: {str(e)}")
-            raise RuntimeError(f"Failed to set up directories: {str(e)}")
+            raise RuntimeError(f"Failed to set up directories: {str(e)}") from e
 
 
 class MarketDataDataModule(pl.LightningDataModule):
