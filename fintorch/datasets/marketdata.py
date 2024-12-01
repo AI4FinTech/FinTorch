@@ -35,7 +35,7 @@ class MarketDataset(IterableDataset):  # type: ignore
         if split not in ["train", "test"]:
             raise ValueError("split must be either 'train' or 'test'")
 
-        self.root = root
+        self.root = os.path.expanduser(root)
         self.batch_size = batch_size
         self.offset = 0
         self.split = split  # 'train' or 'test'
