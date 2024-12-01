@@ -54,8 +54,11 @@ lint/black: ## check style with black
 
 lint: lint/flake8 lint/black ## check style
 
-test: ## run tests quickly with the default Python
-	pytest
+test: ## Run tests quickly with the default Python
+	pytest -m "not special"
+
+fulltest: ## Run all tests, including special ones
+	pytest -m "special or not special"
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source fintorch -m pytest

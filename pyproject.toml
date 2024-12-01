@@ -107,3 +107,9 @@ filename = "pyproject.toml"
 
 [tool.hatch.build.targets.wheel]
 packages = ["fintorch"]
+
+[tool.pytest.ini_options]
+markers = [
+    "special: mark a test as requiring special hardware or taking a long time"
+]
+addopts = "-m 'not special'"
