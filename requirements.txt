@@ -130,7 +130,7 @@ networkx==3.3
     # via
     #   fintorch (pyproject.toml)
     #   torch
-neuralforecast==1.7.5
+neuralforecast==1.7.6
     # via fintorch (pyproject.toml)
 numpy==1.26.4
     # via
@@ -216,7 +216,7 @@ platformdirs==4.2.2
     # via
     #   wandb
     #   yfinance
-polars==1.2.1
+polars==1.16.0
     # via fintorch (pyproject.toml)
 protobuf==5.27.2
     # via

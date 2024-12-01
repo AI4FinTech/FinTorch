@@ -8,3 +8,4 @@ Tutorials
    tutorials/graphbean/graphbean
    tutorials/stocktick/stocktick
    tutorials/tradingattheclose/tradingattheclose
+   tutorials/marketdata/marketdata
