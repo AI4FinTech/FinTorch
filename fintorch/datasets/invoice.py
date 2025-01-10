@@ -119,7 +119,11 @@ class InvoiceDataset(Dataset):  # type: ignore
         for file in os.listdir(dir):
             if file.endswith(".pt"):
                 file_path = os.path.join(dir, file)
-                data.append(torch.load(file_path))
+                try:
+                    data.append(torch.load(file_path))
+                except Exception as e:
+                    logging.error(f"Failed to load {file_path}: {str(e)}")
+                    continue
 
         return data
 
