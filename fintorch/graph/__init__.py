@@ -1,1 +1,3 @@
-from .layers import BEANConvSimple, BeanAggregation, BeanAggregationSimple, BEANConv
+from .layers import beanconv
+
+__all__ = ["beanconv"]
