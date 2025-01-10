@@ -1,6 +1,14 @@
 fintorch.graph package
 ======================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   fintorch.graph.layers
+
 Module contents
 ---------------
 
