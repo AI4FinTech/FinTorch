@@ -25,9 +25,9 @@ class InvoiceDataset(Dataset):  # type: ignore
         self.setupDirectories()
 
         if force_reload or not all(
-            os.path.exists(path) for path in self.processed_paths()
+            os.path.exists(path) and os.listdir(path) for path in self.processed_paths()
         ):
-            # if we want to force reload, or a processed file is missing. Start the processing
+            # if we want to force reload, or a processed file is missing or empty. Start the processing
             self.download()  # download auction data
             self.process()
 
@@ -43,10 +43,8 @@ class InvoiceDataset(Dataset):  # type: ignore
         return [
             os.path.join(self.root, path)
             for path in [
-                "processed/dataset/training_data/annotations/",
-                "processed/dataset/training_data/images/",
-                "processed/dataset/testing_data/annotations/",
-                "processed/dataset/testing_data/images/",
+                "processed/training_data/",
+                "processed/testing_data",
             ]
         ]
 
@@ -86,13 +84,22 @@ class InvoiceDataset(Dataset):  # type: ignore
         for file in tqdm(os.listdir(annotation_dir), desc="Processing files"):
             # Read the corresponding image file
 
-            with open(os.path.join(annotation_dir, file), "r") as f:
-                data = json.load(f)
+            try:
+                with open(os.path.join(annotation_dir, file), "r") as f:
+                    data = json.load(f)
+            except (IOError, json.JSONDecodeError) as e:
+                logging.error(f"Failed to read annotation file {file}: {str(e)}")
+                continue
 
             image_file = os.path.splitext(file)[0] + ".png"
             image_path = os.path.join(image_dir, image_file)
 
-            image = Image.open(image_path).convert("RGB")
+            try:
+                image = Image.open(image_path).convert("RGB")
+            except IOError as e:
+                logging.error(f"Failed to open image file {image_file}: {str(e)}")
+                continue
+
             transform = transforms.Compose([transforms.ToTensor()])
             tensor_image = transform(image)
 
@@ -120,6 +127,14 @@ class InvoiceDataset(Dataset):  # type: ignore
         logging.info("Downloading the FUNSD dataset")
         url = "https://guillaumejaume.github.io/FUNSD/dataset.zip"
         response = requests.get(url, stream=True)
+        if response.status_code != 200:
+            logging.error(
+                f"Failed to download dataset: HTTP status code {response.status_code}"
+            )
+            raise Exception(
+                f"Failed to download dataset: HTTP status code {response.status_code}"
+            )
+
         total_size = int(response.headers.get("content-length", 0))
         block_size = 1024  # 1 Kibibyte
         tqdm_bar = tqdm(total=total_size, unit="iB", unit_scale=True)
