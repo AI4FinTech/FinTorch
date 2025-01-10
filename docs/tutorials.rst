@@ -9,3 +9,4 @@ Tutorials
    tutorials/stocktick/stocktick
    tutorials/tradingattheclose/tradingattheclose
    tutorials/marketdata/marketdata
+   tutorials/funsd/funsd
