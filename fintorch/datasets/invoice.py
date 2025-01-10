@@ -17,10 +17,14 @@ from tqdm import tqdm
 
 
 class InvoiceDataset(Dataset):  # type: ignore
-    def __init__(self, root: str, force_reload: bool = False):
+    def __init__(self, root: str, split: str = "train", force_reload: bool = False):
         super().__init__()
         self.root = root
-        self.data = []  # Initialize data attribute
+        self.data: List[Any] = []  # Initialize data attribute
+
+        if split not in ["train", "test", "all"]:
+            raise ValueError("split must be one of: train, test, all")
+        self.split = split
 
         logging.info("Loading invoice dataset")
         self.setupDirectories()
@@ -33,6 +37,7 @@ class InvoiceDataset(Dataset):  # type: ignore
             self.process()
 
         self.load()
+
     def __len__(self) -> int:
         return len(self.data)
 
@@ -108,20 +113,23 @@ class InvoiceDataset(Dataset):  # type: ignore
             target_file = os.path.join(target_dir, os.path.splitext(file)[0] + ".pt")
             torch.save(data_dict, target_file)
 
-    def __init__(self, root: str, split: str = "train", force_reload: bool = False):
-        if split not in ["train", "test", "all"]:
-            raise ValueError("split must be one of: train, test, all")
-        self.split = split
-        super().__init__(root, force_reload)
-
     def load(self) -> None:
         if self.split == "train":
-            self.data = self.load_dir(os.path.join(self.root, "processed/training_data/"))
+            self.data = self.load_dir(
+                os.path.join(self.root, "processed/training_data/")
+            )
         elif self.split == "test":
-            self.data = self.load_dir(os.path.join(self.root, "processed/testing_data/"))
+            self.data = self.load_dir(
+                os.path.join(self.root, "processed/testing_data/")
+            )
         else:  # all
-            self.data = self.load_dir(os.path.join(self.root, "processed/training_data/"))
-            self.data.extend(self.load_dir(os.path.join(self.root, "processed/testing_data/")))
+            self.data = self.load_dir(
+                os.path.join(self.root, "processed/training_data/")
+            )
+            self.data.extend(
+                self.load_dir(os.path.join(self.root, "processed/testing_data/"))
+            )
+
     def load_dir(self, dir: str) -> List[Dict[str, Any]]:
         data = []
         for file in os.listdir(dir):
