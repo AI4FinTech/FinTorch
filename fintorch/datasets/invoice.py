@@ -63,7 +63,7 @@ class InvoiceDataset(Dataset):  # type: ignore
             )
         except OSError as e:
             logging.error(f"Failed to create directories: {str(e)}")
-            raise RuntimeError(f"Failed to setup directories: {str(e)}")
+            raise RuntimeError(f"Failed to setup directories: {str(e)}") from e
 
     def process(self) -> None:
         logging.info("Processing: apply transformation to FUNSD dataset")
