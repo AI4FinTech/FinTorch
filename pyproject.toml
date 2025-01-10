@@ -25,6 +25,7 @@ dependencies = [
     "Click>=7.0",
     "torch",
     "torch_geometric",
+    "torchvision",
     "lightning",
     "kaggle==1.6.14",
     "polars>=1.14",
@@ -39,7 +40,8 @@ dependencies = [
     "entmax",
     "neuralforecast>=1.7.6",
     "ray[tune]==2.10 ",
-    "tenacity"
+    "tenacity",
+    "pillow"
 ]
 
 [project.optional-dependencies]
@@ -64,7 +66,8 @@ dev = [
     "pip-tools",
     "pre-commit",
     "types-tqdm",
-    "pandas-stubs"
+    "pandas-stubs",
+    "types-requests"
 ]
 
 
