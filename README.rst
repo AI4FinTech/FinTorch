@@ -72,16 +72,20 @@ Please install the package as follows:
    pip install fintorch
 
 **Required Dependencies**
+
 * The following instalation commands for the required dependencies use custom index URLs provided by PyTorch Geometric (PyG).
 
 To determine TORCH version and DEVICE type run:
+
 .. code-block:: bash
 
    python -c "import torch; print('TORCH:',torch.__version__,'\nDEVICE:', 'cu'+torch.version.cuda.replace('.','')) if torch.cuda.is_available() else print('TORCH:',str(torch.__version__).split('+')[0],'\nDEVICE: cpu')"
 
 
 **For Linux:**
-* Set TORCH and DEVICE:
+
+Set TORCH and DEVICE:
+
 .. code-block:: bash
 
    export TORCH={your_pytorch_version}
@@ -89,14 +93,17 @@ To determine TORCH version and DEVICE type run:
 
 Or, in the following urls, replace `${TORCH}` and `${DEVICE}` with the appropriate version numbers for your environment (e.g., with CUDA: "1.12.0" and "cu113" or with CPU: "1.12.0" and "cpu"). 
 
-* Download the required dependencies using the following PyG installation commands:
+Download the required dependencies using the following PyG installation commands:
+
 .. code-block:: bash
 
    pip install pyg-lib -f https://data.pyg.org/whl/torch-${TORCH}+${DEVICE}.html
    pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-${TORCH}+${DEVICE}.html
 
 **For Windows:**
-- Set TORCH and DEVICE:
+
+Set TORCH and DEVICE:
+
 .. code-block:: bash  
 
    set "TORCH=your_pytorch_version"
@@ -104,7 +111,8 @@ Or, in the following urls, replace `${TORCH}` and `${DEVICE}` with the appropria
 
 Or, in the following urls, replace `%TORCH%` and `%DEVICE%` with the appropriate version numbers for your environment (e.g., with CUDA: "1.12.0" and "cu113" or with CPU: "1.12.0" and "cpu").
 
-- Download the required dependencies using the following PyG installation commands:
+Download the required dependencies using the following PyG installation commands:
+
 .. code-block:: bash
 
    pip install pyg-lib -f https://data.pyg.org/whl/torch-%TORCH%+%DEVICE%.html
