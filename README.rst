@@ -81,7 +81,7 @@ To determine TORCH version and DEVICE type run:
 
 
 **For Linux:**
-- Set TORCH and DEVICE:
+* Set TORCH and DEVICE:
 .. code-block:: bash
 
    export TORCH={your_pytorch_version}
@@ -89,7 +89,7 @@ To determine TORCH version and DEVICE type run:
 
 Or, in the following urls, replace `${TORCH}` and `${DEVICE}` with the appropriate version numbers for your environment (e.g., with CUDA: "1.12.0" and "cu113" or with CPU: "1.12.0" and "cpu"). 
 
-- Download the required dependencies using the following PyG installation commands:
+* Download the required dependencies using the following PyG installation commands:
 .. code-block:: bash
 
    pip install pyg-lib -f https://data.pyg.org/whl/torch-${TORCH}+${DEVICE}.html
