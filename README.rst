@@ -65,42 +65,50 @@ FinTorch will not only streamline the process of regulatory compliance for FinTe
 
 Getting started
 ---------------
-Please install the package as follows
+Please install the package as follows:
 
 .. code-block:: bash
 
    pip install fintorch
 
 **Required Dependencies**
+* The following instalation commands for the required dependencies use custom index URLs provided by PyTorch Geometric (PyG).
 
-Run
-
+To determine TORCH version and DEVICE type run:
 .. code-block:: bash
 
-   python -c "import torch; print(torch.__version__)"
+   python -c "import torch; print('TORCH:',torch.__version__,'\nDEVICE:', 'cu'+torch.version.cuda.replace('.','')) if torch.cuda.is_available() else print('TORCH:',str(torch.__version__).split('+')[0],'\nDEVICE: cpu')"
 
 
-and set
-
+**For Linux:**
+- Set TORCH and DEVICE:
 .. code-block:: bash
 
    export TORCH={your_pytorch_version}
-   export CUDA={your_cuda_version}
+   export DEVICE={your_device}
 
+Or, in the following urls, replace `${TORCH}` and `${DEVICE}` with the appropriate version numbers for your environment (e.g., with CUDA: "1.12.0" and "cu113" or with CPU: "1.12.0" and "cpu"). 
 
-The following dependencies must be installed:
-
+- Download the required dependencies using the following PyG installation commands:
 .. code-block:: bash
 
-   pip install pyg-lib -f https://data.pyg.org/whl/torch-${TORCH}+${CUDA}.html
-   pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-${TORCH}+${CUDA}.html
+   pip install pyg-lib -f https://data.pyg.org/whl/torch-${TORCH}+${DEVICE}.html
+   pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-${TORCH}+${DEVICE}.html
 
-**Important Notes**
+**For Windows:**
+- Set TORCH and DEVICE:
+.. code-block:: bash  
 
-* Replace `${TORCH}` and `${CUDA}` with the appropriate version numbers for your environment (e.g., "1.12.0" and "cu113").
-* These installation commands use custom index URLs provided by PyTorch Geometric (PyG).
+   set "TORCH=your_pytorch_version"
+   set "DEVICE=your_device"
 
+Or, in the following urls, replace `%TORCH%` and `%DEVICE%` with the appropriate version numbers for your environment (e.g., with CUDA: "1.12.0" and "cu113" or with CPU: "1.12.0" and "cpu").
 
+- Download the required dependencies using the following PyG installation commands:
+.. code-block:: bash
+
+   pip install pyg-lib -f https://data.pyg.org/whl/torch-%TORCH%+%DEVICE%.html
+   pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-%TORCH%+%DEVICE%.html
 
 Description of the Structure
 -----------------------------
