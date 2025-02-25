@@ -26,7 +26,7 @@ jobs:
           version: ${{ steps.version.outputs.version }}
           args: check --no-fix
 
-      - uses: chartboost/ruff-action@v1
+      - uses: astral-sh/ruff-action@v3
         with:
           src: fintorch/
           version: ${{ steps.version.outputs.version }}
@@ -46,6 +46,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install libsasl2-dev python3-dev libldap2-dev libssl-dev
           python -m pip install --upgrade pip
           pip install -r dev-requirements.txt
