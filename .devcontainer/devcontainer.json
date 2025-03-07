@@ -3,11 +3,7 @@
 {
 	"name": "Python 3",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
-	"features": {
-		"ghcr.io/devcontainers-contrib/features/wget-apt-get:1": {},
-		"ghcr.io/itsmechlark/features/act:1": {}
-	},
+	"image": "mcr.microsoft.com/devcontainers/python:1-3.10-bookworm"
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
@@ -16,8 +12,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip3 install --user -r requirements_dev.txt && pip install --user -U pre-commit && pre-commit install-hooks",
-    "postAttachCommand": ".devcontainer/setup-mounted.sh",
+	// "postCreateCommand": "pip3 install --user -r requirements.txt",
 
 	// Configure tool-specific properties.
 	// "customizations": {},
