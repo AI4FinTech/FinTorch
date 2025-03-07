@@ -1,0 +1,162 @@
+import torch
+
+from fintorch.models.timeseries.tft import (
+    GatedResidualNetwork,
+    InterpretableMultiHeadAttention,
+    TemporalFusionTransformer,
+    VariableSelectionNetwork,
+)
+
+# Define hyperparameters
+input_dimensions = 10
+hidden_dimensions = 64
+dropout = 0.1
+context_size = 5
+batch_size = 32
+sequence_length = 10
+num_inputs = 3
+number_of_heads = 4
+
+# Example usage of GatedResidualNetwork
+context = torch.randn(batch_size, context_size)
+grn = GatedResidualNetwork(
+    input_size=input_dimensions,
+    hidden_size=hidden_dimensions,
+    output_size=hidden_dimensions,
+    dropout=dropout,
+    context_size=context_size,
+)
+grn_input = torch.randn(batch_size, sequence_length, input_dimensions)
+grn_output = grn(grn_input, context)
+print("GRN Output shape:", grn_output.shape)
+
+
+# Example usage of VariableSelectionNetwork
+variable_selection_network = VariableSelectionNetwork(
+    {"a": 3, "b": 4, "c": 5}, hidden_dimensions, dropout, context_size
+)
+
+# Create example input data
+# Example input tensor with 3 inputs
+x_a = torch.randn(batch_size, sequence_length, 3)
+x_b = torch.randn(batch_size, sequence_length, 4)
+x_c = torch.randn(batch_size, sequence_length, 5)
+inputs = {"a": x_a, "b": x_b, "c": x_c}
+# Call the forward method
+vsn_output = variable_selection_network(inputs, context)
+
+# Print the output shape
+print("VSN output shape:", vsn_output.shape)
+
+# Example usage of InterpretableMultiHeadAttention
+# Create an instance of InterpretableMultiHeadAttention
+attention_module = InterpretableMultiHeadAttention(
+    number_of_heads, hidden_dimensions, dropout
+)
+
+# Generate example input tensors
+q = grn_output  # Use output of GRN as query
+k = grn_output  # Use output of GRN as key
+v = grn_output  # Use output of GRN as value
+
+# Create a mask (optional)
+# This is an example mask to prevent attending to future time steps
+mask = torch.tril(torch.ones(sequence_length, sequence_length)).bool()
+
+# Call the forward method of InterpretableMultiHeadAttention
+attention_output, attentions = attention_module(q, k, v, mask)
+
+# Print the output shapes
+print("Attention Output shape:", attention_output.shape)
+print("Attentions shape:", attentions.shape)
+
+# Example of using the InterpretableMultiHeadAttention after the variable selection network
+q = vsn_output  # Using the output of the vsn.
+k = vsn_output  # Using the output of the vsn.
+v = vsn_output  # Using the output of the vsn.
+
+attention_output, attentions = attention_module(q, k, v, mask)
+
+# Print the output shapes
+print("Attention Output shape after the vsn:", attention_output.shape)
+print("Attentions shape after the vsn:", attentions.shape)
+
+
+# Example of plotting the attention maps per head
+# Assuming 'attentions' is a tensor of shape (batch_size, seq_length, num_heads, seq_length)
+# Let's visualize the attention maps for the first element in the batch
+
+# batch_index = 0
+# fig, axes = plt.subplots(
+#     1, number_of_heads, figsize=(5 * number_of_heads, 5), constrained_layout=True
+# )
+
+# for head in range(number_of_heads):
+#     attention_map = attentions[batch_index, :, head, :].detach().cpu().numpy()
+#     ax = axes[head] if number_of_heads > 1 else axes
+
+#     # Plot the attention map as a heatmap
+#     im = ax.imshow(attention_map, cmap="viridis")
+
+#     # Set labels and title
+#     ax.set_xlabel("Key Sequence Position")
+#     if head == 0:
+#         ax.set_ylabel("Query Sequence Position")
+#     ax.set_title(f"Attention Map - Head {head+1}")
+
+# fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.7, label="Attention Weight")
+# plt.show()
+
+
+print("####### TFT ########")
+
+# Example usage of TemporalFusionTransformer
+# Define hyperparameters
+number_of_past_inputs = 3
+number_of_future_inputs = 2
+embedding_size_inputs = 64
+hidden_dimension = 64
+quantiles_to_predict = [0.1, 0.5, 0.9]
+dropout = 0.1
+number_of_heads = 4
+past_inputs = {"a": 3, "b": 4, "c": 5}
+future_inputs = {"d": 2, "e": 3}
+static_inputs = {"f": 4, "g": 5}
+
+# Create an instance of TemporalFusionTransformer
+tft_model = TemporalFusionTransformer(
+    number_of_past_inputs,
+    number_of_future_inputs,
+    embedding_size_inputs,
+    hidden_dimension,
+    quantiles_to_predict,
+    dropout,
+    number_of_heads,
+    past_inputs,
+    future_inputs,
+    static_inputs,
+)
+
+# Generate example input tensors
+past_inputs_tensor = {
+    "a": torch.randn(batch_size, sequence_length, 3),
+    "b": torch.randn(batch_size, sequence_length, 4),
+    "c": torch.randn(batch_size, sequence_length, 5),
+}
+future_inputs_tensor = {
+    "d": torch.randn(batch_size, sequence_length, 2),
+    "e": torch.randn(batch_size, sequence_length, 3),
+}
+static_inputs_tensor = {
+    "f": torch.randn(batch_size, 4),
+    "g": torch.randn(batch_size, 5),
+}
+
+# Call the forward method of TemporalFusionTransformer
+tft_output, attention_weights = tft_model(
+    past_inputs_tensor, future_inputs_tensor, static_inputs_tensor
+)
+
+# Print the output shapes
+print("TFT Output shape:", tft_output.shape)
+print("Attention Weights shape:", attention_weights.shape)
