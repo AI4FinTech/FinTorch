@@ -6,6 +6,7 @@ from .GatedResidualNetwork import (
 )
 from .InterpretableMultiHeadAttention import InterpretableMultiHeadAttention
 from .tft import TemporalFusionTransformer
+from .tft_module import TemporalFusionTransformerModule
 from .VariableSelectionNetwork import VariableSelectionNetwork
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "InterpretableMultiHeadAttention",
     "GatedAddNorm",
     "TemporalFusionTransformer",
+    "TemporalFusionTransformerModule",
 ]

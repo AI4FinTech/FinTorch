@@ -22,7 +22,6 @@ class TemporalFusionTransformer(nn.Module):
         number_of_future_inputs,
         embedding_size_inputs,
         hidden_dimension,
-        quantiles_to_predict,
         dropout,
         number_of_heads,
         past_inputs,
@@ -133,7 +132,8 @@ class TemporalFusionTransformer(nn.Module):
             context_size=context_size,
         )
         # Dense layer
-        self.dense = nn.Linear(hidden_dimension, len(quantiles_to_predict))
+        # TODO: we only support a single target
+        self.dense = nn.Linear(hidden_dimension, 1)
 
         # TODO: Investigate whether this is the correct way to transform the features into embedding input
         self.static_enrichment_grn = GatedResidualNetwork(
@@ -190,6 +190,10 @@ class TemporalFusionTransformer(nn.Module):
         attention_output, attention_weights = self.attention(
             q=attn_input, k=attn_input, v=attn_input, mask=None
         )
+
+        attention_output = attention_output[:, -self.number_of_future_inputs :, :]
+        attn_input = attn_input[:, -self.number_of_future_inputs :, :]
+        lstm_output = lstm_output[:, -self.number_of_future_inputs :, :]
 
         # skip over attention
         attention_output = self.gated_add_norm(x=attention_output, skip=attn_input)
