@@ -46,7 +46,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
         loss = torch.nn.functional.mse_loss(output.squeeze(), target)
 
         # Log the loss
-        self.log("train_loss", loss)
+        # self.log("train_loss", loss)
         self.log("train_loss_epoch", loss, on_epoch=True, on_step=False)
 
         return loss
@@ -63,7 +63,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
         loss = torch.nn.functional.mse_loss(output.squeeze(), target)
 
         # Log the loss
-        self.log("val_loss", loss)
+        # self.log("val_loss", loss)
         self.log("val_loss_epoch", loss, on_epoch=True, on_step=False)
         return loss
 

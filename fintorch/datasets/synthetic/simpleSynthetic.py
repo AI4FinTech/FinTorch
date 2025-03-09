@@ -88,6 +88,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         past_length=10,
         future_length=5,
         static_length=2,
+        workers=1,
     ):
         super().__init__()
         self.train_length = train_length
@@ -101,6 +102,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         self.past_length = past_length
         self.future_length = future_length
         self.static_length = static_length
+        self.workers = workers
 
     def setup(self, stage=None):
         self.train_dataset = SimpleSyntheticDataset(
@@ -137,13 +139,33 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         )
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.workers,
+        )
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.workers,
+        )
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.workers,
+        )
 
     def predict_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.workers,
+        )
