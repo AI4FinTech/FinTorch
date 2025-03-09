@@ -318,7 +318,7 @@ train_dataloader = data_module.train_dataloader()
 
 
 # Create a trainer with TensorBoard for better monitoring
-early_stopping = EarlyStopping("val_loss_epoch", patience=10)
+early_stopping = EarlyStopping("val_loss_epoch", patience=50)
 trainer = L.Trainer(max_epochs=500, callbacks=[early_stopping])
 
 # Train the model
