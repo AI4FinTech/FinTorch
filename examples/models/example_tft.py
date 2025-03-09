@@ -1,5 +1,8 @@
+import lightning as L
+import matplotlib.pyplot as plt
 import torch
 
+from fintorch.datasets.synthetic import SimpleSyntheticDataModule
 from fintorch.models.timeseries.tft import (
     GatedResidualNetwork,
     InterpretableMultiHeadAttention,
@@ -235,3 +238,98 @@ print("Loss:", loss)
 # Call the predict step
 output = tft_module.predict_step(batch, 0)
 print("Prediction:", output.shape)
+
+
+print("#################### TFT MODULE WITH DATASET ###################")
+
+
+#
+static_length = 2
+past_inputs = 1
+future_inputs = 1
+noise_level = 0.5
+trend_slope = 0.2
+
+# Define hyperparameters
+number_of_past_inputs = 50
+number_of_future_inputs = 12
+embedding_size_inputs = 64
+hidden_dimension = 64
+dropout = 0.1
+number_of_heads = 4
+past_inputs = {"past_data": past_inputs}
+future_inputs = {"future_data": future_inputs}
+static_inputs = {"static_data": static_length}
+
+# Create an instance of TemporalFusionTransformerModule
+tft_module = TemporalFusionTransformerModule(
+    number_of_past_inputs,
+    number_of_future_inputs,
+    embedding_size_inputs,
+    hidden_dimension,
+    dropout,
+    number_of_heads,
+    past_inputs,
+    future_inputs,
+    static_inputs,
+)
+
+# Create an instance of SimpleSyntheticDataModule
+data_module = SimpleSyntheticDataModule(
+    train_length=1000,
+    val_length=200,
+    test_length=200,
+    batch_size=32,
+    noise_level=noise_level,
+    past_length=number_of_past_inputs,
+    future_length=number_of_future_inputs,
+    static_length=static_length,
+    trend_slope=trend_slope,
+)
+
+# Prepare the data
+data_module.setup()
+train_dataloader = data_module.train_dataloader()
+batch = next(iter(train_dataloader))
+
+# Plot the generated timeseries for 3 batches
+
+
+num_batches_to_plot = 3
+
+plt.figure(figsize=(15, 5 * num_batches_to_plot))
+
+for batch_index in range(num_batches_to_plot):
+    # Extract data for the current batch
+    target_timeseries = batch[3][batch_index].detach().cpu().numpy()
+    past_timeseries = batch[0]["past_data"][batch_index].detach().cpu().numpy()
+    future_timeseries = batch[1]["future_data"][batch_index].detach().cpu().numpy()
+
+    # Create a subplot for each batch
+    plt.subplot(num_batches_to_plot, 1, batch_index + 1)
+    plt.plot(past_timeseries, label="Past")
+    plt.plot(
+        range(len(past_timeseries), len(past_timeseries) + len(future_timeseries)),
+        future_timeseries,
+        label="Future",
+    )
+    plt.plot(
+        range(len(past_timeseries), len(past_timeseries) + len(target_timeseries)),
+        target_timeseries,
+        label="Target",
+        linestyle="--",
+    )
+plt.xlabel("Time Step")
+plt.ylabel("Value")
+plt.title("Past, Future and Target Timeseries")
+plt.legend()
+plt.show()
+
+
+# Create a trainer
+trainer = L.Trainer(
+    max_epochs=50,
+)
+
+# Train the model
+trainer.fit(tft_module, data_module)

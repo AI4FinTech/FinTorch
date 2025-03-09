@@ -158,9 +158,9 @@ class TemporalFusionTransformer(nn.Module):
         lstm_hidden_value = static_inputs.unsqueeze(0)  # self.grn_new(static_inputs)
         lstm_cell_value = static_inputs.unsqueeze(0)  # self.grn_new2(static_inputs)
 
-        print(f"lstm hidden shape: {lstm_hidden_value.shape}")
-        print(f"lstm cell shape: {lstm_cell_value.shape}")
-        print(f"past inputs shape: {past_inputs.shape}")
+        # print(f"lstm hidden shape: {lstm_hidden_value.shape}")
+        # print(f"lstm cell shape: {lstm_cell_value.shape}")
+        # print(f"past inputs shape: {past_inputs.shape}")
 
         # Run LSTM Encoder
         encoder_output, (hidden, cell) = self.lstm_encoder(

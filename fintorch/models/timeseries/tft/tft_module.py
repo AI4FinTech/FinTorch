@@ -1,4 +1,3 @@
-
 import lightning as L
 import torch
 
@@ -37,6 +36,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         past_inputs, future_inputs, static_inputs, target = batch
+
         output, attention_weights = self.forward(
             past_inputs, future_inputs, static_inputs
         )
@@ -47,10 +47,13 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
         # Log the loss
         self.log("train_loss", loss)
+        self.log("train_loss_epoch", loss, on_epoch=True, on_step=False)
+
         return loss
 
     def validation_step(self, batch, batch_idx):
         past_inputs, future_inputs, static_inputs, target = batch
+
         output, attention_weights = self.forward(
             past_inputs, future_inputs, static_inputs
         )
@@ -61,6 +64,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
         # Log the loss
         self.log("val_loss", loss)
+        self.log("val_loss_epoch", loss, on_epoch=True, on_step=False)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -81,7 +85,9 @@ class TemporalFusionTransformerModule(L.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
 
-    def predict_step(self, batch, batch_idx):
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        print("predict_step")
+        print(f"batch {batch}")
         past_inputs, future_inputs, static_inputs, target = batch
         output, attention_weights = self.forward(
             past_inputs, future_inputs, static_inputs
