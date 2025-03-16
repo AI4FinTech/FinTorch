@@ -1,5 +1,4 @@
 import lightning as L
-import numpy as np
 import polars as pl
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -10,24 +9,31 @@ class ElectricityDataset(Dataset):
         self,
         past_length=10,
         future_length=5,
-        static_length=2,
+        start_idx=0,
+        end_idx=None,
     ):
         self.past_length = past_length
         self.future_length = future_length
-        self.static_length = static_length
 
         self.data = self._get_data()
 
+        # Define dataset length based on indices
+        self.start_idx = start_idx
+        self.end_idx = (
+            end_idx
+            if end_idx is not None
+            else len(self.data) - past_length - future_length
+        )
+        self.length = self.end_idx - self.start_idx
+
     def _get_data(self):
         data = pl.read_csv(
-            "https://raw.githubusercontent.com/panambY/Hourly_Energy_Consumption/master/data/PJM_Load_hourly.csv"
+            "https://raw.githubusercontent.com/panambY/Hourly_Energy_Consumption/refs/heads/master/data/PJMW_hourly.csv"
         )
 
         self.length = data.shape[0]
 
-        print(
-            f"Electricity data:{data.select(pl.col(data.columns[1])).to_numpy().squeeze()}"
-        )
+        print(f"Electricity dataset size: {data.shape}")
 
         return data.select(pl.col(data.columns[1])).to_numpy().squeeze()
 
@@ -35,66 +41,79 @@ class ElectricityDataset(Dataset):
         return self.length - self.past_length - self.future_length
 
     def __getitem__(self, idx):
+        if isinstance(idx, slice):
+            return [
+                self[i]
+                for i in range(idx.start or 0, idx.stop or len(self), idx.step or 1)
+            ]
+
+        # Adjust index to be within the dataset slice
+        idx = self.start_idx + idx
+
         past_data = self.data[idx : idx + self.past_length]
-        future_data = self.data[
+        target = self.data[
             idx + self.past_length : idx + self.past_length + self.future_length
         ]
-        target = future_data
-
-        # Generate static data
-        static_data = np.random.rand(self.static_length)
 
         # Convert to tensors
         past_data = torch.tensor(past_data).float().unsqueeze(-1)
-        future_data = torch.tensor(future_data).float()
-
-        static_data = torch.tensor(static_data).float()
         target = torch.tensor(target).float()
 
         # Create a dictionary for past, future, and static data
         past_inputs = {"past_data": past_data}
-        future_inputs = {"future_data": future_data.unsqueeze(-1)}
-        static_inputs = {"static_data": static_data}
 
-        return past_inputs, future_inputs, static_inputs, target
+        return past_inputs, target
 
 
 class ElectricityDataModule(L.LightningDataModule):
     def __init__(
         self,
-        train_length,
-        val_length,
-        test_length,
         batch_size,
         past_length=10,
-        future_length=5,
-        static_length=2,
+        horizon=5,
         workers=1,
     ):
         super().__init__()
         self.batch_size = batch_size
         self.past_length = past_length
-        self.future_length = future_length
-        self.static_length = static_length
+        self.future_length = horizon
         self.workers = workers
 
     def setup(self, stage=None):
-        self.dataset = ElectricityDataset(
+        dataset = ElectricityDataset(
             past_length=self.past_length,
             future_length=self.future_length,
-            static_length=self.static_length,
         )
 
-        # TODO: properly split
-        self.train_dataset = self.dataset
-        self.test_dataset = self.dataset
-        self.val_dataset = self.dataset
+        train_size = int(0.8 * len(dataset))
+        val_size = int(0.1 * len(dataset))
+
+        # Create separate dataset instances to preserve time-series order
+        self.train_dataset = ElectricityDataset(
+            past_length=self.past_length,
+            future_length=self.future_length,
+            start_idx=0,
+            end_idx=train_size,
+        )
+
+        self.val_dataset = ElectricityDataset(
+            past_length=self.past_length,
+            future_length=self.future_length,
+            start_idx=train_size,
+            end_idx=train_size + val_size,
+        )
+
+        self.test_dataset = ElectricityDataset(
+            past_length=self.past_length,
+            future_length=self.future_length,
+            start_idx=train_size + val_size,
+        )
 
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=False,
             num_workers=self.workers,
         )
 

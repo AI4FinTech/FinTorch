@@ -9,6 +9,7 @@ from fintorch.models.timeseries.tft.GatedResidualNetwork import (
 from fintorch.models.timeseries.tft.InterpretableMultiHeadAttention import (
     InterpretableMultiHeadAttention,
 )
+from fintorch.models.timeseries.tft.utils import attention_mask
 from fintorch.models.timeseries.tft.VariableSelectionNetwork import (
     VariableSelectionNetwork,
 )
@@ -27,62 +28,58 @@ class TemporalFusionTransformer(nn.Module):
         past_inputs,
         future_inputs,
         static_inputs,
+        batch_size,
+        device,
     ):
         super(TemporalFusionTransformer, self).__init__()
         self.number_of_past_inputs = number_of_past_inputs
         self.number_of_future_inputs = number_of_future_inputs
         self.embedding_size_inputs = embedding_size_inputs
+        self.past_inputs = past_inputs
+        self.future_inputs = future_inputs
+        self.static_inputs = static_inputs
+        self.batch_size = batch_size
 
-        # TODO: all context is already transformed into a fixed size (hidden dimension)
         context_size = hidden_dimension
+        self.device = device
 
-        # VSN for each color in Figure (2)
+        # Variable Selection Networks for each branch
         self.variable_selection_past = VariableSelectionNetwork(
             inputs=past_inputs,
             hidden_dimensions=hidden_dimension,
             dropout=dropout,
             context_size=context_size,
         )
-        self.variable_selection_future = VariableSelectionNetwork(
-            inputs=future_inputs,
-            hidden_dimensions=hidden_dimension,
-            dropout=dropout,
-            context_size=context_size,
-        )
-        self.variable_selection_static = VariableSelectionNetwork(
-            inputs=static_inputs,
-            hidden_dimensions=hidden_dimension,
-            dropout=dropout,
-            context_size=context_size,
-        )
+        if future_inputs is not None:
+            self.variable_selection_future = VariableSelectionNetwork(
+                inputs=future_inputs,
+                hidden_dimensions=hidden_dimension,
+                dropout=dropout,
+                context_size=context_size,
+            )
+        if static_inputs is not None:
+            self.variable_selection_static = VariableSelectionNetwork(
+                inputs=static_inputs,
+                hidden_dimensions=hidden_dimension,
+                dropout=dropout,
+                context_size=context_size,
+            )
 
-        # LSTM
+        # LSTM Encoder & Decoder
         self.lstm_encoder = LSTM(
             hidden_dimension,
             hidden_dimension,
             num_layers=1,
-            bias=True,
             batch_first=True,
-            dropout=0.0,
-            bidirectional=False,
-            proj_size=0,
-            device=None,
-            dtype=None,
         )
         self.lstm_decoder = LSTM(
             hidden_dimension,
             hidden_dimension,
             num_layers=1,
-            bias=True,
             batch_first=True,
-            dropout=0.0,
-            bidirectional=False,
-            proj_size=0,
-            device=None,
-            dtype=None,
         )
 
-        # Gate and AddNorm (no trainable parameters. Therefore, initiated only once.)
+        # Gated AddNorm (skip connections)
         self.gated_add_norm = GatedAddNorm(
             input_dimension=hidden_dimension,
             hidden_dimensions=hidden_dimension,
@@ -91,7 +88,7 @@ class TemporalFusionTransformer(nn.Module):
             dropout=dropout,
         )
 
-        # static covariate encoders
+        # Static covariate encoders (available if needed)
         self.lstm_cell = GatedResidualNetwork(
             input_size=hidden_dimension,
             hidden_size=hidden_dimension,
@@ -107,7 +104,7 @@ class TemporalFusionTransformer(nn.Module):
             context_size=context_size,
         )
 
-        # Static Enrichment Layer GRN
+        # Static Enrichment GRN
         self.context_static_enrichment = GatedResidualNetwork(
             input_size=hidden_dimension,
             hidden_size=hidden_dimension,
@@ -116,7 +113,7 @@ class TemporalFusionTransformer(nn.Module):
             context_size=context_size,
         )
 
-        # Temporal Self-attention
+        # Temporal Self-Attention
         self.attention = InterpretableMultiHeadAttention(
             number_of_heads=number_of_heads,
             input_dimension=hidden_dimension,
@@ -131,11 +128,10 @@ class TemporalFusionTransformer(nn.Module):
             dropout=dropout,
             context_size=context_size,
         )
-        # Dense layer
-        # TODO: we only support a single target
+        # Dense layer for final output (single target)
         self.dense = nn.Linear(hidden_dimension, 1)
 
-        # TODO: Investigate whether this is the correct way to transform the features into embedding input
+        # Static enrichment GRN
         self.static_enrichment_grn = GatedResidualNetwork(
             input_size=hidden_dimension,
             hidden_size=hidden_dimension,
@@ -144,68 +140,67 @@ class TemporalFusionTransformer(nn.Module):
             context_size=context_size,
         )
 
-    def forward(self, past_inputs, future_inputs, static_inputs):
+    def _init_lstm_states(self, static_inputs, device, batch_size):
+        if static_inputs is None:
+            h0 = torch.zeros(1, batch_size, self.embedding_size_inputs, device=device)
+            c0 = torch.zeros(1, batch_size, self.embedding_size_inputs, device=device)
+        else:
+            h0 = static_inputs.unsqueeze(0)
+            c0 = static_inputs.unsqueeze(0)
+        return h0, c0
 
-        # Set attention masks
-        # TODO: calculate attention masks
-
-        # embed variables
-        past_inputs = self.variable_selection_past(past_inputs)  # from dim to dim
-        future_inputs = self.variable_selection_future(future_inputs)
-        static_inputs = self.variable_selection_static(static_inputs)
-
-        # LSTM: initial values based on context
-        lstm_hidden_value = static_inputs.unsqueeze(0)  # self.grn_new(static_inputs)
-        lstm_cell_value = static_inputs.unsqueeze(0)  # self.grn_new2(static_inputs)
-
-        # print(f"lstm hidden shape: {lstm_hidden_value.shape}")
-        # print(f"lstm cell shape: {lstm_cell_value.shape}")
-        # print(f"past inputs shape: {past_inputs.shape}")
-
-        # Run LSTM Encoder
-        encoder_output, (hidden, cell) = self.lstm_encoder(
-            input=past_inputs, hx=(lstm_hidden_value, lstm_cell_value)
+    def _post_process(self, attn_input, lstm_output):
+        mask = attention_mask(
+            past_length=self.number_of_past_inputs,
+            future_length=self.number_of_future_inputs,
         )
-        # Skip AddNorm
-        encoder_output = self.gated_add_norm(encoder_output, past_inputs)
-
-        # Run LSTM Decoder
-        decoder_output, _ = self.lstm_decoder(input=future_inputs, hx=(hidden, cell))
-        # Skip AddNorm
-        decoder_output = self.gated_add_norm(decoder_output, future_inputs)
-
-        # Concatenate output of lstm into a single layer in order to pass it to the static enrichment layer
-        lstm_concatenate = torch.cat([encoder_output, decoder_output], dim=1)
-        inputs_concatenated = torch.cat([past_inputs, future_inputs], dim=1)
-
-        lstm_output = self.gated_add_norm(x=lstm_concatenate, skip=inputs_concatenated)
-
-        # static enrichment
-        self.context_static_enrichment(
-            decoder_output,
-        )
-        # TODO: I don't understand this layer?
-        attn_input = self.static_enrichment_grn(lstm_output, context=static_inputs)
-
+        mask = None
         attention_output, attention_weights = self.attention(
-            q=attn_input, k=attn_input, v=attn_input, mask=None
+            q=attn_input, k=attn_input, v=attn_input, mask=mask
         )
 
+        # Focus on the future horizon outputs
         attention_output = attention_output[:, -self.number_of_future_inputs :, :]
-        attn_input = attn_input[:, -self.number_of_future_inputs :, :]
-        lstm_output = lstm_output[:, -self.number_of_future_inputs :, :]
+        attn_input_slice = attn_input[:, -self.number_of_future_inputs :, :]
+        lstm_output_slice = lstm_output[:, -self.number_of_future_inputs :, :]
 
-        # skip over attention
-        attention_output = self.gated_add_norm(x=attention_output, skip=attn_input)
-
-        # psotition-wise feed forward
+        # Skip connection and feed-forward processing
+        attention_output = self.gated_add_norm(attention_output, attn_input_slice)
         output_pos_ff = self.positionwise_grn(attention_output)
-
-        # skip over Temporal Fusion Decoder
-        output_pos_ff = self.gated_add_norm(x=output_pos_ff, skip=lstm_output)
-
-        # Dense
+        output_pos_ff = self.gated_add_norm(output_pos_ff, lstm_output_slice)
         output = self.dense(output_pos_ff)
-        # TODO: it seems that this doesn't match, why do we have [batch size x 2 times squence length x # quantiles] as output
-
         return output, attention_weights
+
+    def forward(self, past_inputs, future_inputs=None, static_inputs=None):
+
+        batch_size = past_inputs["past_data"].shape[0]
+
+        # Embed variables using variable selection networks
+        past = self.variable_selection_past(past_inputs)
+        future = (
+            self.variable_selection_future(future_inputs)
+            if future_inputs is not None
+            else None
+        )
+        static = (
+            self.variable_selection_static(static_inputs)
+            if static_inputs is not None
+            else None
+        )
+
+        h0, c0 = self._init_lstm_states(static, self.device, batch_size)
+        encoder_output, (hidden, cell) = self.lstm_encoder(past, hx=(h0, c0))
+        encoder_output = self.gated_add_norm(encoder_output, past)
+
+        if future is not None:
+            decoder_output, _ = self.lstm_decoder(future, hx=(hidden, cell))
+            decoder_output = self.gated_add_norm(decoder_output, future)
+            lstm_concat = torch.cat([encoder_output, decoder_output], dim=1)
+            inputs_concat = torch.cat([past, future], dim=1)
+        else:
+            lstm_concat = encoder_output
+            inputs_concat = past
+
+        lstm_output = self.gated_add_norm(lstm_concat, inputs_concat)
+        attn_input = self.static_enrichment_grn(lstm_output, context=static)
+        return self._post_process(attn_input, lstm_output)

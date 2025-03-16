@@ -88,9 +88,13 @@ class ScaledDotProductAttention(nn.Module):
         # Scaled attention
         attention = attention / d_attention
 
+        # print(f"attention shape: {attention.shape}")
+        # print(f"mask shape: {mask.shape if mask is not None else None}")
+
         if mask is not None:
             # Mask the numbers with almost zero such that the model cannot see
             # information it shouldn't see
+            mask = mask.to(attention.device)
             attention = attention.masked_fill(mask, -1e9)
 
         attention = self.softmax(attention)

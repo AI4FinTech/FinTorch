@@ -62,9 +62,7 @@ class GatedLinearUnit(nn.Module):
 
         # Linear projection of the eta
         output_dim = output_dimension or input_dimension
-        self.dense = nn.Linear(
-            input_dimension, output_dim * 2
-        )  # TODO: why times 2? Maybe because glu splits the input?
+        self.dense = nn.Linear(input_dimension, output_dim * 2)
 
     def forward(self, upgamma):
         if self.dropout is not None:

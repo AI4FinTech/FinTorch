@@ -10,7 +10,6 @@ from fintorch.datasets.synthetic import SimpleSyntheticDataModule
 from fintorch.models.timeseries.tft import (
     GatedResidualNetwork,
     InterpretableMultiHeadAttention,
-    TemporalFusionTransformer,
     TemporalFusionTransformerModule,
     VariableSelectionNetwork,
 )
@@ -118,130 +117,130 @@ plt.show()
 
 print("####### TFT ########")
 
-# Example usage of TemporalFusionTransformer
-# Define hyperparameters
-number_of_past_inputs = 3
-number_of_future_inputs = 2
-embedding_size_inputs = 64
-hidden_dimension = 64
-dropout = 0.1
-number_of_heads = 4
-past_inputs = {"a": 3, "b": 4, "c": 5}
-future_inputs = {"d": 2, "e": 3}
-static_inputs = {"f": 4, "g": 5}
+# # Example usage of TemporalFusionTransformer
+# # Define hyperparameters
+# number_of_past_inputs = 3
+# number_of_future_inputs = 2
+# embedding_size_inputs = 64
+# hidden_dimension = 64
+# dropout = 0.1
+# number_of_heads = 4
+# past_inputs = {"a": 3, "b": 4, "c": 5}
+# future_inputs = {"d": 2, "e": 3}
+# static_inputs = {"f": 4, "g": 5}
 
-sequence_length_future = 2
+# sequence_length_future = 2
 
-# Create an instance of TemporalFusionTransformer
-tft_model = TemporalFusionTransformer(
-    number_of_past_inputs,
-    number_of_future_inputs,
-    embedding_size_inputs,
-    hidden_dimension,
-    dropout,
-    number_of_heads,
-    past_inputs,
-    future_inputs,
-    static_inputs,
-)
+# # Create an instance of TemporalFusionTransformer
+# tft_model = TemporalFusionTransformer(
+#     number_of_past_inputs,
+#     number_of_future_inputs,
+#     embedding_size_inputs,
+#     hidden_dimension,
+#     dropout,
+#     number_of_heads,
+#     past_inputs,
+#     future_inputs,
+#     static_inputs,
+# )
 
-# Generate example input tensors
-past_inputs_tensor = {
-    "a": torch.randn(batch_size, sequence_length, 3),
-    "b": torch.randn(batch_size, sequence_length, 4),
-    "c": torch.randn(batch_size, sequence_length, 5),
-}
-future_inputs_tensor = {
-    "d": torch.randn(batch_size, sequence_length_future, 2),
-    "e": torch.randn(batch_size, sequence_length_future, 3),
-}
-static_inputs_tensor = {
-    "f": torch.randn(batch_size, 4),
-    "g": torch.randn(batch_size, 5),
-}
+# # Generate example input tensors
+# past_inputs_tensor = {
+#     "a": torch.randn(batch_size, sequence_length, 3),
+#     "b": torch.randn(batch_size, sequence_length, 4),
+#     "c": torch.randn(batch_size, sequence_length, 5),
+# }
+# future_inputs_tensor = {
+#     "d": torch.randn(batch_size, sequence_length_future, 2),
+#     "e": torch.randn(batch_size, sequence_length_future, 3),
+# }
+# static_inputs_tensor = {
+#     "f": torch.randn(batch_size, 4),
+#     "g": torch.randn(batch_size, 5),
+# }
 
-# Call the forward method of TemporalFusionTransformer
-tft_output, attention_weights = tft_model(
-    past_inputs_tensor, future_inputs_tensor, static_inputs_tensor
-)
+# # Call the forward method of TemporalFusionTransformer
+# tft_output, attention_weights = tft_model(
+#     past_inputs_tensor, future_inputs_tensor, static_inputs_tensor
+# )
 
-# Print the output shapes
-print("TFT Output shape:", tft_output.shape)
-print("Attention Weights shape:", attention_weights.shape)
+# # Print the output shapes
+# print("TFT Output shape:", tft_output.shape)
+# print("Attention Weights shape:", attention_weights.shape)
 
 
-print("#################### TFT MODULE ###################")
+# print("#################### TFT MODULE ###################")
 
-# Example usage of TemporalFusionTransformerModule
-# Define hyperparameters
-number_of_past_inputs = 3
-number_of_future_inputs = 2
-embedding_size_inputs = 64
-hidden_dimension = 64
-dropout = 0.1
-number_of_heads = 4
-past_inputs = {"a": 3, "b": 4, "c": 5}
-future_inputs = {"d": 2, "e": 3}
-static_inputs = {"f": 4, "g": 5}
+# # Example usage of TemporalFusionTransformerModule
+# # Define hyperparameters
+# number_of_past_inputs = 3
+# number_of_future_inputs = 2
+# embedding_size_inputs = 64
+# hidden_dimension = 64
+# dropout = 0.1
+# number_of_heads = 4
+# past_inputs = {"a": 3, "b": 4, "c": 5}
+# future_inputs = {"d": 2, "e": 3}
+# static_inputs = {"f": 4, "g": 5}
 
-sequence_length_future = 2
+# sequence_length_future = 2
 
-# Create an instance of TemporalFusionTransformerModule
-tft_module = TemporalFusionTransformerModule(
-    number_of_past_inputs,
-    number_of_future_inputs,
-    embedding_size_inputs,
-    hidden_dimension,
-    dropout,
-    number_of_heads,
-    past_inputs,
-    future_inputs,
-    static_inputs,
-)
+# # Create an instance of TemporalFusionTransformerModule
+# tft_module = TemporalFusionTransformerModule(
+#     number_of_past_inputs,
+#     number_of_future_inputs,
+#     embedding_size_inputs,
+#     hidden_dimension,
+#     dropout,
+#     number_of_heads,
+#     past_inputs,
+#     future_inputs,
+#     static_inputs,
+# )
 
-# Generate example input tensors
-past_inputs_tensor = {
-    "a": torch.randn(batch_size, sequence_length, 3),
-    "b": torch.randn(batch_size, sequence_length, 4),
-    "c": torch.randn(batch_size, sequence_length, 5),
-}
-future_inputs_tensor = {
-    "d": torch.randn(batch_size, sequence_length_future, 2),
-    "e": torch.randn(batch_size, sequence_length_future, 3),
-}
-static_inputs_tensor = {
-    "f": torch.randn(batch_size, 4),
-    "g": torch.randn(batch_size, 5),
-}
-target = torch.randn(batch_size, sequence_length_future).float()
+# # Generate example input tensors
+# past_inputs_tensor = {
+#     "a": torch.randn(batch_size, sequence_length, 3),
+#     "b": torch.randn(batch_size, sequence_length, 4),
+#     "c": torch.randn(batch_size, sequence_length, 5),
+# }
+# future_inputs_tensor = {
+#     "d": torch.randn(batch_size, sequence_length_future, 2),
+#     "e": torch.randn(batch_size, sequence_length_future, 3),
+# }
+# static_inputs_tensor = {
+#     "f": torch.randn(batch_size, 4),
+#     "g": torch.randn(batch_size, 5),
+# }
+# target = torch.randn(batch_size, sequence_length_future).float()
 
-# Create a batch
-batch = (past_inputs_tensor, future_inputs_tensor, static_inputs_tensor, target)
+# # Create a batch
+# batch = (past_inputs_tensor, future_inputs_tensor, static_inputs_tensor, target)
 
-# Call the forward method of TemporalFusionTransformerModule
-tft_module_output, attention_weights = tft_module(
-    past_inputs_tensor, future_inputs_tensor, static_inputs_tensor
-)
+# # Call the forward method of TemporalFusionTransformerModule
+# tft_module_output, attention_weights = tft_module(
+#     past_inputs_tensor, future_inputs_tensor, static_inputs_tensor
+# )
 
-# Print the output shapes
-print("TFT Module Output shape:", tft_module_output.shape)
-print("Attention Weights shape:", attention_weights.shape)
+# # Print the output shapes
+# print("TFT Module Output shape:", tft_module_output.shape)
+# print("Attention Weights shape:", attention_weights.shape)
 
-# Call the training step
-loss = tft_module.training_step(batch, 0)
-print("Loss:", loss)
+# # Call the training step
+# loss = tft_module.training_step(batch, 0)
+# print("Loss:", loss)
 
-# Call the validation step
-loss = tft_module.validation_step(batch, 0)
-print("Loss:", loss)
+# # Call the validation step
+# loss = tft_module.validation_step(batch, 0)
+# print("Loss:", loss)
 
-# Call the test step
-loss = tft_module.test_step(batch, 0)
-print("Loss:", loss)
+# # Call the test step
+# loss = tft_module.test_step(batch, 0)
+# print("Loss:", loss)
 
-# Call the predict step
-output = tft_module.predict_step(batch, 0)
-print("Prediction:", output.shape)
+# # Call the predict step
+# output = tft_module.predict_step(batch, 0)
+# print("Prediction:", output.shape)
 
 
 print("#################### TFT MODULE WITH DATASET ###################")
@@ -255,6 +254,7 @@ noise_level = 5
 trend_slope = 0.1
 seasonality_amplitude = 10
 seasonality_period = 100
+batch_size = 32
 
 # Define hyperparameters
 number_of_past_inputs = 24
@@ -277,6 +277,8 @@ tft_module = TemporalFusionTransformerModule(
     past_inputs,
     future_inputs,
     static_inputs,
+    batch_size=batch_size,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 )
 
 # Create an instance of SimpleSyntheticDataModule
@@ -284,7 +286,7 @@ data_module = SimpleSyntheticDataModule(
     train_length=1000,
     val_length=100,
     test_length=100,
-    batch_size=32,
+    batch_size=batch_size,
     noise_level=noise_level,
     past_length=number_of_past_inputs,
     future_length=number_of_future_inputs,
