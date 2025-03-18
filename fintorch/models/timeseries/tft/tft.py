@@ -17,6 +17,45 @@ from fintorch.models.timeseries.tft.VariableSelectionNetwork import (
 
 class TemporalFusionTransformer(nn.Module):
 
+    """
+    TemporalFusionTransformer: A PyTorch implementation of the Temporal Fusion Transformer (TFT) model for time series forecasting.
+
+    The Temporal Fusion Transformer is a neural network architecture designed for interpretable and accurate forecasting of time series data.
+    It combines LSTM-based sequence modeling, attention mechanisms, and variable selection networks to handle static, past, and future covariates.
+
+    Attributes:
+        number_of_past_inputs (int): Number of past time steps in the input sequence.
+        number_of_future_inputs (int): Number of future time steps in the input sequence.
+        embedding_size_inputs (int): Size of the input embeddings.
+        hidden_dimension (int): Dimension of the hidden layers in the model.
+        dropout (float): Dropout rate for regularization.
+        number_of_heads (int): Number of attention heads in the multi-head attention mechanism.
+        past_inputs (list): List of past input features.
+        future_inputs (list): List of future input features (optional).
+        static_inputs (list): List of static input features (optional).
+        batch_size (int): Batch size for training and inference.
+        device (torch.device): Device on which the model is run (e.g., 'cpu' or 'cuda').
+
+    Methods:
+        _init_lstm_states(static_inputs, device, batch_size):
+            Initializes the hidden and cell states for the LSTM layers based on static inputs.
+
+        _post_process(attn_input, lstm_output):
+            Applies attention, skip connections, and feed-forward processing to generate the final output.
+
+        forward(past_inputs, future_inputs=None, static_inputs=None):
+            Performs the forward pass of the model, processing past, future, and static inputs to generate predictions.
+
+            Args:
+                past_inputs (dict): Dictionary containing past input data.
+                future_inputs (dict, optional): Dictionary containing future input data. Defaults to None.
+                static_inputs (torch.Tensor, optional): Tensor containing static input data. Defaults to None.
+
+            Returns:
+                tuple: A tuple containing the model's output and attention weights.
+    """
+
+
     def __init__(
         self,
         number_of_past_inputs,

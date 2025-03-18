@@ -5,6 +5,37 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class SimpleSyntheticDataset(Dataset):
+    """
+    SimpleSyntheticDataset is a PyTorch Dataset that generates synthetic time series data
+    with configurable trend, seasonality, and noise components. It is designed for tasks
+    involving time series forecasting and includes past, future, and static data features.
+    Note that the static data is randomly generated and does not contain relevant information for
+    the model to learn from.
+
+    Attributes:
+        length (int): Total length of the generated time series data.
+        trend_slope (float): Slope of the linear trend component. Default is 0.1.
+        seasonality_amplitude (float): Amplitude of the sinusoidal seasonality component. Default is 1.0.
+        seasonality_period (int): Period of the sinusoidal seasonality component. Default is 10.
+        noise_level (float): Standard deviation of the Gaussian noise component. Default is 0.1.
+        past_length (int): Length of the past data window. Default is 10.
+        future_length (int): Length of the future data window. Default is 5.
+        static_length (int): Length of the static feature vector. Default is 2.
+    Methods:
+        __len__():
+            Returns the number of samples in the dataset, accounting for the past and future window lengths.
+        __getitem__(idx):
+            Retrieves a single sample from the dataset at the specified index.
+            Args:
+                idx (int): Index of the sample to retrieve.
+            Returns:
+                tuple: A tuple containing:
+                    - past_inputs (dict): Dictionary with past data tensor under the key "past_data".
+                    - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
+                    - static_inputs (dict): Dictionary with static data tensor under the key "static_data".
+                    - target (torch.Tensor): Target tensor representing the future data.
+    """
+
     def __init__(
         self,
         length,
@@ -75,6 +106,36 @@ class SimpleSyntheticDataset(Dataset):
 
 
 class SimpleSyntheticDataModule(L.LightningDataModule):
+    """
+    SimpleSyntheticDataModule is a PyTorch Lightning DataModule designed to handle synthetic datasets
+    for time series forecasting tasks. It provides train, validation, test, and prediction dataloaders
+    with configurable dataset lengths, batch sizes, and data generation parameters.
+    Attributes:
+        train_length (int): Number of samples in the training dataset.
+        val_length (int): Number of samples in the validation dataset.
+        test_length (int): Number of samples in the test dataset.
+        batch_size (int): Batch size for the dataloaders.
+        trend_slope (float): Slope of the trend component in the synthetic data. Default is 0.1.
+        seasonality_amplitude (float): Amplitude of the seasonality component in the synthetic data. Default is 1.0.
+        seasonality_period (int): Period of the seasonality component in the synthetic data. Default is 10.
+        noise_level (float): Standard deviation of the noise component in the synthetic data. Default is 0.1.
+        past_length (int): Number of past time steps to include in the input sequence. Default is 10.
+        future_length (int): Number of future time steps to predict. Default is 5.
+        static_length (int): Number of static features to include in the dataset. Default is 2.
+        workers (int): Number of worker threads for data loading. Default is 1.
+    Methods:
+        setup(stage=None):
+            Sets up the train, validation, and test datasets using the specified parameters.
+        train_dataloader():
+            Returns a DataLoader for the training dataset.
+        val_dataloader():
+            Returns a DataLoader for the validation dataset.
+        test_dataloader():
+            Returns a DataLoader for the test dataset.
+        predict_dataloader():
+            Returns a DataLoader for the prediction dataset (same as the test dataset).
+    """
+
     def __init__(
         self,
         train_length,

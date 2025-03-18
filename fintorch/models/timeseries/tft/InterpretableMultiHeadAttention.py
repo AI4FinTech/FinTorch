@@ -3,6 +3,32 @@ import torch.nn as nn
 
 
 class InterpretableMultiHeadAttention(nn.Module):
+
+    """
+    A PyTorch implementation of Interpretable Multi-Head Attention.
+    This module implements a multi-head attention mechanism where each head
+    has its own query and key projections, but shares a single value projection
+    and attention mechanism. The outputs of all heads are averaged to produce
+    the final output, making the attention mechanism interpretable.
+    Attributes:
+        number_of_heads (int): The number of attention heads.
+        input_dimension (int): The dimensionality of the input embeddings.
+        dropout (float): Dropout probability applied to the attention outputs.
+    Methods:
+        forward(q, k, v, mask):
+            Computes the forward pass of the multi-head attention mechanism.
+            Args:
+                q (torch.Tensor): Query tensor of shape (batch_size, seq_len, input_dimension).
+                k (torch.Tensor): Key tensor of shape (batch_size, seq_len, input_dimension).
+                v (torch.Tensor): Value tensor of shape (batch_size, seq_len, input_dimension).
+                mask (torch.Tensor): Optional mask tensor of shape (batch_size, seq_len, seq_len),
+                                     where masked positions are indicated by a value of 1.
+            Returns:
+                output (torch.Tensor): The output tensor of shape (batch_size, seq_len, input_dimension).
+                attentions_stacked (torch.Tensor): Stacked attention weights of shape
+                                                   (batch_size, seq_len, number_of_heads, seq_len).
+    """
+
     def __init__(self, number_of_heads, input_dimension, dropout):
         super(InterpretableMultiHeadAttention, self).__init__()
         # Creates the dimensions for the attentions,
@@ -61,6 +87,39 @@ class InterpretableMultiHeadAttention(nn.Module):
 
 
 class ScaledDotProductAttention(nn.Module):
+    """
+    Implements the Scaled Dot-Product Attention mechanism as described in the
+    "Attention is All You Need" paper. This module computes attention scores
+    and applies them to the input values.
+
+    Args:
+        dropout (float): Dropout probability to apply to the attention scores.
+
+    Methods:
+        forward(query, key, value, mask):
+            Computes the scaled dot-product attention.
+
+            Args:
+                query (torch.Tensor): Query tensor of shape
+                    (batch_size, seq_length, embedding_dim).
+                key (torch.Tensor): Key tensor of shape
+                    (batch_size, seq_length, embedding_dim).
+                value (torch.Tensor): Value tensor of shape
+                    (batch_size, seq_length, embedding_dim).
+                mask (torch.Tensor or None): Optional mask tensor of shape
+                    (batch_size, seq_length, seq_length). Positions with a
+                    value of True are masked (set to a very large negative
+                    value).
+
+            Returns:
+                Tuple[torch.Tensor, torch.Tensor]: A tuple containing:
+                    - The output tensor of shape
+                      (batch_size, seq_length, embedding_dim), which is the
+                      result of applying the attention scores to the values.
+                    - The attention scores tensor of shape
+                      (batch_size, seq_length, seq_length).
+    """
+
 
     def __init__(self, dropout):
         super(ScaledDotProductAttention, self).__init__()

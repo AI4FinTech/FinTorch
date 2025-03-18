@@ -6,6 +6,30 @@ import os
 
 
 class TemporalFusionTransformerModule(L.LightningModule):
+    """
+    TemporalFusionTransformerModule is a PyTorch Lightning module that encapsulates the Temporal Fusion Transformer (TFT) model for time series forecasting.
+    It provides methods for training, validation, testing, and prediction, along with utilities for handling input data batches.
+    Attributes:
+        tft_model (TemporalFusionTransformer): The underlying Temporal Fusion Transformer model.
+    Methods:
+        __init__(number_of_past_inputs, number_of_future_inputs, embedding_size_inputs, hidden_dimension, dropout, number_of_heads, past_inputs, future_inputs, static_inputs, batch_size, device):
+            Initializes the TemporalFusionTransformerModule with the specified parameters.
+        forward(past_inputs, future_inputs, static_inputs):
+            Performs a forward pass through the TFT model.
+        _unpack_batch(batch):
+            Unpacks the input batch into past inputs, future inputs, static inputs, and target values. Supports multiple batch formats.
+        training_step(batch, batch_idx):
+            Defines the training step, including forward pass, loss computation, and logging.
+        validation_step(batch, batch_idx):
+            Defines the validation step, including forward pass, loss computation, and logging.
+        test_step(batch, batch_idx):
+            Defines the test step, including forward pass, loss computation, logging, and saving comparison plots of predictions vs targets.
+        configure_optimizers():
+            Configures the optimizer for training.
+        predict_step(batch, batch_idx, dataloader_idx=0):
+            Defines the prediction step, returning the model's output for the given batch.
+    """
+
     def __init__(
         self,
         number_of_past_inputs,

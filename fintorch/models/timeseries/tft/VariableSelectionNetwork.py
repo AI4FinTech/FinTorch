@@ -7,6 +7,39 @@ from fintorch.models.timeseries.tft.GatedResidualNetwork import GatedResidualNet
 
 
 class VariableSelectionNetwork(nn.Module):
+    """
+    VariableSelectionNetwork is a PyTorch module that implements a variable selection mechanism
+    for time series models. It uses Gated Residual Networks (GRNs) to transform input features
+    and applies a softmax-based attention mechanism to select and weight the most relevant features.
+
+    Attributes:
+        inputs_length (int): The number of input features.
+        input_grns (nn.ModuleDict): A dictionary of GRNs, one for each input feature, used to
+            transform the input features.
+        input_size_total (int): The total size of all input features combined.
+        grn_input (GatedResidualNetwork): A GRN used to process the concatenated input features
+            for the softmax attention mechanism.
+        softmax (nn.Softmax): A softmax layer applied to compute the attention weights.
+
+    Methods:
+        __init__(inputs: Dict[str, int], hidden_dimensions, dropout, context_size):
+            Initializes the VariableSelectionNetwork with the specified input dimensions,
+            hidden dimensions, dropout rate, and context size.
+
+        forward(x: Dict[str, torch.Tensor], context: Optional[torch.Tensor] = None) -> torch.Tensor:
+            Performs the forward pass of the network. Transforms the input features using GRNs,
+            computes attention weights using a softmax mechanism, and applies the attention weights
+            to the transformed features to produce the final output.
+
+            Args:
+                x (Dict[str, torch.Tensor]): A dictionary where keys are feature names and values
+                    are the corresponding input tensors.
+                context (Optional[torch.Tensor]): An optional context tensor used in the GRNs.
+
+            Returns:
+                torch.Tensor: The output tensor after applying the variable selection mechanism.
+    """
+
 
     def __init__(
         self,
