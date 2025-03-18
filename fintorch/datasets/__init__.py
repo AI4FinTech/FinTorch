@@ -4,6 +4,7 @@ from .ellipticpp import TransactionActorDataset
 from .invoice import InvoiceDataset
 from .marketdata import MarketDataset
 from .stockticker import StockTicker
+from .airpassenger import AirPassengerDataset, AirPassengerDataModule
 
 __all__ = [
     "AuctionDataset",
@@ -12,4 +13,6 @@ __all__ = [
     "InvoiceDataset",
     "MarketDataset",
     "StockTicker",
+    "AirPassengerDataset",
+    "AirPassengerDataModule"
 ]

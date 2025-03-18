@@ -2,6 +2,7 @@ import lightning as L
 import torch
 
 from fintorch.models.timeseries.tft import TemporalFusionTransformer
+import os
 
 
 class TemporalFusionTransformerModule(L.LightningModule):
@@ -74,9 +75,11 @@ class TemporalFusionTransformerModule(L.LightningModule):
             past_inputs, future_inputs, static_inputs
         )
 
+
+
         # Calculate the loss
         # TODO: replace with loss reported in the paper
-        loss = torch.nn.functional.mse_loss(output.squeeze(), target)
+        loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())
 
         # Log the loss
         # self.log("train_loss", loss)
@@ -91,9 +94,10 @@ class TemporalFusionTransformerModule(L.LightningModule):
             past_inputs, future_inputs, static_inputs
         )
 
+
         # Calculate the loss
         # TODO: replace with loss reported in the paper
-        loss = torch.nn.functional.mse_loss(output.squeeze(), target)
+        loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())
 
         # Log the loss
         # self.log("val_loss", loss)
@@ -108,7 +112,29 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
         # Calculate the loss
         # TODO: replace with loss reported in the paper
-        loss = torch.nn.functional.mse_loss(output.squeeze(), target)
+        loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())
+
+
+        # Plot and store the comparison between predicted outputs and targets
+        import matplotlib.pyplot as plt
+
+        # Create a directory to save the plots if it doesn't exist
+        plot_dir = "/home/marcel/Documents/research/FinTorch/plots"
+        os.makedirs(plot_dir, exist_ok=True)
+
+        # Plot the predicted outputs vs targets
+        plt.figure(figsize=(10, 6))
+        plt.plot(target[0, :].squeeze().cpu().detach().numpy(), label='Target')
+        plt.plot(output[0, :, :].squeeze().cpu().detach().numpy(), label='Predicted')
+        plt.legend()
+        plt.title(f"Comparison of Predicted Outputs and Targets - Batch {batch_idx}")
+        plt.xlabel("Time Steps")
+        plt.ylabel("Values")
+
+        # Save the plot
+        plot_path = os.path.join(plot_dir, f"comparison_batch_{batch_idx}.png")
+        plt.savefig(plot_path)
+        plt.close()
 
         # Log the loss
         self.log("test_loss", loss)

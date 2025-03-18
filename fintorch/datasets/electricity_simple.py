@@ -3,6 +3,8 @@ import polars as pl
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from sklearn.preprocessing import StandardScaler
+
 
 class ElectricityDataset(Dataset):
     def __init__(
@@ -35,7 +37,18 @@ class ElectricityDataset(Dataset):
 
         print(f"Electricity dataset size: {data.shape}")
 
-        return data.select(pl.col(data.columns[1])).to_numpy().squeeze()
+               # Initialize the scaler
+        scaler = StandardScaler()
+
+        # Fit the scaler on the data and transform it
+        data_scaled = scaler.fit_transform(data.select(pl.col(data.columns[1])).to_numpy().reshape(-1, 1))
+
+        # Store the scaler for later use
+        self.scaler = scaler
+
+        data_scaled = data_scaled.flatten()
+
+        return data_scaled
 
     def __len__(self):
         return self.length - self.past_length - self.future_length
