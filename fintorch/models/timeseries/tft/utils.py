@@ -1,3 +1,6 @@
+import torch
+
+
 def attention_mask(past_length, future_length):
     """
     Generates an attention mask for the Temporal Fusion Transformer (TFT).
@@ -9,7 +12,6 @@ def attention_mask(past_length, future_length):
     Returns:
         torch.Tensor: An attention mask of shape (total_length, total_length).
     """
-    import torch
 
     total_length = past_length + future_length
     mask = torch.tril(torch.ones(total_length, total_length))

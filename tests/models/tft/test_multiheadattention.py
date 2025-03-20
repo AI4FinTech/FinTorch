@@ -23,7 +23,7 @@ def test_interpretable_multi_head_attention_output_shape():
 
     # Check output shape
     assert output.shape == (batch_size, seq_len, input_dimension), "Output shape mismatch"
-    assert attentions.shape == (batch_size, seq_len, number_of_heads, seq_len), "Attention shape mismatch"
+    assert attentions.shape == (batch_size, number_of_heads, seq_len, seq_len), "Attention shape mismatch"
 
 
 def test_interpretable_multi_head_attention_no_mask():
@@ -47,7 +47,7 @@ def test_interpretable_multi_head_attention_no_mask():
 
     # Check output shape
     assert output.shape == (batch_size, seq_len, input_dimension), "Output shape mismatch without mask"
-    assert attentions.shape == (batch_size, seq_len, number_of_heads, seq_len), "Attention shape mismatch without mask"
+    assert attentions.shape == (batch_size, number_of_heads, seq_len, seq_len), "Attention shape mismatch without mask"
 
 
 def test_interpretable_multi_head_attention_with_mask():
@@ -72,7 +72,7 @@ def test_interpretable_multi_head_attention_with_mask():
 
     # Check output shape
     assert output.shape == (batch_size, seq_len, input_dimension), "Output shape mismatch with mask"
-    assert attentions.shape == (batch_size, seq_len, number_of_heads, seq_len), "Attention shape mismatch with mask"
+    assert attentions.shape == (batch_size, number_of_heads, seq_len, seq_len), "Attention shape mismatch with mask"
 
 
 def test_interpretable_multi_head_attention_dropout():
@@ -98,4 +98,4 @@ def test_interpretable_multi_head_attention_dropout():
 
     # Check output shape
     assert output.shape == (batch_size, seq_len, input_dimension), "Output shape mismatch with dropout"
-    assert attentions.shape == (batch_size, seq_len, number_of_heads, seq_len), "Attention shape mismatch with dropout"
+    assert attentions.shape == (batch_size, number_of_heads, seq_len, seq_len), "Attention shape mismatch with dropout"

@@ -16,7 +16,6 @@ from fintorch.models.timeseries.tft.VariableSelectionNetwork import (
 
 
 class TemporalFusionTransformer(nn.Module):
-
     """
     TemporalFusionTransformer: A PyTorch implementation of the Temporal Fusion Transformer (TFT) model for time series forecasting.
 
@@ -30,9 +29,9 @@ class TemporalFusionTransformer(nn.Module):
         hidden_dimension (int): Dimension of the hidden layers in the model.
         dropout (float): Dropout rate for regularization.
         number_of_heads (int): Number of attention heads in the multi-head attention mechanism.
-        past_inputs (list): List of past input features.
-        future_inputs (list): List of future input features (optional).
-        static_inputs (list): List of static input features (optional).
+        past_inputs (dict): dict of past input features and dimensionality.
+        future_inputs (dict): dict of future input features and dimensionality (optional).
+        static_inputs (dict): dict of static input features and dimensionality (optional).
         batch_size (int): Batch size for training and inference.
         device (torch.device): Device on which the model is run (e.g., 'cpu' or 'cuda').
 
@@ -54,7 +53,6 @@ class TemporalFusionTransformer(nn.Module):
             Returns:
                 tuple: A tuple containing the model's output and attention weights.
     """
-
 
     def __init__(
         self,
@@ -212,7 +210,7 @@ class TemporalFusionTransformer(nn.Module):
 
     def forward(self, past_inputs, future_inputs=None, static_inputs=None):
 
-        batch_size = past_inputs["past_data"].shape[0]
+        batch_size = past_inputs.get(list(past_inputs.keys())[0]).shape[0]
 
         # Embed variables using variable selection networks
         past = self.variable_selection_past(past_inputs)
@@ -237,6 +235,8 @@ class TemporalFusionTransformer(nn.Module):
             lstm_concat = torch.cat([encoder_output, decoder_output], dim=1)
             inputs_concat = torch.cat([past, future], dim=1)
         else:
+            # TODO: if we have no future inputs, how should the model behave?
+            # predict based only on past observations by initializing the LSTM?, what are then the inputs of the LSTM?
             lstm_concat = encoder_output
             inputs_concat = past
 

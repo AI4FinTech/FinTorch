@@ -3,7 +3,6 @@ import torch.nn as nn
 
 
 class InterpretableMultiHeadAttention(nn.Module):
-
     """
     A PyTorch implementation of Interpretable Multi-Head Attention.
     This module implements a multi-head attention mechanism where each head
@@ -83,7 +82,7 @@ class InterpretableMultiHeadAttention(nn.Module):
         output = self.final_projection(mean_head)
         output = self.dropout(output)
 
-        return output, attentions_stacked
+        return output, attentions_stacked.permute(0, 2, 1, 3)
 
 
 class ScaledDotProductAttention(nn.Module):
@@ -120,7 +119,6 @@ class ScaledDotProductAttention(nn.Module):
                       (batch_size, seq_length, seq_length).
     """
 
-
     def __init__(self, dropout):
         super(ScaledDotProductAttention, self).__init__()
         self.dropout = nn.Dropout(dropout)
@@ -147,14 +145,9 @@ class ScaledDotProductAttention(nn.Module):
         # Scaled attention
         attention = attention / d_attention
 
-        # print(f"attention shape: {attention.shape}")
-        # print(f"mask shape: {mask.shape if mask is not None else None}")
-
-        if mask is not None:
-            # Mask the numbers with almost zero such that the model cannot see
-            # information it shouldn't see
-            mask = mask.to(attention.device)
-            attention = attention.masked_fill(mask, -1e9)
+        attention = (
+            self.mask_attention(attention, mask) if mask is not None else attention
+        )
 
         attention = self.softmax(attention)
         attention = self.dropout(attention)
@@ -164,3 +157,7 @@ class ScaledDotProductAttention(nn.Module):
         # output bmm: (batch_size, seq_length, embedding_dim)
         # output attention: (batch_size, seq_length, seq_length)
         return torch.bmm(attention, value), attention
+
+    def mask_attention(self, attention, mask):
+        mask = mask.to(attention.device)
+        return attention.masked_fill(mask, -1e9)

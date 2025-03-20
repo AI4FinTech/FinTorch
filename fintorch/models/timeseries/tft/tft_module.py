@@ -99,8 +99,6 @@ class TemporalFusionTransformerModule(L.LightningModule):
             past_inputs, future_inputs, static_inputs
         )
 
-
-
         # Calculate the loss
         # TODO: replace with loss reported in the paper
         loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())

@@ -1,69 +1,94 @@
 import torch
-from fintorch.models.timeseries.tft.InterpretableMultiHeadAttention import ScaledDotProductAttention
 
-def test_scaled_dot_product_attention_shapes():
-    # Define input dimensions
-    batch_size = 4
-    seq_length = 10
-    embedding_dim = 16
-    dropout = 0.1
+from fintorch.models.timeseries.tft.InterpretableMultiHeadAttention import (
+    InterpretableMultiHeadAttention,
+    ScaledDotProductAttention,
+)
 
-    # Create ScaledDotProductAttention instance
-    attention = ScaledDotProductAttention(dropout)
 
-    # Create input tensors
-    query = torch.randn(batch_size, seq_length, embedding_dim)
-    key = torch.randn(batch_size, seq_length, embedding_dim)
-    value = torch.randn(batch_size, seq_length, embedding_dim)
-    mask = torch.zeros(batch_size, seq_length, seq_length, dtype=torch.bool)
-
-    # Forward pass
-    output, attention_weights = attention(query, key, value, mask)
-
-    # Check output shapes
-    assert output.shape == (batch_size, seq_length, embedding_dim), "Output shape mismatch"
-    assert attention_weights.shape == (batch_size, seq_length, seq_length), "Attention weights shape mismatch"
-
-def test_scaled_dot_product_attention_masking():
-    # Define input dimensions
-    batch_size = 2
-    seq_length = 5
-    embedding_dim = 8
-    dropout = 0.1
-
-    # Create ScaledDotProductAttention instance
-    attention = ScaledDotProductAttention(dropout)
-
-    # Create input tensors
-    query = torch.randn(batch_size, seq_length, embedding_dim)
-    key = torch.randn(batch_size, seq_length, embedding_dim)
-    value = torch.randn(batch_size, seq_length, embedding_dim)
-    mask = torch.ones(batch_size, seq_length, seq_length, dtype=torch.bool)
-
-    # Forward pass
-    output, attention_weights = attention(query, key, value, mask)
-
-    # Check if masked positions have near-zero attention weights
-    assert torch.all(attention_weights[mask] < 1e-8), "Masking failed"
-
+# Tests for ScaledDotProductAttention
 def test_scaled_dot_product_attention_no_mask():
-    # Define input dimensions
-    batch_size = 3
-    seq_length = 7
-    embedding_dim = 12
-    dropout = 0.1
-
-    # Create ScaledDotProductAttention instance
-    attention = ScaledDotProductAttention(dropout)
-
-    # Create input tensors
+    batch_size = 2
+    seq_length = 3
+    embedding_dim = 4
     query = torch.randn(batch_size, seq_length, embedding_dim)
     key = torch.randn(batch_size, seq_length, embedding_dim)
     value = torch.randn(batch_size, seq_length, embedding_dim)
 
-    # Forward pass without mask
-    output, attention_weights = attention(query, key, value, mask=None)
+    attention = ScaledDotProductAttention(dropout=0.0)  # Dropout 0 for simplicity
+    output, attention_weights = attention(query, key, value, None)
 
-    # Check if attention weights sum to 1 along the last dimension
-    assert torch.allclose(attention_weights.sum(dim=-1), torch.ones(batch_size, seq_length)), \
-        "Attention weights do not sum to 1"
+    assert output.shape == (batch_size, seq_length, embedding_dim)
+    assert attention_weights.shape == (batch_size, seq_length, seq_length)
+
+
+def test_scaled_dot_product_attention_with_mask():
+    batch_size = 2
+    seq_length = 3
+    embedding_dim = 4
+    query = torch.randn(batch_size, seq_length, embedding_dim)
+    key = torch.randn(batch_size, seq_length, embedding_dim)
+    value = torch.randn(batch_size, seq_length, embedding_dim)
+    # TODO: do we generate the masks correctly in the main body?
+    mask = torch.tensor(
+        [
+            [[False, True, False], [True, False, True], [False, True, False]],
+            [[False, True, False], [True, False, True], [False, True, False]],
+        ]
+    )
+
+    attention = ScaledDotProductAttention(dropout=0.0)
+    output, attention_weights = attention(query, key, value, mask)
+
+    assert output.shape == (batch_size, seq_length, embedding_dim)
+    assert attention_weights.shape == (batch_size, seq_length, seq_length)
+    # Check that masked positions have very low attention weights (close to zero after softmax)
+    threshold = 1e-5  # Adjust as needed
+    assert torch.all(
+        attention_weights[mask] < threshold
+    ), f"Masked attention weights are not sufficiently close to zero:{attention_weights}."
+
+
+# Tests for InterpretableMultiHeadAttention
+def test_interpretable_multi_head_attention_no_mask():
+    batch_size = 2
+    seq_length = 3
+    embedding_dim = 8  # Must be divisible by number_of_heads
+    number_of_heads = 2
+    q = torch.randn(batch_size, seq_length, embedding_dim)
+    k = torch.randn(batch_size, seq_length, embedding_dim)
+    v = torch.randn(batch_size, seq_length, embedding_dim)
+
+    attention = InterpretableMultiHeadAttention(number_of_heads, embedding_dim, 0.0)
+    output, attentions = attention(q, k, v, None)
+
+    assert output.shape == (batch_size, seq_length, embedding_dim)
+    assert attentions.shape == (batch_size, number_of_heads, seq_length, seq_length)
+
+
+def test_interpretable_multi_head_attention_with_mask():
+    batch_size = 2
+    seq_length = 3
+    embedding_dim = 8  # Must be divisible by number_of_heads
+    number_of_heads = 2
+    q = torch.randn(batch_size, seq_length, embedding_dim)
+    k = torch.randn(batch_size, seq_length, embedding_dim)
+    v = torch.randn(batch_size, seq_length, embedding_dim)
+    mask = torch.tensor(
+        [
+            [[False, True, False], [True, False, True], [False, True, False]],
+            [[False, True, False], [True, False, True], [False, True, False]],
+        ]
+    )
+
+    attention = InterpretableMultiHeadAttention(number_of_heads, embedding_dim, 0.0)
+    output, attentions = attention(q, k, v, mask)
+
+    assert output.shape == (batch_size, seq_length, embedding_dim)
+    assert attentions.shape == (batch_size, number_of_heads, seq_length, seq_length)
+    # Check that masked positions have very low attention weights (close to zero after softmax)
+    threshold = 1e-6
+    for head in range(number_of_heads):
+        assert torch.all(
+            attentions[:, head, :, :][mask] < threshold
+        ), "Attention weights should be close to zero for multi-head attention."

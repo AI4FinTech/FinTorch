@@ -134,7 +134,6 @@ class GatedLinearUnit(nn.Module):
                     (batch_size, ..., output_dimension).
     """
 
-
     def __init__(
         self, input_dimension: int, output_dimension: int = None, dropout: float = None
     ) -> None:
