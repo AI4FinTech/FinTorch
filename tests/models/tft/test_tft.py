@@ -59,7 +59,7 @@ def test_tft_forward_with_past_inputs():
     output, attention_weights = tft(
         past_inputs=past_inputs_dict,
         future_inputs=future_inputs_dict,
-        static_inputs=static_data,  # TODO: with static data it fails
+        static_inputs=static_data,
     )
 
     # Check output shape
