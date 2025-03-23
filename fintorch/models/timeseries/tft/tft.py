@@ -24,7 +24,7 @@ class TemporalFusionTransformer(nn.Module):
 
     Attributes:
         number_of_past_inputs (int): Number of past time steps in the input sequence.
-        number_of_future_inputs (int): Number of future time steps in the input sequence.
+        horizon (int): Number of future time steps in the input sequence.
         embedding_size_inputs (int): Size of the input embeddings.
         hidden_dimension (int): Dimension of the hidden layers in the model.
         dropout (float): Dropout rate for regularization.
@@ -57,7 +57,7 @@ class TemporalFusionTransformer(nn.Module):
     def __init__(
         self,
         number_of_past_inputs,
-        number_of_future_inputs,
+        horizon,
         embedding_size_inputs,
         hidden_dimension,
         dropout,
@@ -67,15 +67,18 @@ class TemporalFusionTransformer(nn.Module):
         static_inputs,
         batch_size,
         device,
+        quantiles,
     ):
         super(TemporalFusionTransformer, self).__init__()
         self.number_of_past_inputs = number_of_past_inputs
-        self.number_of_future_inputs = number_of_future_inputs
+        self.horizon = horizon
         self.embedding_size_inputs = embedding_size_inputs
         self.past_inputs = past_inputs
         self.future_inputs = future_inputs
         self.static_inputs = static_inputs
         self.batch_size = batch_size
+        self.quantiles = quantiles
+        self.number_of_quantiles = len(quantiles)
 
         context_size = hidden_dimension
         self.device = device
@@ -166,7 +169,8 @@ class TemporalFusionTransformer(nn.Module):
             context_size=context_size,
         )
         # Dense layer for final output (single target)
-        self.dense = nn.Linear(hidden_dimension, 1)
+        # TODO: change if we want to support multiple targets
+        self.dense = nn.Linear(hidden_dimension, 1 * self.number_of_quantiles)
 
         # Static enrichment GRN
         self.static_enrichment_grn = GatedResidualNetwork(
@@ -189,7 +193,7 @@ class TemporalFusionTransformer(nn.Module):
     def _post_process(self, attn_input, lstm_output):
         mask = attention_mask(
             past_length=self.number_of_past_inputs,
-            future_length=self.number_of_future_inputs,
+            future_length=self.horizon,
         )
         mask = None
         attention_output, attention_weights = self.attention(
@@ -197,15 +201,19 @@ class TemporalFusionTransformer(nn.Module):
         )
 
         # Focus on the future horizon outputs
-        attention_output = attention_output[:, -self.number_of_future_inputs :, :]
-        attn_input_slice = attn_input[:, -self.number_of_future_inputs :, :]
-        lstm_output_slice = lstm_output[:, -self.number_of_future_inputs :, :]
+        attention_output = attention_output[:, -self.horizon :, :]
+        attn_input_slice = attn_input[:, -self.horizon :, :]
+        lstm_output_slice = lstm_output[:, -self.horizon :, :]
 
         # Skip connection and feed-forward processing
         attention_output = self.gated_add_norm(attention_output, attn_input_slice)
         output_pos_ff = self.positionwise_grn(attention_output)
         output_pos_ff = self.gated_add_norm(output_pos_ff, lstm_output_slice)
         output = self.dense(output_pos_ff)
+        # TODO: change when we want to support multiple targets
+        output = output.reshape(
+            output.shape[0], output.shape[1], 1, self.number_of_quantiles
+        )  # Reshape to (batch, horizon, 1, number_of_quantiles)
         return output, attention_weights
 
     def forward(self, past_inputs, future_inputs=None, static_inputs=None):

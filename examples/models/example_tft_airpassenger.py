@@ -1,12 +1,12 @@
 import os
+
 import lightning as L
+import matplotlib.pyplot as plt
 import torch
 from lightning.pytorch.callbacks import EarlyStopping
+
 from fintorch.datasets.airpassenger import AirPassengerDataModule
 from fintorch.models.timeseries.tft import TemporalFusionTransformerModule
-
-import matplotlib.pyplot as plt
-
 
 # Define hyperparameters
 number_of_past_inputs = 24
@@ -22,6 +22,8 @@ static_inputs = None
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+quantiles = [0.05, 0.5, 0.95]
+
 # Create an instance of TemporalFusionTransformerModule
 tft_module = TemporalFusionTransformerModule(
     number_of_past_inputs,
@@ -35,6 +37,7 @@ tft_module = TemporalFusionTransformerModule(
     static_inputs,
     batch_size=batch_size,
     device=device,
+    quantiles=quantiles,
 ).to(device)
 
 data_module = AirPassengerDataModule(
@@ -63,11 +66,7 @@ plt.savefig("/home/marcel/Documents/research/FinTorch/plots/all_data_plot.png")
 
 # Create a trainer with TensorBoard for better monitoring
 early_stopping = EarlyStopping("val_loss_epoch", patience=50)
-trainer = L.Trainer(
-    max_epochs=200,
-    callbacks=[early_stopping],
-    log_every_n_steps=10
-)
+trainer = L.Trainer(max_epochs=200, callbacks=[early_stopping], log_every_n_steps=10)
 
 # Train the model
 trainer.fit(tft_module, data_module)

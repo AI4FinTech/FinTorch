@@ -8,7 +8,6 @@ from lightning.pytorch.callbacks import EarlyStopping
 from fintorch.datasets.electricity_simple import ElectricityDataModule
 from fintorch.models.timeseries.tft import TemporalFusionTransformerModule
 
-
 # Define hyperparameters
 number_of_past_inputs = 168
 number_of_future_inputs = 24
@@ -21,6 +20,8 @@ batch_size = 1024
 past_inputs = {"past_data": 1}
 future_inputs = None
 static_inputs = None
+quantiles = [0.05, 0.5, 0.95]
+
 
 # Create an instance of TemporalFusionTransformerModule
 tft_module = TemporalFusionTransformerModule(
@@ -35,6 +36,7 @@ tft_module = TemporalFusionTransformerModule(
     static_inputs,
     batch_size=batch_size,
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    quantiles=quantiles,
 )
 
 data_module = ElectricityDataModule(

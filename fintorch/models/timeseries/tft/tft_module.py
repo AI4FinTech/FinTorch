@@ -1,8 +1,9 @@
+import os
+
 import lightning as L
 import torch
 
 from fintorch.models.timeseries.tft import TemporalFusionTransformer
-import os
 
 
 class TemporalFusionTransformerModule(L.LightningModule):
@@ -12,7 +13,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
     Attributes:
         tft_model (TemporalFusionTransformer): The underlying Temporal Fusion Transformer model.
     Methods:
-        __init__(number_of_past_inputs, number_of_future_inputs, embedding_size_inputs, hidden_dimension, dropout, number_of_heads, past_inputs, future_inputs, static_inputs, batch_size, device):
+        __init__(number_of_past_inputs, horizon, embedding_size_inputs, hidden_dimension, dropout, number_of_heads, past_inputs, future_inputs, static_inputs, batch_size, device):
             Initializes the TemporalFusionTransformerModule with the specified parameters.
         forward(past_inputs, future_inputs, static_inputs):
             Performs a forward pass through the TFT model.
@@ -33,7 +34,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
     def __init__(
         self,
         number_of_past_inputs,
-        number_of_future_inputs,
+        horizon,
         embedding_size_inputs,
         hidden_dimension,
         dropout,
@@ -43,12 +44,14 @@ class TemporalFusionTransformerModule(L.LightningModule):
         static_inputs,
         batch_size,
         device,
+        quantiles=[0.1, 0.5, 0.9],
     ):
+
         super().__init__()
 
         self.tft_model = TemporalFusionTransformer(
             number_of_past_inputs,
-            number_of_future_inputs,
+            horizon,
             embedding_size_inputs,
             hidden_dimension,
             dropout,
@@ -58,10 +61,34 @@ class TemporalFusionTransformerModule(L.LightningModule):
             static_inputs,
             batch_size,
             device,
+            quantiles,
         )
 
     def forward(self, past_inputs, future_inputs, static_inputs):
         return self.tft_model(past_inputs, future_inputs, static_inputs)
+
+    def quantile_loss(self, model_output, target):
+        target = target.unsqueeze(-1)
+        # Check for correct shapes
+        assert (
+            len(model_output.shape) == 4
+        ), f"Model output shape incorrect: {model_output.shape}"
+        assert len(target.shape) == 3, f"Target shape incorrect: {target.shape}"
+        assert (
+            model_output.shape[:2] == target.shape[:2]
+        ), "Mismatch between predicted and target shape"
+        assert (
+            model_output.shape[3] == self.tft_model.number_of_quantiles
+        ), "Mismatch between number of predicted quantiles and target quantiles"
+
+        dim_q = 3
+        device = model_output.device
+        errors = target.unsqueeze(-1) - model_output
+        quantiles_tensor = torch.tensor(self.tft_model.quantiles).to(device)
+        losses = torch.max(
+            (quantiles_tensor - 1) * errors, quantiles_tensor * errors
+        ).sum(dim=dim_q)
+        return losses.mean()
 
     def _unpack_batch(self, batch):
         """
@@ -95,13 +122,12 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
         past_inputs, future_inputs, static_inputs, target = self._unpack_batch(batch)
 
-        output, attention_weights = self.forward(
-            past_inputs, future_inputs, static_inputs
-        )
+        output, _ = self.forward(past_inputs, future_inputs, static_inputs)
 
         # Calculate the loss
         # TODO: replace with loss reported in the paper
-        loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())
+        # loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())
+        loss = self.quantile_loss(output, target)
 
         # Log the loss
         # self.log("train_loss", loss)
@@ -112,14 +138,12 @@ class TemporalFusionTransformerModule(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         past_inputs, future_inputs, static_inputs, target = self._unpack_batch(batch)
 
-        output, attention_weights = self.forward(
-            past_inputs, future_inputs, static_inputs
-        )
-
+        output, _ = self.forward(past_inputs, future_inputs, static_inputs)
 
         # Calculate the loss
         # TODO: replace with loss reported in the paper
-        loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())
+        # loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())
+        loss = self.quantile_loss(output, target)
 
         # Log the loss
         # self.log("val_loss", loss)
@@ -128,14 +152,12 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
     def test_step(self, batch, batch_idx):
         past_inputs, future_inputs, static_inputs, target = self._unpack_batch(batch)
-        output, attention_weights = self.forward(
-            past_inputs, future_inputs, static_inputs
-        )
+        output, _ = self.forward(past_inputs, future_inputs, static_inputs)
 
         # Calculate the loss
         # TODO: replace with loss reported in the paper
-        loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())
-
+        # loss = torch.nn.functional.mse_loss(output.squeeze(), target.squeeze())
+        loss = self.quantile_loss(output, target)
 
         # Plot and store the comparison between predicted outputs and targets
         import matplotlib.pyplot as plt
@@ -146,8 +168,15 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
         # Plot the predicted outputs vs targets
         plt.figure(figsize=(10, 6))
-        plt.plot(target[0, :].squeeze().cpu().detach().numpy(), label='Target')
-        plt.plot(output[0, :, :].squeeze().cpu().detach().numpy(), label='Predicted')
+        plt.plot(
+            target[0, :].squeeze().cpu().detach().numpy(), label="Target", color="black"
+        )
+        for i in range(output.shape[3]):
+            plt.plot(
+                output[0, :, :, i].squeeze().cpu().detach().numpy(),
+                label=f"Predicted quantile {self.tft_model.quantiles[i]}",
+            )
+
         plt.legend()
         plt.title(f"Comparison of Predicted Outputs and Targets - Batch {batch_idx}")
         plt.xlabel("Time Steps")
