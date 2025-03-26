@@ -62,7 +62,7 @@ plt.xlabel("Time Step")
 plt.ylabel("Value")
 plt.title("All Data")
 plt.legend()
-plt.savefig("/home/marcel/Documents/research/FinTorch/plots/all_data_plot.png")
+plt.show()
 
 # Create a trainer with TensorBoard for better monitoring
 early_stopping = EarlyStopping("val_loss_epoch", patience=50)
