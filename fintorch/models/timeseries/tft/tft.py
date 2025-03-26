@@ -1,3 +1,5 @@
+from typing import Dict, Optional, Tuple
+
 import torch
 import torch.nn as nn
 from torch.nn import LSTM
@@ -17,58 +19,57 @@ from fintorch.models.timeseries.tft.VariableSelectionNetwork import (
 
 class TemporalFusionTransformer(nn.Module):
     """
-    TemporalFusionTransformer: A PyTorch implementation of the Temporal Fusion Transformer (TFT) model for time series forecasting.
+    Temporal Fusion Transformer (TFT) model.
 
-    The Temporal Fusion Transformer is a neural network architecture designed for interpretable and accurate forecasting of time series data.
-    It combines LSTM-based sequence modeling, attention mechanisms, and variable selection networks to handle static, past, and future covariates.
+    This class implements the Temporal Fusion Transformer model, which is a
+    deep learning model for time series forecasting. It combines several
+    advanced techniques, including variable selection networks, gated residual
+    networks, and multi-head attention, to achieve state-of-the-art performance
+    on a variety of time series forecasting tasks.
+
+    Args:
+        number_of_past_inputs (int): The number of past time steps to consider.
+        horizon (int): The forecasting horizon (number of future time steps to predict).
+        embedding_size_inputs (int): The dimensionality of the input embeddings.
+        hidden_dimension (int): The dimensionality of the hidden layers.
+        dropout (float): Dropout rate to apply to the input tensor.
+        number_of_heads (int): The number of attention heads.
+        past_inputs (Dict[str, int]): A dictionary mapping past input feature names to their dimensions.
+        future_inputs (Dict[str, int]): A dictionary mapping future input feature names to their dimensions.
+        static_inputs (Dict[str, int]): A dictionary mapping static input feature names to their dimensions.
+        batch_size (int): The batch size.
+        device (str): The device to use for computation (e.g., "cpu" or "cuda").
+        quantiles (list[float]): List of quantiles to predict.
 
     Attributes:
-        number_of_past_inputs (int): Number of past time steps in the input sequence.
-        horizon (int): Number of future time steps in the input sequence.
-        embedding_size_inputs (int): Size of the input embeddings.
-        hidden_dimension (int): Dimension of the hidden layers in the model.
-        dropout (float): Dropout rate for regularization.
-        number_of_heads (int): Number of attention heads in the multi-head attention mechanism.
-        past_inputs (dict): dict of past input features and dimensionality.
-        future_inputs (dict): dict of future input features and dimensionality (optional).
-        static_inputs (dict): dict of static input features and dimensionality (optional).
-        batch_size (int): Batch size for training and inference.
-        device (torch.device): Device on which the model is run (e.g., 'cpu' or 'cuda').
-
-    Methods:
-        _init_lstm_states(static_inputs, device, batch_size):
-            Initializes the hidden and cell states for the LSTM layers based on static inputs.
-
-        _post_process(attn_input, lstm_output):
-            Applies attention, skip connections, and feed-forward processing to generate the final output.
-
-        forward(past_inputs, future_inputs=None, static_inputs=None):
-            Performs the forward pass of the model, processing past, future, and static inputs to generate predictions.
-
-            Args:
-                past_inputs (dict): Dictionary containing past input data.
-                future_inputs (dict, optional): Dictionary containing future input data. Defaults to None.
-                static_inputs (torch.Tensor, optional): Tensor containing static input data. Defaults to None.
-
-            Returns:
-                tuple: A tuple containing the model's output and attention weights.
+        number_of_past_inputs (int): The number of past time steps to consider.
+        horizon (int): The forecasting horizon.
+        embedding_size_inputs (int): The dimensionality of the input embeddings.
+        past_inputs (Dict[str, int]): A dictionary mapping past input feature names to their dimensions.
+        future_inputs (Dict[str, int]): A dictionary mapping future input feature names to their dimensions.
+        static_inputs (Dict[str, int]): A dictionary mapping static input feature names to their dimensions.
+        batch_size (int): The batch size.
+        quantiles (list[float]): List of quantiles to predict.
+        number_of_quantiles (int): The number of quantiles to predict.
+        device (str): The device to use for computation.
+        number_of_targets (int): The number of targets to predict.
     """
 
     def __init__(
         self,
-        number_of_past_inputs,
-        horizon,
-        embedding_size_inputs,
-        hidden_dimension,
-        dropout,
-        number_of_heads,
-        past_inputs,
-        future_inputs,
-        static_inputs,
-        batch_size,
-        device,
-        quantiles,
-    ):
+        number_of_past_inputs: int,
+        horizon: int,
+        embedding_size_inputs: int,
+        hidden_dimension: int,
+        dropout: float,
+        number_of_heads: int,
+        past_inputs: Dict[str, int],
+        future_inputs: Dict[str, int],
+        static_inputs: Dict[str, int],
+        batch_size: int,
+        device: str,
+        quantiles: list[float],
+    ) -> None:
         super(TemporalFusionTransformer, self).__init__()
         self.number_of_past_inputs = number_of_past_inputs
         self.horizon = horizon
@@ -83,6 +84,11 @@ class TemporalFusionTransformer(nn.Module):
         context_size = hidden_dimension
         self.device = device
 
+        # Hyperparameters
+        # TODO: make this a parameter of the TemporalFusionTransformer class to increase the flexiblility
+        self.number_of_targets = number_of_target = 1
+        lstm_layer = 1
+
         # Variable Selection Networks for each branch
         self.variable_selection_past = VariableSelectionNetwork(
             inputs=past_inputs,
@@ -90,6 +96,7 @@ class TemporalFusionTransformer(nn.Module):
             dropout=dropout,
             context_size=context_size,
         )
+
         if future_inputs is not None:
             self.variable_selection_future = VariableSelectionNetwork(
                 inputs=future_inputs,
@@ -109,13 +116,13 @@ class TemporalFusionTransformer(nn.Module):
         self.lstm_encoder = LSTM(
             hidden_dimension,
             hidden_dimension,
-            num_layers=1,
+            num_layers=lstm_layer,
             batch_first=True,
         )
         self.lstm_decoder = LSTM(
             hidden_dimension,
             hidden_dimension,
-            num_layers=1,
+            num_layers=lstm_layer,
             batch_first=True,
         )
 
@@ -169,8 +176,9 @@ class TemporalFusionTransformer(nn.Module):
             context_size=context_size,
         )
         # Dense layer for final output (single target)
-        # TODO: change if we want to support multiple targets
-        self.dense = nn.Linear(hidden_dimension, 1 * self.number_of_quantiles)
+        self.dense = nn.Linear(
+            hidden_dimension, number_of_target * self.number_of_quantiles
+        )
 
         # Static enrichment GRN
         self.static_enrichment_grn = GatedResidualNetwork(
@@ -181,7 +189,9 @@ class TemporalFusionTransformer(nn.Module):
             context_size=context_size,
         )
 
-    def _init_lstm_states(self, static_inputs, device, batch_size):
+    def _init_lstm_states(
+        self, static_inputs: torch.Tensor, device: str, batch_size: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         if static_inputs is None:
             h0 = torch.zeros(1, batch_size, self.embedding_size_inputs, device=device)
             c0 = torch.zeros(1, batch_size, self.embedding_size_inputs, device=device)
@@ -190,12 +200,14 @@ class TemporalFusionTransformer(nn.Module):
             c0 = static_inputs.unsqueeze(0)
         return h0, c0
 
-    def _post_process(self, attn_input, lstm_output):
+    def _post_process(
+        self, attn_input: torch.Tensor, lstm_output: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         mask = attention_mask(
             past_length=self.number_of_past_inputs,
             future_length=self.horizon,
         )
-        mask = None
+
         attention_output, attention_weights = self.attention(
             q=attn_input, k=attn_input, v=attn_input, mask=mask
         )
@@ -212,13 +224,20 @@ class TemporalFusionTransformer(nn.Module):
         output = self.dense(output_pos_ff)
         # TODO: change when we want to support multiple targets
         output = output.reshape(
-            output.shape[0], output.shape[1], 1, self.number_of_quantiles
+            output.shape[0],
+            output.shape[1],
+            self.number_of_targets,
+            self.number_of_quantiles,
         )  # Reshape to (batch, horizon, 1, number_of_quantiles)
         return output, attention_weights
 
-    def forward(self, past_inputs, future_inputs=None, static_inputs=None):
-
-        batch_size = past_inputs.get(list(past_inputs.keys())[0]).shape[0]
+    def forward(
+        self,
+        past_inputs: Dict[str, torch.Tensor],
+        future_inputs: Optional[Dict[str, torch.Tensor]] = None,
+        static_inputs: Optional[Dict[str, torch.Tensor]] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        batch_size = past_inputs.get(list(past_inputs.keys())[0]).shape[0]  # type: ignore
 
         # Embed variables using variable selection networks
         past = self.variable_selection_past(past_inputs)
@@ -243,8 +262,6 @@ class TemporalFusionTransformer(nn.Module):
             lstm_concat = torch.cat([encoder_output, decoder_output], dim=1)
             inputs_concat = torch.cat([past, future], dim=1)
         else:
-            # TODO: if we have no future inputs, how should the model behave?
-            # predict based only on past observations by initializing the LSTM?, what are then the inputs of the LSTM?
             lstm_concat = encoder_output
             inputs_concat = past
 

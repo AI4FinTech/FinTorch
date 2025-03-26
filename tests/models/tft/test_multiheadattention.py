@@ -1,5 +1,8 @@
 import torch
-from fintorch.models.timeseries.tft.InterpretableMultiHeadAttention import InterpretableMultiHeadAttention
+from fintorch.models.timeseries.tft.InterpretableMultiHeadAttention import (
+    InterpretableMultiHeadAttention,
+)
+
 
 def test_interpretable_multi_head_attention_output_shape():
     # Define parameters
@@ -22,8 +25,17 @@ def test_interpretable_multi_head_attention_output_shape():
     output, attentions = model(q, k, v, mask)
 
     # Check output shape
-    assert output.shape == (batch_size, seq_len, input_dimension), "Output shape mismatch"
-    assert attentions.shape == (batch_size, number_of_heads, seq_len, seq_len), "Attention shape mismatch"
+    assert output.shape == (
+        batch_size,
+        seq_len,
+        input_dimension,
+    ), "Output shape mismatch"
+    assert attentions.shape == (
+        batch_size,
+        number_of_heads,
+        seq_len,
+        seq_len,
+    ), "Attention shape mismatch"
 
 
 def test_interpretable_multi_head_attention_no_mask():
@@ -46,8 +58,17 @@ def test_interpretable_multi_head_attention_no_mask():
     output, attentions = model(q, k, v, None)
 
     # Check output shape
-    assert output.shape == (batch_size, seq_len, input_dimension), "Output shape mismatch without mask"
-    assert attentions.shape == (batch_size, number_of_heads, seq_len, seq_len), "Attention shape mismatch without mask"
+    assert output.shape == (
+        batch_size,
+        seq_len,
+        input_dimension,
+    ), "Output shape mismatch without mask"
+    assert attentions.shape == (
+        batch_size,
+        number_of_heads,
+        seq_len,
+        seq_len,
+    ), "Attention shape mismatch without mask"
 
 
 def test_interpretable_multi_head_attention_with_mask():
@@ -71,8 +92,17 @@ def test_interpretable_multi_head_attention_with_mask():
     output, attentions = model(q, k, v, mask)
 
     # Check output shape
-    assert output.shape == (batch_size, seq_len, input_dimension), "Output shape mismatch with mask"
-    assert attentions.shape == (batch_size, number_of_heads, seq_len, seq_len), "Attention shape mismatch with mask"
+    assert output.shape == (
+        batch_size,
+        seq_len,
+        input_dimension,
+    ), "Output shape mismatch with mask"
+    assert attentions.shape == (
+        batch_size,
+        number_of_heads,
+        seq_len,
+        seq_len,
+    ), "Attention shape mismatch with mask"
 
 
 def test_interpretable_multi_head_attention_dropout():
@@ -97,5 +127,14 @@ def test_interpretable_multi_head_attention_dropout():
     output, attentions = model(q, k, v, mask)
 
     # Check output shape
-    assert output.shape == (batch_size, seq_len, input_dimension), "Output shape mismatch with dropout"
-    assert attentions.shape == (batch_size, number_of_heads, seq_len, seq_len), "Attention shape mismatch with dropout"
+    assert output.shape == (
+        batch_size,
+        seq_len,
+        input_dimension,
+    ), "Output shape mismatch with dropout"
+    assert attentions.shape == (
+        batch_size,
+        number_of_heads,
+        seq_len,
+        seq_len,
+    ), "Attention shape mismatch with dropout"

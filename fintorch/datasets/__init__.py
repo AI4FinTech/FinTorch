@@ -14,5 +14,5 @@ __all__ = [
     "MarketDataset",
     "StockTicker",
     "AirPassengerDataset",
-    "AirPassengerDataModule"
+    "AirPassengerDataModule",
 ]

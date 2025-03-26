@@ -3,7 +3,7 @@ import os
 from datetime import date as Date
 from typing import Any, Dict, List
 
-import pandas as pd
+import pandas as pd  # type: ignore
 import polars as pol
 import yfinance as yf  # type: ignore
 from neuralforecast.tsdataset import TimeSeriesDataset  # type: ignore

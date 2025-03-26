@@ -1,19 +1,16 @@
-import logging
-from typing import Any, List, Dict
-import os
 import json
-
-from torch.utils.data import Dataset
-import torchvision.transforms as transforms  # type: ignore
-
-import torch
-
-from PIL import Image
-
-import requests
-from zipfile import ZipFile
+import logging
+import os
 from io import BytesIO
-from tqdm import tqdm
+from typing import Any, Dict, List
+from zipfile import ZipFile
+
+import requests  # type: ignore
+import torch
+import torchvision.transforms as transforms  # type: ignore
+from PIL import Image
+from torch.utils.data import Dataset
+from tqdm import tqdm  # type: ignore
 
 
 class InvoiceDataset(Dataset):  # type: ignore

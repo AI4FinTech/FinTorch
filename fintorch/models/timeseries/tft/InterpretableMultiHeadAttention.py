@@ -1,34 +1,52 @@
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 
 
 class InterpretableMultiHeadAttention(nn.Module):
     """
-    A PyTorch implementation of Interpretable Multi-Head Attention.
-    This module implements a multi-head attention mechanism where each head
-    has its own query and key projections, but shares a single value projection
-    and attention mechanism. The outputs of all heads are averaged to produce
-    the final output, making the attention mechanism interpretable.
+    Interpretable Multi-Head Attention module.
+
+    This module implements the interpretable multi-head attention mechanism,
+    which is a variant of the standard multi-head attention that allows
+    for the interpretation of the attention weights. It divides the input
+    into multiple heads and computes attention independently for each head,
+    then combines the results.
+
+    Args:
+        number_of_heads (int): The number of attention heads.
+        input_dimension (int): The dimensionality of the input tensor.
+        dropout (float): Dropout rate to apply to the attention weights.
+
     Attributes:
         number_of_heads (int): The number of attention heads.
-        input_dimension (int): The dimensionality of the input embeddings.
-        dropout (float): Dropout probability applied to the attention outputs.
+        dropout (nn.Dropout): Dropout layer.
+        value_projection (nn.Linear): Linear layer for projecting the value tensor.
+        query_projections (nn.ModuleList): List of linear layers for projecting the query tensor for each head.
+        key_projections (nn.ModuleList): List of linear layers for projecting the key tensor for each head.
+        attention (ScaledDotProductAttention): Scaled dot-product attention module.
+        final_projection (nn.Linear): Linear layer for projecting the concatenated attention outputs.
+
     Methods:
         forward(q, k, v, mask):
-            Computes the forward pass of the multi-head attention mechanism.
+            Computes the forward pass of the interpretable multi-head attention.
+
             Args:
                 q (torch.Tensor): Query tensor of shape (batch_size, seq_len, input_dimension).
                 k (torch.Tensor): Key tensor of shape (batch_size, seq_len, input_dimension).
                 v (torch.Tensor): Value tensor of shape (batch_size, seq_len, input_dimension).
                 mask (torch.Tensor): Optional mask tensor of shape (batch_size, seq_len, seq_len),
                                      where masked positions are indicated by a value of 1.
+
             Returns:
                 output (torch.Tensor): The output tensor of shape (batch_size, seq_len, input_dimension).
-                attentions_stacked (torch.Tensor): Stacked attention weights of shape
-                                                   (batch_size, seq_len, number_of_heads, seq_len).
+                attentions (torch.Tensor): The attention weights of shape (batch_size, num_heads, seq_len, seq_len).
     """
 
-    def __init__(self, number_of_heads, input_dimension, dropout):
+    def __init__(
+        self, number_of_heads: int, input_dimension: int, dropout: float
+    ) -> None:
         super(InterpretableMultiHeadAttention, self).__init__()
         # Creates the dimensions for the attentions,
         # we equally divide the input over the number of heads
@@ -51,7 +69,10 @@ class InterpretableMultiHeadAttention(nn.Module):
         self.attention = ScaledDotProductAttention(dropout)
         self.final_projection = nn.Linear(dim_value, input_dimension, bias=False)
 
-    def forward(self, q, k, v, mask):
+    def forward(
+        self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        # q = k = v = mask => [batch size, sequence length, hidden]
         heads_outputs = []
         attn_outputs = []
 
@@ -82,50 +103,58 @@ class InterpretableMultiHeadAttention(nn.Module):
         output = self.final_projection(mean_head)
         output = self.dropout(output)
 
+        # [batch size, sequence length, hidden]
+        # [batch size, heads, sequence lenght, sequence length, sequence length]
         return output, attentions_stacked.permute(0, 2, 1, 3)
 
 
 class ScaledDotProductAttention(nn.Module):
     """
-    Implements the Scaled Dot-Product Attention mechanism as described in the
-    "Attention is All You Need" paper. This module computes attention scores
-    and applies them to the input values.
-
+    Scaled Dot-Product Attention module.
+    This module implements the scaled dot-product attention mechanism,
+    which computes the attention weights by taking the dot product of
+    the query and key matrices, scaling the result, and then applying
+    a softmax function.
     Args:
-        dropout (float): Dropout probability to apply to the attention scores.
-
+        dropout (float): Dropout probability applied to the attention weights.
+    Attributes:
+        dropout (nn.Dropout): Dropout layer.
+        softmax (nn.Softmax): Softmax layer for normalizing attention weights.
     Methods:
         forward(query, key, value, mask):
-            Computes the scaled dot-product attention.
-
+            Computes the forward pass of the scaled dot-product attention.
             Args:
-                query (torch.Tensor): Query tensor of shape
-                    (batch_size, seq_length, embedding_dim).
-                key (torch.Tensor): Key tensor of shape
-                    (batch_size, seq_length, embedding_dim).
-                value (torch.Tensor): Value tensor of shape
-                    (batch_size, seq_length, embedding_dim).
-                mask (torch.Tensor or None): Optional mask tensor of shape
-                    (batch_size, seq_length, seq_length). Positions with a
-                    value of True are masked (set to a very large negative
-                    value).
-
+                query (torch.Tensor): Query tensor of shape (batch_size, seq_len, embedding_dim).
+                key (torch.Tensor): Key tensor of shape (batch_size, seq_len, embedding_dim).
+                value (torch.Tensor): Value tensor of shape (batch_size, seq_len, embedding_dim).
+                mask (torch.Tensor): Optional mask tensor of shape (batch_size, seq_len, seq_len),
+                                     where masked positions are indicated by a value of 1.
             Returns:
-                Tuple[torch.Tensor, torch.Tensor]: A tuple containing:
-                    - The output tensor of shape
-                      (batch_size, seq_length, embedding_dim), which is the
-                      result of applying the attention scores to the values.
-                    - The attention scores tensor of shape
-                      (batch_size, seq_length, seq_length).
+                output (torch.Tensor): The output tensor of shape (batch_size, seq_len, embedding_dim).
+                attention (torch.Tensor): The attention weights of shape (batch_size, seq_len, seq_len).
+        mask_attention(attention, mask):
+            Applies a mask to the attention weights.
+            Args:
+                attention (torch.Tensor): Attention weights tensor.
+                mask (torch.Tensor): Mask tensor.
+            Returns:
+                torch.Tensor: Masked attention weights.
     """
 
-    def __init__(self, dropout):
+    def __init__(self, dropout: float) -> None:
         super(ScaledDotProductAttention, self).__init__()
         self.dropout = nn.Dropout(dropout)
         # perform a softmax on the last dimenion (transformed sequence output)
         self.softmax = nn.Softmax(dim=2)
 
-    def forward(self, query, key, value, mask):
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        # query:
         # k (batch_size, seq_length, embedding_dim)
         # q (batch_size, seq_length, embedding_dim)
         # v (batch_size, seq_length, embedding_dim)
@@ -144,7 +173,6 @@ class ScaledDotProductAttention(nn.Module):
         ).sqrt()
         # Scaled attention
         attention = attention / d_attention
-
         attention = (
             self.mask_attention(attention, mask) if mask is not None else attention
         )
@@ -158,6 +186,10 @@ class ScaledDotProductAttention(nn.Module):
         # output attention: (batch_size, seq_length, seq_length)
         return torch.bmm(attention, value), attention
 
-    def mask_attention(self, attention, mask):
+    def mask_attention(
+        self, attention: torch.Tensor, mask: torch.Tensor
+    ) -> torch.Tensor:
+        # Attention (batch_size, seq_length, seq_length)
+        # mask (batch_size, seq_length, seq_length)
         mask = mask.to(attention.device)
         return attention.masked_fill(mask, -1e9)

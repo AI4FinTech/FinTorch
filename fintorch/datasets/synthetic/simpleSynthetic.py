@@ -1,10 +1,12 @@
+from typing import Any, List, Optional
+
 import lightning as L
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
 
-class SimpleSyntheticDataset(Dataset):
+class SimpleSyntheticDataset(Dataset):  # type: ignore
     """
     SimpleSyntheticDataset is a PyTorch Dataset that generates synthetic time series data
     with configurable trend, seasonality, and noise components. It is designed for tasks
@@ -38,15 +40,15 @@ class SimpleSyntheticDataset(Dataset):
 
     def __init__(
         self,
-        length,
-        trend_slope=0.1,
-        seasonality_amplitude=1.0,
-        seasonality_period=10,
-        noise_level=0.1,
-        past_length=10,
-        future_length=5,
-        static_length=2,
-    ):
+        length: int,
+        trend_slope: float = 0.1,
+        seasonality_amplitude: float = 1.0,
+        seasonality_period: int = 10,
+        noise_level: float = 0.1,
+        past_length: int = 10,
+        future_length: int = 5,
+        static_length: int = 2,
+    ) -> None:
         self.length = length
         self.trend_slope = trend_slope
         self.seasonality_amplitude = seasonality_amplitude
@@ -58,7 +60,7 @@ class SimpleSyntheticDataset(Dataset):
 
         self.data = self._generate_data()
 
-    def _generate_data(self):
+    def _generate_data(self) -> List[float]:
         data = []
         for i in range(self.length):
             # Trend component
@@ -77,10 +79,10 @@ class SimpleSyntheticDataset(Dataset):
             data.append(value)
         return data
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.length - self.past_length - self.future_length
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Any:
         past_data = self.data[idx : idx + self.past_length]
         future_data = self.data[
             idx + self.past_length : idx + self.past_length + self.future_length
@@ -91,15 +93,15 @@ class SimpleSyntheticDataset(Dataset):
         static_data = np.random.rand(self.static_length)
 
         # Convert to tensors
-        past_data = torch.tensor(past_data).float().unsqueeze(-1)
-        future_data = torch.tensor(future_data).float()
+        past_data = torch.tensor(past_data).float().unsqueeze(-1)  # type: ignore
+        future_data = torch.tensor(future_data).float()  # type: ignore
 
-        static_data = torch.tensor(static_data).float()
-        target = torch.tensor(target).float()
+        static_data = torch.tensor(static_data).float()  # type: ignore
+        target = torch.tensor(target).float()  # type: ignore
 
         # Create a dictionary for past, future, and static data
         past_inputs = {"past_data": past_data}
-        future_inputs = {"future_data": future_data.unsqueeze(-1)}
+        future_inputs = {"future_data": future_data.unsqueeze(-1)}  # type: ignore
         static_inputs = {"static_data": static_data}
 
         return past_inputs, future_inputs, static_inputs, target
@@ -138,18 +140,18 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        train_length,
-        val_length,
-        test_length,
-        batch_size,
-        trend_slope=0.1,
-        seasonality_amplitude=1.0,
-        seasonality_period=10,
-        noise_level=0.1,
-        past_length=10,
-        future_length=5,
-        static_length=2,
-        workers=1,
+        train_length: int,
+        val_length: int,
+        test_length: int,
+        batch_size: int,
+        trend_slope: float = 0.1,
+        seasonality_amplitude: float = 1.0,
+        seasonality_period: int = 10,
+        noise_level: float = 0.1,
+        past_length: int = 10,
+        future_length: int = 5,
+        static_length: int = 2,
+        workers: int = 1,
     ):
         super().__init__()
         self.train_length = train_length
@@ -165,7 +167,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         self.static_length = static_length
         self.workers = workers
 
-    def setup(self, stage=None):
+    def setup(self, stage: Optional[str] = None) -> None:
         self.train_dataset = SimpleSyntheticDataset(
             length=self.train_length,
             trend_slope=self.trend_slope,
@@ -199,7 +201,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
             static_length=self.static_length,
         )
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader[Any]:
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -207,7 +209,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
             num_workers=self.workers,
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader[Any]:
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
@@ -215,7 +217,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
             num_workers=self.workers,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader[Any]:
         return DataLoader(
             self.test_dataset,
             batch_size=self.batch_size,
@@ -223,7 +225,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
             num_workers=self.workers,
         )
 
-    def predict_dataloader(self):
+    def predict_dataloader(self) -> DataLoader[Any]:
         return DataLoader(
             self.test_dataset,
             batch_size=self.batch_size,

@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -8,46 +8,51 @@ from fintorch.models.timeseries.tft.GatedResidualNetwork import GatedResidualNet
 
 class VariableSelectionNetwork(nn.Module):
     """
-    VariableSelectionNetwork is a PyTorch module that implements a variable selection mechanism
-    for time series models. It uses Gated Residual Networks (GRNs) to transform input features
-    and applies a softmax-based attention mechanism to select and weight the most relevant features.
+    Variable Selection Network (VSN) module.
+
+    This module implements a Variable Selection Network, which is a type of
+    neural network layer designed to select relevant input variables from a
+    set of multiple input features. It uses Gated Residual Networks (GRNs)
+    to process each input feature and then combines them using a softmax-based
+    attention mechanism.
+
+    Args:
+        inputs (Dict[str, int]): A dictionary where keys are input names and
+            values are their respective dimensions.
+        hidden_dimensions (int): The dimensionality of the hidden layers in the GRNs.
+        dropout (float): Dropout rate to apply to the input tensor.
+        context_size (int): The dimensionality of the context tensor.
 
     Attributes:
         inputs_length (int): The number of input features.
-        input_grns (nn.ModuleDict): A dictionary of GRNs, one for each input feature, used to
-            transform the input features.
-        input_size_total (int): The total size of all input features combined.
-        grn_input (GatedResidualNetwork): A GRN used to process the concatenated input features
-            for the softmax attention mechanism.
-        softmax (nn.Softmax): A softmax layer applied to compute the attention weights.
+        input_grns (nn.ModuleDict): A dictionary of GRNs, one for each input feature.
+        input_size_total (int): The total dimensionality of all input features.
+        grn_input (GatedResidualNetwork): GRN for processing the concatenated input features.
+        softmax (nn.Softmax): Softmax layer for computing attention weights.
 
     Methods:
-        __init__(inputs: Dict[str, int], hidden_dimensions, dropout, context_size):
-            Initializes the VariableSelectionNetwork with the specified input dimensions,
-            hidden dimensions, dropout rate, and context size.
-
-        forward(x: Dict[str, torch.Tensor], context: Optional[torch.Tensor] = None) -> torch.Tensor:
-            Performs the forward pass of the network. Transforms the input features using GRNs,
-            computes attention weights using a softmax mechanism, and applies the attention weights
-            to the transformed features to produce the final output.
+        forward(x, context=None):
+            Applies the VSN to the input features.
 
             Args:
-                x (Dict[str, torch.Tensor]): A dictionary where keys are feature names and values
-                    are the corresponding input tensors.
-                context (Optional[torch.Tensor]): An optional context tensor used in the GRNs.
+                x (Dict[str, torch.Tensor]): A dictionary of input tensors, where keys
+                    are input names and values are tensors of shape
+                    (batch_size, sequence_length, input_dimension).
+                context (torch.Tensor, optional): Context tensor of shape
+                    (batch_size, context_size). Defaults to None.
 
             Returns:
-                torch.Tensor: The output tensor after applying the variable selection mechanism.
+                torch.Tensor: Output tensor of shape
+                    (batch_size, sequence_length, hidden_dimensions).
     """
-
 
     def __init__(
         self,
         inputs: Dict[str, int],
-        hidden_dimensions,
-        dropout,
-        context_size,
-    ):
+        hidden_dimensions: int,
+        dropout: float,
+        context_size: int,
+    ) -> None:
         super(VariableSelectionNetwork, self).__init__()
 
         self.inputs_length = len(inputs)
@@ -78,7 +83,14 @@ class VariableSelectionNetwork(nn.Module):
         # Equation (6)
         self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, x, context=None):
+    def forward(
+        self, x: Dict[str, torch.Tensor], context: Optional[torch.Tensor] = None
+    ) -> Any:
+        # x: dictionary with tensors of different dimensionality
+        # x[input]: Tensor => [batch size, sequence length, input feature dimension]
+        # Context: Tensor => [batch size, context size]
+        # Context size is linearly projected to hidden dimensionality, and expanded to the sequence length
+
         transformed_values_output = []
         values_output = []
         for key, grn in self.input_grns.items():
@@ -95,4 +107,7 @@ class VariableSelectionNetwork(nn.Module):
 
         # Equation (8)
         output = transformed_inputs * v_chi
-        return output.sum(dim=-2)  # sum over the input dimensions
+        # output => [batch size, sequence length, inputs, hidden]
+        result = output.sum(dim=-2)  # sum over the input dimensions
+        # result => [batch size, sequence length, hidden]
+        return result
