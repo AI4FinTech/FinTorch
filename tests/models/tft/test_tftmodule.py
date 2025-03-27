@@ -72,6 +72,7 @@ def test_training_step():
     static_inputs = {"feature3": 4, "feature4": 3}
     batch_size = 8
     device = "cpu"
+    quantiles = [0.9]
 
     # Create model instance
     model = TemporalFusionTransformerModule(
@@ -86,6 +87,7 @@ def test_training_step():
         static_inputs,
         batch_size,
         device,
+        quantiles = quantiles,
     )
 
     # Create dummy inputs
@@ -106,7 +108,7 @@ def test_training_step():
     }
 
     # Generate target tensor
-    target = torch.randn(batch_size, horizon, 1)
+    target = torch.randn(batch_size, horizon)
 
     # Forward pass
     batch = (past_inputs_dict, future_inputs_dict, static_data, target)

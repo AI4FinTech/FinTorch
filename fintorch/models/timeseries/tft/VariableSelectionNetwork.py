@@ -44,6 +44,10 @@ class VariableSelectionNetwork(nn.Module):
             Returns:
                 torch.Tensor: Output tensor of shape
                     (batch_size, sequence_length, hidden_dimensions).
+
+    Reference:
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+
     """
 
     def __init__(

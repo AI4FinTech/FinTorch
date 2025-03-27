@@ -30,6 +30,11 @@ class AddNorm(nn.Module):
 
             Returns:
                 torch.Tensor: Output tensor of shape (batch_size, ..., dimension).
+
+
+    Reference:
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+
     """
 
     def __init__(self, dimension: int):
@@ -76,6 +81,10 @@ class GatedResidualNetwork(nn.Module):
 
             Returns:
                 torch.Tensor: Output tensor of shape (batch_size, sequence_length, output_size).
+
+    Reference:
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+
     """
 
     def __init__(
@@ -158,6 +167,9 @@ class GatedLinearUnit(nn.Module):
             Returns:
                 torch.Tensor: Output tensor of shape
                     (batch_size, ..., output_dimension).
+    Reference:
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+
     """
 
     def __init__(
@@ -223,6 +235,10 @@ class GatedAddNorm(nn.Module):
             Returns:
                 torch.Tensor: Output tensor of shape
                     (batch_size, ..., output_dimension).
+
+    Reference:
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+
     """
 
     def __init__(

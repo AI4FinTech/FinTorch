@@ -42,6 +42,10 @@ class InterpretableMultiHeadAttention(nn.Module):
             Returns:
                 output (torch.Tensor): The output tensor of shape (batch_size, seq_len, input_dimension).
                 attentions (torch.Tensor): The attention weights of shape (batch_size, num_heads, seq_len, seq_len).
+
+    Reference:
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+
     """
 
     def __init__(
@@ -139,6 +143,10 @@ class ScaledDotProductAttention(nn.Module):
                 mask (torch.Tensor): Mask tensor.
             Returns:
                 torch.Tensor: Masked attention weights.
+
+    Reference:
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+
     """
 
     def __init__(self, dropout: float) -> None:

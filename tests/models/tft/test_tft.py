@@ -14,6 +14,7 @@ def test_tft_forward_only_past_inputs():
     future_inputs = None
     static_inputs = None
     batch_size = 8
+    quantiles = [0.9]
     device = torch.device("cpu")
 
     # Create model instance
@@ -29,6 +30,7 @@ def test_tft_forward_only_past_inputs():
         static_inputs=static_inputs,
         batch_size=batch_size,
         device=device,
+        quantiles=quantiles
     )
 
     # Forward pass
@@ -48,7 +50,8 @@ def test_tft_forward_only_past_inputs():
     )
 
     # Check output shape
-    assert output.shape == (batch_size, 2, 1), "Output shape mismatch"
+    # (batch size, horizon, targets, quantiles)
+    assert output.shape == (batch_size, 2, 1, 1), "Output shape mismatch"
 
     # Check attention weights shape
     assert attention_weights.shape == (
@@ -73,6 +76,7 @@ def test_tft_forward_with_all_inputs():
     static_inputs = {"feature3": 4, "feature4": 3}
     batch_size = 8
     device = torch.device("cpu")
+    quantiles = [0.9]
 
     # Create model instance
     tft = TemporalFusionTransformer(
@@ -87,6 +91,7 @@ def test_tft_forward_with_all_inputs():
         static_inputs=static_inputs,
         batch_size=batch_size,
         device=device,
+        quantiles=quantiles,
     )
 
     # Forward pass
@@ -112,10 +117,12 @@ def test_tft_forward_with_all_inputs():
     )
 
     # Check output shape
+    # (batch size, horizon, targets, quantiles)
     assert output.shape == (
         batch_size,
         horizon,
         1,
+        1
     ), "Output shape mismatch"
 
     # Check attention weights shape
@@ -142,6 +149,7 @@ def test_tft_forward_without_future_inputs():
     static_inputs = {"feature3": 4, "feature4": 3}
     batch_size = 8
     device = torch.device("cpu")
+    quantiles = [0.9]
 
     # Create model instance
     tft = TemporalFusionTransformer(
@@ -156,6 +164,7 @@ def test_tft_forward_without_future_inputs():
         static_inputs=static_inputs,
         batch_size=batch_size,
         device=device,
+        quantiles=quantiles,
     )
 
     past_inputs_dict = {
@@ -177,7 +186,8 @@ def test_tft_forward_without_future_inputs():
     )
 
     # Check output shape
-    assert output.shape == (batch_size, 2, 1), "Output shape mismatch"
+    # (batch size, horizon, targets, quantiles)
+    assert output.shape == (batch_size, 2, 1, 1), "Output shape mismatch"
 
     # Check attention weights shape
     assert attention_weights.shape == (
@@ -201,6 +211,7 @@ def test_tft_forward_without_static_inputs():
     future_inputs = {"feature1": 4}
     batch_size = 8
     device = torch.device("cpu")
+    quantiles = [0.9]
 
     # Create model instance
     tft = TemporalFusionTransformer(
@@ -215,6 +226,7 @@ def test_tft_forward_without_static_inputs():
         static_inputs=None,
         batch_size=batch_size,
         device=device,
+        quantiles=quantiles,
     )
 
     # Forward pass
@@ -237,10 +249,12 @@ def test_tft_forward_without_static_inputs():
     )
 
     # Check output shape
+    # (batch size, horizon, targets, quantiles)
     assert output.shape == (
         batch_size,
         horizon,
         1,
+        1
     ), "Output shape mismatch"
 
     # Check attention weights shape

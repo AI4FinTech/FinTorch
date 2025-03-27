@@ -49,6 +49,10 @@ class TemporalFusionTransformerModule(L.LightningModule):
             Configures the optimizer for training.
         predict_step(batch, batch_idx, dataloader_idx=0):
             Performs a single prediction step.
+
+    Reference:
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+
     """
 
     def __init__(
@@ -95,6 +99,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
         self, model_output: torch.Tensor, target: torch.Tensor
     ) -> torch.Tensor:
         target = target.unsqueeze(-1)
+
         # Check for correct shapes
         assert (
             len(model_output.shape) == 4

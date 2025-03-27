@@ -53,6 +53,10 @@ class TemporalFusionTransformer(nn.Module):
         number_of_quantiles (int): The number of quantiles to predict.
         device (str): The device to use for computation.
         number_of_targets (int): The number of targets to predict.
+
+    Reference:
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+
     """
 
     def __init__(
@@ -203,9 +207,12 @@ class TemporalFusionTransformer(nn.Module):
     def _post_process(
         self, attn_input: torch.Tensor, lstm_output: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        # In case there are not future inputs, we don't have to mask them
+        mask_future_inputs = 0 if self.future_inputs is None else self.horizon
+
         mask = attention_mask(
             past_length=self.number_of_past_inputs,
-            future_length=self.horizon,
+            future_length=mask_future_inputs,
         )
 
         attention_output, attention_weights = self.attention(
