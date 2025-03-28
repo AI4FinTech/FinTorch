@@ -54,7 +54,6 @@ class StockTicker(Dataset):  # type: ignore
         if force_reload or not all(
             os.path.exists(path) for path in self.processed_paths()
         ):
-
             self.remove_directory(self.root)
             self.setupDirectories()
 
