@@ -1,14 +1,17 @@
 import logging
 import os
+import shutil
 from datetime import date as Date
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+import lightning as L
 import pandas as pd  # type: ignore
 import polars as pol
 import yfinance as yf  # type: ignore
 from neuralforecast.tsdataset import TimeSeriesDataset  # type: ignore
+from sklearn.preprocessing import StandardScaler  # type: ignore
 from tenacity import retry, stop_after_attempt, wait_exponential  # type: ignore
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 
 # TODO: directly subclass TimeSeriesDataset from neural forcast
@@ -20,8 +23,12 @@ class StockTicker(Dataset):  # type: ignore
         start_date: Date,
         end_date: Date,
         mapping: Dict[str, str],  # TODO: check dict type
-        value_name: str = "Adj Close",
+        value_name: str = "Close",
         force_reload: bool = False,
+        past_length: int = 10,
+        future_length: int = 5,
+        start_idx: int = 0,
+        end_idx: Optional[int] = None,
     ) -> None:
         super().__init__()
         assert isinstance(tickers, list), "tickers must be a list"
@@ -38,18 +45,55 @@ class StockTicker(Dataset):  # type: ignore
         self.value_name = value_name
         self.mapping = mapping
         self.root = os.path.expanduser(root)
+        self.past_length = past_length
+        self.future_length = future_length
+        self.start_idx = start_idx
 
         logging.info("StockTicker dataset initialization")
-        self.setupDirectories()
 
         if force_reload or not all(
             os.path.exists(path) for path in self.processed_paths()
         ):
+
+            self.remove_directory(self.root)
+            self.setupDirectories()
+
             # if we want to force reload, or a processed file is missing. Start the processing
             self.download(force_reload)  # download uncached tickers
             self.process()
 
         self.load()
+
+        self.end_idx = (
+            end_idx
+            if end_idx is not None
+            else len(self.df_timeseries_dataset) - past_length - future_length
+        )
+        self.length = self.end_idx - self.start_idx
+
+    def remove_directory(self, path: str) -> None:
+        """Removes a directory or a file.
+
+        Args:
+            path: The path to the directory or file to remove.
+
+        Raises:
+            FileNotFoundError: If the directory or file does not exist.
+            OSError: If there's an error during the removal process (e.g., permission issues).
+        """
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Directory not found: {path}")
+        try:
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            elif os.path.isfile(path):
+                os.remove(path)
+            else:
+                raise ValueError(f"Path '{path}' is neither a file nor a directory.")
+
+            print(f"Directory '{path}' and its contents removed successfully.")
+        except OSError as e:
+            raise OSError(f"Error removing directory '{path}': {e}")
 
     def setupDirectories(self) -> None:
         """
@@ -78,7 +122,7 @@ class StockTicker(Dataset):  # type: ignore
         """Return the length of the dataset."""
         if not hasattr(self, "timeseries_dataset"):
             raise RuntimeError("Dataset not loaded. Call load() first.")
-        return len(self.timeseries_dataset)
+        return self.length
 
     def __getitem__(self, idx: int) -> Any:
         """
@@ -95,7 +139,30 @@ class StockTicker(Dataset):  # type: ignore
         """
         if not hasattr(self, "timeseries_dataset"):
             raise RuntimeError("Dataset not loaded. Call load() first.")
-        return self.timeseries_dataset.__getitem__(idx)
+
+        if isinstance(idx, slice):
+            return [
+                self[i]
+                for i in range(idx.start or 0, idx.stop or len(self), idx.step or 1)
+            ]
+
+        # Adjust index to be within the dataset slice
+        idx = self.start_idx + idx
+
+        data = self.df_timeseries_dataset.select("y_scaled").cast(pol.Float32)
+
+        past_data = data[idx : idx + self.past_length].to_torch().float()
+        target = (
+            data[idx + self.past_length : idx + self.past_length + self.future_length]
+            .to_torch()
+            .float()
+            .squeeze()
+        )
+
+        # Create a dictionary for past, future, and static data
+        past_inputs = {"past_data": past_data}
+
+        return past_inputs, target
 
     def raw_file_names(self) -> list[str]:
         """
@@ -275,9 +342,156 @@ class StockTicker(Dataset):  # type: ignore
                 time_col="ds",
                 target_col="y",
             )
+
+            scaler = StandardScaler()
+            # Convert the polars Series to a NumPy array before reshaping
+            y_values = self.df_timeseries_dataset["y"].to_numpy().reshape(-1, 1)
+            # Fit and transform the NumPy array
+            scaled_y = scaler.fit_transform(y_values)
+            # Convert back to a polars Series (optional, but recommended for consistency)
+            self.df_timeseries_dataset = self.df_timeseries_dataset.with_columns(
+                pol.Series("y_scaled", scaled_y.flatten())
+            )
+            self.scaler = scaler
+
+            self.length = len(self.df_timeseries_dataset)
+
         except Exception as e:
             logging.error(f"Failed to load dataset: {str(e)}")
             raise RuntimeError("Failed to load dataset") from e
         logging.info("All datsets loaded sucessfully")
 
         logging.info(f"loaded dataset:{self.timeseries_dataset}")
+
+
+class StockTickerDataModule(L.LightningDataModule):
+    def __init__(
+        self,
+        data_path: str,
+        tickers: str,
+        start_date: Date,
+        end_date: Date,
+        ticker_index: Dict[str, str],
+        batch_size: int,
+        workers: int = 1,
+        past_length: int = 10,
+        future_length: int = 5,
+        start_idx: int = 0,
+        end_idx: Optional[int] = None,
+        force_reload: bool = False,
+    ) -> None:
+        super().__init__()
+        self.data_path = data_path
+        self.tickers = tickers
+        self.start_date = start_date
+        self.end_date = end_date
+        self.ticker_index = ticker_index
+        self.batch_size = batch_size
+        self.workers = workers
+        self.past_length = past_length
+        self.future_length = future_length
+        self.start_idx = start_idx
+        self.end_idx = end_idx
+        self.force_reload = force_reload
+
+        if isinstance(self.tickers, list):
+            if len(self.tickers) > 1:
+                raise ValueError(
+                    "For the moment we only support one ticker at the time. "
+                    "For NeuralForecast a list of tickers is supported, but for other purposes we can only retreive"
+                    " a single ticker dataset"
+                )
+            self.tickers = self.tickers[0]
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        self.dataset = StockTicker(
+            self.data_path,
+            tickers=[self.tickers],
+            start_date=self.start_date,
+            end_date=self.end_date,
+            mapping=self.ticker_index,
+            force_reload=self.force_reload,
+            past_length=self.past_length,
+            future_length=self.future_length,
+            start_idx=self.start_idx,
+            end_idx=self.end_idx,
+        )
+
+        train_size = int(0.8 * len(self.dataset))
+        val_size = int(0.1 * len(self.dataset))
+
+        # TODO: create train_dataset, test_dataset, val_dataset
+        self.train_dataset = self.dataset
+        self.test_dataset = self.dataset
+        self.val_dataset = self.dataset
+
+        # Create separate dataset instances to preserve time-series order
+        self.train_dataset = StockTicker(
+            self.data_path,
+            tickers=[self.tickers],
+            start_date=self.start_date,
+            end_date=self.end_date,
+            mapping=self.ticker_index,
+            force_reload=self.force_reload,
+            past_length=self.past_length,
+            future_length=self.future_length,
+            start_idx=0,
+            end_idx=train_size,
+        )
+
+        self.val_dataset = StockTicker(
+            self.data_path,
+            tickers=[self.tickers],
+            start_date=self.start_date,
+            end_date=self.end_date,
+            mapping=self.ticker_index,
+            force_reload=self.force_reload,
+            past_length=self.past_length,
+            future_length=self.future_length,
+            start_idx=train_size,
+            end_idx=train_size + val_size,
+        )
+
+        self.test_dataset = StockTicker(
+            self.data_path,
+            tickers=[self.tickers],
+            start_date=self.start_date,
+            end_date=self.end_date,
+            mapping=self.ticker_index,
+            force_reload=self.force_reload,
+            past_length=self.past_length,
+            future_length=self.future_length,
+            start_idx=train_size + val_size,
+        )
+
+    def train_dataloader(self) -> DataLoader[Any]:
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.workers,
+        )
+
+    def val_dataloader(self) -> DataLoader[Any]:
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.workers,
+        )
+
+    def test_dataloader(self) -> DataLoader[Any]:
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.workers,
+        )
+
+    def predict_dataloader(self) -> DataLoader[Any]:
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.workers,
+        )

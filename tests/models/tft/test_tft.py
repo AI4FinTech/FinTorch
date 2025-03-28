@@ -30,7 +30,7 @@ def test_tft_forward_only_past_inputs():
         static_inputs=static_inputs,
         batch_size=batch_size,
         device=device,
-        quantiles=quantiles
+        quantiles=quantiles,
     )
 
     # Forward pass
@@ -118,12 +118,7 @@ def test_tft_forward_with_all_inputs():
 
     # Check output shape
     # (batch size, horizon, targets, quantiles)
-    assert output.shape == (
-        batch_size,
-        horizon,
-        1,
-        1
-    ), "Output shape mismatch"
+    assert output.shape == (batch_size, horizon, 1, 1), "Output shape mismatch"
 
     # Check attention weights shape
     # TODO: check expected shape, check what we expect in the other test of the attention-head
@@ -250,12 +245,7 @@ def test_tft_forward_without_static_inputs():
 
     # Check output shape
     # (batch size, horizon, targets, quantiles)
-    assert output.shape == (
-        batch_size,
-        horizon,
-        1,
-        1
-    ), "Output shape mismatch"
+    assert output.shape == (batch_size, horizon, 1, 1), "Output shape mismatch"
 
     # Check attention weights shape
     assert attention_weights.shape == (

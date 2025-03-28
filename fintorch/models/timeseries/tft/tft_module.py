@@ -71,6 +71,10 @@ class TemporalFusionTransformerModule(L.LightningModule):
         quantiles: List[float] = [0.1, 0.5, 0.9],
     ):
         super().__init__()
+        self.save_hyperparameters()
+        assert (
+            number_of_past_inputs > horizon
+        ), "number_of_past_inputs must be larger than horizon"
 
         self.tft_model = TemporalFusionTransformer(
             number_of_past_inputs,
@@ -107,7 +111,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
         assert len(target.shape) == 3, f"Target shape incorrect: {target.shape}"
         assert (
             model_output.shape[:2] == target.shape[:2]
-        ), "Mismatch between predicted and target shape"
+        ), f"Mismatch between predicted: {model_output.shape} and target shape:{target.shape}"
         assert (
             model_output.shape[3] == self.tft_model.number_of_quantiles
         ), "Mismatch between number of predicted quantiles and target quantiles"

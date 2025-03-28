@@ -87,7 +87,7 @@ def test_training_step():
         static_inputs,
         batch_size,
         device,
-        quantiles = quantiles,
+        quantiles=quantiles,
     )
 
     # Create dummy inputs
