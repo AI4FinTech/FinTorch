@@ -37,7 +37,7 @@ def test_download(mock_download):
         )
 
     assert dataset.df_timeseries_dataset.count().shape == (1, 4)
-    ds, y, unique_id = dataset.df_timeseries_dataset.count()
+    ds, y, unique_id, y_scaled = dataset.df_timeseries_dataset.count()
     assert ds[0] > 0
     assert y[0] > 0
     assert unique_id[0] > 0
