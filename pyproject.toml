@@ -5,6 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "fintorch"
 version = "0.6.0"
+authors = [
     { name = "Marcel Boersma", email = "boersma.marcel@gmail.com" }
 ]
 description = "AI4FinTech project  repository"
