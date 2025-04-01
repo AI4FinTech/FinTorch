@@ -4,6 +4,7 @@ from fintorch.datasets.electricity_simple import (
     ElectricityDataModule,
 )
 
+
 def test_electricity_dataset_length():
     dataset = ElectricityDataset(past_length=10, future_length=5)
     expected_length = dataset.length - 10 - 5
@@ -29,7 +30,10 @@ def test_electricity_dataset_slice():
     assert len(sliced_data) == 5, "Sliced dataset length mismatch"
     for past_inputs, target in sliced_data:
         assert "past_data" in past_inputs, "Missing 'past_data' in sliced past_inputs"
-        assert past_inputs["past_data"].shape == (10, 1), "Sliced past data shape mismatch"
+        assert past_inputs["past_data"].shape == (
+            10,
+            1,
+        ), "Sliced past data shape mismatch"
         assert target.shape == (5,), "Sliced target shape mismatch"
 
 
@@ -50,9 +54,15 @@ def test_electricity_data_module_dataloaders():
     val_loader = data_module.val_dataloader()
     test_loader = data_module.test_dataloader()
 
-    assert isinstance(train_loader, DataLoader), "Train dataloader is not a DataLoader instance"
-    assert isinstance(val_loader, DataLoader), "Validation dataloader is not a DataLoader instance"
-    assert isinstance(test_loader, DataLoader), "Test dataloader is not a DataLoader instance"
+    assert isinstance(
+        train_loader, DataLoader
+    ), "Train dataloader is not a DataLoader instance"
+    assert isinstance(
+        val_loader, DataLoader
+    ), "Validation dataloader is not a DataLoader instance"
+    assert isinstance(
+        test_loader, DataLoader
+    ), "Test dataloader is not a DataLoader instance"
 
     # Check batch size
     for batch in train_loader:
