@@ -1,7 +1,29 @@
 import torch.nn as nn
-
+import torch
 
 class Embedding(nn.Module):
+    """
+    Embedding module for time-series data.
+    This module is designed to project input time-series data into a higher-dimensional
+    space using a linear projection layer, followed by layer normalization and dropout.
+    Attributes:
+        number_of_series (int): The number of time-series in the input data.
+        length_input_window (int): The length of the input time-series window.
+        feature_dimensionality (int): The dimensionality of features for each time step.
+        hidden_dimensionality (int): The dimensionality of the hidden embedding space (d_model).
+        dropout (float): The dropout rate applied after the embedding and normalization.
+    Methods:
+        forward(x: torch.Tensor) -> torch.Tensor:
+            Forward pass of the embedding module. Takes a batch of time-series data and
+            returns the embedded representation.
+            Args:
+                x (torch.Tensor): Input tensor of shape
+                    (batch_size, number_of_series, length_input_window, feature_dimensionality).
+            Returns:
+                torch.Tensor: Output tensor of shape
+                    (batch_size, number_of_series, hidden_dimensionality).
+    """
+
     def __init__(
         self,
         number_of_series: int,
@@ -29,9 +51,9 @@ class Embedding(nn.Module):
         )
         self.normalization = nn.LayerNorm(self.d_model)
         # Dropout layer
-        self.dropout = nn.Dropout(self.dropout)
+        self.dropout_layer = nn.Dropout(self.dropout)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (batch_size, number_of_series, length_input_window, feature_dimensionality)
         batch_size = x.shape[0]
         x = x.view(
@@ -44,5 +66,5 @@ class Embedding(nn.Module):
         # Apply layer normalization
         x = self.normalization(x)
         # Apply dropout
-        x = self.dropout(x)
+        x = self.dropout_layer(x)
         return x
