@@ -10,3 +10,4 @@ Tutorials
    tutorials/tradingattheclose/tradingattheclose
    tutorials/marketdata/marketdata
    tutorials/funsd/funsd
+   tutorials/tft/tft
