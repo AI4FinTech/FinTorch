@@ -10,7 +10,7 @@ from huggingface_hub import hf_hub_download  # type: ignore
 from torch import Tensor
 from torch_geometric.data import HeteroData, InMemoryDataset  # type: ignore
 from torch_geometric.loader import LinkNeighborLoader  # type: ignore
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 
 class TransactionActorDataset(InMemoryDataset):  # type: ignore
