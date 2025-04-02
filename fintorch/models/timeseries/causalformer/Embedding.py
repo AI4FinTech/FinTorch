@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 
+
 class Embedding(nn.Module):
     """
     Embedding module for time-series data.
