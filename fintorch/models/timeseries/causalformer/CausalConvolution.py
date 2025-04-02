@@ -3,6 +3,32 @@ import torch.nn as nn
 
 
 class CausalConvolution(nn.Module):
+    """
+    Causal Convolution module for time series data.
+
+    This module applies a causal convolution operation to time series data,
+    allowing for the modeling of temporal dependencies in a causal manner.
+
+    Attributes:
+        number_of_series (int): The number of time series in the input data.
+        length_input_window (int): The length of the input time window.
+        number_of_heads (int): The number of attention heads.
+        kernel (nn.Parameter): The learnable kernel for the causal convolution.
+        base (torch.Tensor): A base tensor used for normalization.
+
+    Methods:
+        shift_kernel(kernel: torch.Tensor, shifts: int) -> torch.Tensor:
+            Shifts the kernel along the time dimension.
+        stack_shifted_kernel(kernel: torch.Tensor) -> torch.Tensor:
+            Stacks the shifted kernels to create a lower triangular kernel.
+        apply_kernel(x: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
+            Applies the kernel to the input data.
+        transform_x(x: torch.Tensor) -> torch.Tensor:
+            Transforms the input data to remove self-information.
+        forward(x: torch.Tensor) -> torch.Tensor:
+            Forward pass of the causal convolution module.
+    """
+
     def __init__(
         self, number_of_series: int, length_input_window: int, number_of_heads: int
     ) -> None:
