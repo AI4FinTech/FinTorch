@@ -86,17 +86,17 @@ def test_apply_kernel():
 
     # Compute output using `einsum`
     result = torch.zeros(
-            (
-                batch_size,
-                number_of_heads,
-                number_of_series,
-                number_of_series,
-                length_input_window,
-                hidden_dimensionality,
-            ),
-            dtype=x.dtype,
-            device=x.device,
-        )
+        (
+            batch_size,
+            number_of_heads,
+            number_of_series,
+            number_of_series,
+            length_input_window,
+            hidden_dimensionality,
+        ),
+        dtype=x.dtype,
+        device=x.device,
+    )
 
     # Einsum notation hxyji,bxif->bhxyjf
     for b in range(batch_size):
