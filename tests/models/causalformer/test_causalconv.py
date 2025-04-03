@@ -85,7 +85,34 @@ def test_apply_kernel():
     kernel = causal_conv.stack_shifted_kernel(causal_conv.kernel)
 
     # Compute output using `einsum`
-    einsum_result = torch.einsum("hxyji,bxif->bhxyjf", kernel, x)
+    result = torch.zeros(
+            (
+                batch_size,
+                number_of_heads,
+                number_of_series,
+                number_of_series,
+                length_input_window,
+                hidden_dimensionality,
+            ),
+            dtype=x.dtype,
+            device=x.device,
+        )
+
+    # Einsum notation hxyji,bxif->bhxyjf
+    for b in range(batch_size):
+        for h in range(number_of_heads):
+            for xx in range(number_of_series):
+                for y in range(number_of_series):
+                    for j in range(length_input_window):
+                        for f in range(hidden_dimensionality):
+                            # End of loop over output results, now inner loop with results
+                            for i in range(length_input_window):
+                                # Apply the learned kernel onto the input value x
+                                # sum over the input window length such that we obtain a single kernelized output
+                                # series causally convoluted with respect to all other series/input window length
+                                result[b, h, xx, y, j, f] += (
+                                    kernel[h, y, xx, j, i] * x[b, xx, i, f]
+                                )
 
     # Compute output using `stacked_output`
     stacked_output_result = causal_conv.apply_kernel(x, kernel)
@@ -93,10 +120,10 @@ def test_apply_kernel():
     # Assert that the two results are close
     assert_close(
         stacked_output_result,
-        einsum_result,
+        result,
         rtol=1e-5,
         atol=1e-8,
-        msg="stacked_output does not match einsum result",
+        msg="stacked_output (einsum) does not match for-loop result",
     )
 
 

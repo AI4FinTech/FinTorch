@@ -183,6 +183,8 @@ nvidia-nvjitlink-cu12==12.8.93
     #   nvidia-cusparse-cu12
 nvidia-nvtx-cu12==12.1.105
     # via torch
+opt-einsum==3.4.0
+    # via fintorch (pyproject.toml)
 optuna==3.6.1
     # via
     #   fintorch (pyproject.toml)

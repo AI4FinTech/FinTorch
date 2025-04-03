@@ -41,7 +41,8 @@ dependencies = [
     "neuralforecast>=1.7.6",
     "ray[tune]==2.10 ",
     "tenacity",
-    "pillow"
+    "pillow",
+    "opt-einsum"
 ]
 
 [project.optional-dependencies]

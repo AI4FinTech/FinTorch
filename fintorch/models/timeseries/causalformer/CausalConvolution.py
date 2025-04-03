@@ -76,37 +76,13 @@ class CausalConvolution(nn.Module):
         number_of_heads, number_of_series, _, length_input_window, _ = kernel.shape
         batch_size, _, _, hidden_dimensionality = x.shape
 
-        result = torch.zeros(
-            (
-                batch_size,
-                number_of_heads,
-                number_of_series,
-                number_of_series,
-                length_input_window,
-                hidden_dimensionality,
-            ),
-            dtype=x.dtype,
-            device=x.device,
-        )
+        # Compute output using `einsum`
+        # for verbose implementation (educational), see tests/models/causalformer/test_causalconv.py
+        einsum_result = torch.einsum("hxyji,bxif->bhxyjf", kernel, x)
 
-        # Einsum notation hxyji,bxif->bhxyjf
-        for b in range(batch_size):
-            for h in range(number_of_heads):
-                for xx in range(number_of_series):
-                    for y in range(number_of_series):
-                        for j in range(length_input_window):
-                            for f in range(hidden_dimensionality):
-                                # End of loop over output results, now inner loop with results
-                                for i in range(length_input_window):
-                                    # Apply the learned kernel onto the input value x
-                                    # sum over the input window length such that we obtain a single kernelized output
-                                    # series causally convoluted with respect to all other series/input window length
-                                    result[b, h, xx, y, j, f] += (
-                                        kernel[h, y, xx, j, i] * x[b, xx, i, f]
-                                    )
-        # Result:
+        # einsum_result:
         # (batch_size, number_of_heads, number_of_series, number_of_series, length_input_window, hidden_dimensionality)
-        return result
+        return einsum_result
 
     def transform_x(self, x: torch.Tensor) -> torch.Tensor:
         for i in range(self.number_of_series):
