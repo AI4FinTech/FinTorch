@@ -78,6 +78,8 @@ class CausalConvolution(nn.Module):
 
         # Compute output using `einsum`
         # for verbose implementation (educational), see tests/models/causalformer/test_causalconv.py
+        # Use einsum for efficient tensor contraction
+        # Notation: h=heads, y,x=series indices, j,i=window indices, b=batch, f=hidden dim
         einsum_result = torch.einsum("hxyji,bxif->bhxyjf", kernel, x)
 
         # einsum_result:
@@ -86,7 +88,6 @@ class CausalConvolution(nn.Module):
 
     def transform_x(self, x: torch.Tensor) -> torch.Tensor:
         for i in range(self.number_of_series):
-            print(f"do something to number_of_series:{i} x[:, :, {i}, {i}, :, :]")
             # Select the the same series in from the (3) and (4) th dimension
             # (batch_size, number_of_heads, i, i, length_input_window, hidden_dimensionality)
             # dim 0 = batch_size
