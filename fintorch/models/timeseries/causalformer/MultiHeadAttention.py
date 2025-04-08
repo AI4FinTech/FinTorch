@@ -42,7 +42,6 @@ class MultiHeadAttention(nn.Module):
 
     """
 
-
     def __init__(
         self,
         number_of_heads: int,
