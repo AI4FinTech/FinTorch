@@ -26,6 +26,7 @@ def test_multheadattention_forward_shape():
         number_of_heads=number_of_heads,
         number_of_series=number_of_series,
         length_input_window=length_input_window,
+        embedding_size=hidden_dimensionality,
         tau=1.0,
     )
 
@@ -81,6 +82,7 @@ def test_multheadattention_forward_with_mask():
         number_of_heads=number_of_heads,
         number_of_series=number_of_series,
         length_input_window=length_input_window,
+        embedding_size=hidden_dimensionality,
         tau=1.0,
     )
 

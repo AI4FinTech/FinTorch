@@ -6,30 +6,36 @@ import torch
 class MultiHeadAttention(nn.Module):
     """
     MultiHeadAttention is a PyTorch module that implements a multi-head attention mechanism
-    for time series data. It computes attention scores and applies them to the input data
-    to produce context-aware representations.
+    for time series data. It computes scaled dot-product attention across multiple heads
+    and series, allowing the model to focus on different parts of the input sequence.
+
     Attributes:
         number_of_heads (int): The number of attention heads.
-        number_of_series (int): The number of time series in the input data.
+        number_of_series (int): The number of time series in the input.
         length_input_window (int): The length of the input time window.
-        embedding_size (int): The size of the embedding dimension.
+        embedding_size (int): The size of the input embedding.
         tau (float): A scaling factor for the attention weights.
-        hidden_dimensionality (int): The dimensionality of each attention head,
-            calculated as embedding_size divided by number_of_heads.
-        activation (nn.Softmax): The softmax activation function applied to the attention scores.
+        hidden_dimensionality (int): The dimensionality of each attention head, computed as
+            embedding_size divided by number_of_heads.
+        activation (nn.Softmax): The softmax activation function applied to the attention weights.
         dropout (nn.Dropout): Dropout layer applied to the attention weights for regularization.
+
     Methods:
-        forward(x, mask=None):
+        forward(x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
             Computes the forward pass of the multi-head attention mechanism.
+
             Args:
-                x (torch.Tensor): Input tensor of shape
-                    (batch_size, number_of_series, length_input_window, hidden_dimensionality).
-                mask (torch.Tensor, optional): A binary mask tensor of the same shape as the
-                    attention scores, where 0 indicates positions to be masked.
+                x (torch.Tensor): The input tensor of shape
+                    (batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality).
+                mask (Optional[torch.Tensor]): An optional mask tensor of shape
+                    (batch_size, number_of_heads, number_of_series, length_input_window, length_input_window)
+                    to prevent attention to certain positions.
+
             Returns:
-                torch.Tensor: Output tensor of shape
-                    (batch_size, number_of_series, length_input_window, hidden_dimensionality).
+                torch.Tensor: The output tensor of shape
+                    (batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality).
     """
+
 
     def __init__(
         self,
@@ -56,23 +62,24 @@ class MultiHeadAttention(nn.Module):
     ) -> torch.Tensor:
         # Make Q, K, V
         Q, K, V = x, x, x
-        # Q, K, V: (batch_size, number_of_series, length_input_window, hidden_dimensionality)
+        # Q, K, V: (batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality)
 
         qk = torch.matmul(Q, K.transpose(-2, -1))
-        # qk: (batch_size, number_of_series, length_input_window, length_input_window)
+        # qk: (batch_size, number_of_heads, number_of_series, length_input_window, length_input_window)
 
         # Scale the dot product by the square root of the hidden dimensionality
         qk = qk / ((self.input_window * self.hidden_dimensionality) ** 0.5)
 
         # Apply masking if provided to ensure zero prediction for masked positions
         if mask is not None:
+            # mask: (batch_size, number_of_heads, number_of_series, length_input_window, length_input_window)
             qk = qk.masked_fill(mask == 0, float("-inf"))
 
-        # attention matrix R^{batch size, number_of_series, lenght_input_window, length_input_window}
+        # attention matrix R^{batch size, number_of_heads, number_of_series, length_input_window, length_input_window}
         attention_weights = self.activation(qk / self.tau)
         attention_weights = self.dropout(attention_weights)
 
-        # output R^{batch size, number_of_series, length_input_window, hidden}
+        # output R^{batch size, number_of_heads, number_of_series, length_input_window, hidden}
         output = torch.matmul(attention_weights, V)
 
         return output
