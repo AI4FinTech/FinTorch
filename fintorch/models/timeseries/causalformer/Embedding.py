@@ -23,6 +23,10 @@ class Embedding(nn.Module):
             Returns:
                 torch.Tensor: Output tensor of shape
                     (batch_size, number_of_series, hidden_dimensionality).
+
+    References:
+    - Kong, Lingbai, Wengen Li, Hanchen Yang, Yichao Zhang, Jihong Guan, and Shuigeng Zhou. 2024. “CausalFormer:
+      An Interpretable Transformer for Temporal Causal Discovery.” arXiv [Cs.LG]. arXiv. http://arxiv.org/abs/2406.16708
     """
 
     def __init__(

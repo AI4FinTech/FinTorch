@@ -34,6 +34,12 @@ class MultiHeadAttention(nn.Module):
             Returns:
                 torch.Tensor: The output tensor of shape
                     (batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality).
+
+
+    References:
+    - Kong, Lingbai, Wengen Li, Hanchen Yang, Yichao Zhang, Jihong Guan, and Shuigeng Zhou. 2024. “CausalFormer:
+      An Interpretable Transformer for Temporal Causal Discovery.” arXiv [Cs.LG]. arXiv. http://arxiv.org/abs/2406.16708
+
     """
 
 
