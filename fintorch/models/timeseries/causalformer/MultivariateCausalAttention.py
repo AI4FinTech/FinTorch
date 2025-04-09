@@ -1,3 +1,5 @@
+from typing import Optional
+
 import torch
 import torch.nn as nn
 from fintorch.models.timeseries.causalformer.CausalConvolution import CausalConvolution
@@ -60,7 +62,11 @@ class MultivariateCausalAttention(nn.Module):
         )
 
     def forward(
-        self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         # q,k: (batch_size, number_of_series, hidden)
         # v: (batch_size, number_of_heads, number_of_series, length_input_window, feature_dimensionality)
