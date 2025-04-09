@@ -10,15 +10,23 @@ def test_multheadattention_forward_shape():
     number_of_series = 5
     length_input_window = 10
     hidden_dimensionality = 16
+    feature_dim = 32
 
     # Create a sample input tensor
-    batch_size = 2
-    x = torch.randn(
+    batch_size = 3
+    Q = torch.randn(
+        batch_size, number_of_heads, number_of_series, hidden_dimensionality
+    )
+    K = torch.randn(
+        batch_size, number_of_heads, number_of_series, hidden_dimensionality
+    )
+    V = torch.randn(
         batch_size,
         number_of_heads,
         number_of_series,
+        number_of_series,
         length_input_window,
-        hidden_dimensionality,
+        feature_dim,
     )
 
     # Initialize the MultiHeadAttention module
@@ -30,19 +38,16 @@ def test_multheadattention_forward_shape():
         tau=1.0,
     )
 
-    # Forward pass
-    output = mha_layer(x)
+    # Forward pass with Q, K, V
+    output = mha_layer(Q, K, V)
 
     # Assertions
-    assert (
-        output.shape
-        == (
-            batch_size,
-            number_of_heads,
-            number_of_series,
-            length_input_window,
-            hidden_dimensionality,
-        )
+    assert output.shape == (
+        batch_size,
+        number_of_heads,
+        number_of_series,
+        length_input_window,
+        feature_dim,
     ), f"Expected output shape {(batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality)}, but got {output.shape}"
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
 
@@ -53,15 +58,23 @@ def test_multheadattention_forward_with_mask():
     number_of_series = 5
     length_input_window = 10
     hidden_dimensionality = 16
+    feature_dim = 32
 
     # Create a sample input tensor
-    batch_size = 2
-    x = torch.randn(
+    batch_size = 3
+    Q = torch.randn(
+        batch_size, number_of_heads, number_of_series, hidden_dimensionality
+    )
+    K = torch.randn(
+        batch_size, number_of_heads, number_of_series, hidden_dimensionality
+    )
+    V = torch.randn(
         batch_size,
         number_of_heads,
         number_of_series,
+        number_of_series,
         length_input_window,
-        hidden_dimensionality,
+        feature_dim,
     )
 
     # Create a mask tensor
@@ -72,8 +85,7 @@ def test_multheadattention_forward_with_mask():
             batch_size,
             number_of_heads,
             number_of_series,
-            length_input_window,
-            length_input_window,
+            number_of_series,
         ),
     )
 
@@ -87,17 +99,14 @@ def test_multheadattention_forward_with_mask():
     )
 
     # Forward pass with mask
-    output = mha_layer(x, mask=mask)
+    output = mha_layer(Q, K, V, mask=mask)
 
     # Assertions
-    assert (
-        output.shape
-        == (
-            batch_size,
-            number_of_heads,
-            number_of_series,
-            length_input_window,
-            hidden_dimensionality,
-        )
+    assert output.shape == (
+        batch_size,
+        number_of_heads,
+        number_of_series,
+        length_input_window,
+        feature_dim,
     ), f"Expected output shape {(batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality)}, but got {output.shape}"
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"

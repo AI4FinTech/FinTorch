@@ -1,6 +1,7 @@
 from typing import Optional
-import torch.nn as nn
+
 import torch
+import torch.nn as nn
 
 
 class MultiHeadAttention(nn.Module):
@@ -63,28 +64,42 @@ class MultiHeadAttention(nn.Module):
         self.dropout = nn.Dropout(0.1)
 
     def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
+        self,
+        Q: torch.Tensor,
+        K: torch.Tensor,
+        V: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        # Make Q, K, V
-        Q, K, V = x, x, x
-        # Q, K, V: (batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality)
+        # Q, K, (batch_size, number_of_heads, number_of_series, hidden_dimensionality)
+        # V: (batch_size, number_of_heads, number_of_series, number_of_series, length_input_window, feature_dim)
+
+        print(f"MultiheadAttention: shape of Q: {Q.shape} -- correct")
+        print(f"MultiheadAttention: shape of K: {K.shape} -- correct")
+        print(f"MultiheadAttention: shape of V: {V.shape} -- correct")
 
         qk = torch.matmul(Q, K.transpose(-2, -1))
-        # qk: (batch_size, number_of_heads, number_of_series, length_input_window, length_input_window)
+        # qk: (batch_size, number_of_heads, number_of_series, number_of_series)
+        print(f"MultiheadAttention: shape of qk: {qk.shape} -- correct")
 
         # Scale the dot product by the square root of the hidden dimensionality
         qk = qk / ((self.input_window * self.hidden_dimensionality) ** 0.5)
 
         # Apply masking if provided to ensure zero prediction for masked positions
         if mask is not None:
-            # mask: (batch_size, number_of_heads, number_of_series, length_input_window, length_input_window)
+            # mask: (batch_size, number_of_heads, number_of_series, number_of_series)
             qk = qk.masked_fill(mask == 0, float("-inf"))
 
-        # attention matrix R^{batch size, number_of_heads, number_of_series, length_input_window, length_input_window}
+        # attention matrix R^{batch size, number_of_heads, number_of_series, number_of_series}
         attention_weights = self.activation(qk / self.tau)
         attention_weights = self.dropout(attention_weights)
 
+        print(
+            f"MultiheadAttention: shape of attention_weights: {attention_weights.shape} -- correct"
+        )
         # output R^{batch size, number_of_heads, number_of_series, length_input_window, hidden}
-        output = torch.matmul(attention_weights, V)
+        # einsum over dimension j = number_of_series
+        output = torch.einsum("bhij,bhjitf->bhitf", attention_weights, V)
+
+        print(f"MultiheadAttention: shape of output: {output.shape} -- correct")
 
         return output
