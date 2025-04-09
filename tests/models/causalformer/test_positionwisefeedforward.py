@@ -64,10 +64,7 @@ def test_positionwisefeedforward_dropout_effect():
         output_eval_2 = ff_layer(x)
 
     # Assertions for eval mode
-    (
-        assert_close(output_eval_1, output_eval_2),
-        "Outputs should be identical in eval mode",
-    )
+    assert_close(output_eval_1, output_eval_2, msg="Outputs should be identical in eval mode")
 
     # --- Training mode (dropout enabled) ---
     ff_layer.train()
