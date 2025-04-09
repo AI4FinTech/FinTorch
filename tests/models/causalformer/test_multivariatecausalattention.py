@@ -48,11 +48,14 @@ def test_multivariatecausalattention_forward_shape():
     output = mca_layer(q, k, v, mask)
 
     # Assertions
-    assert output.shape == (
-        batch_size,
-        number_of_series,
-        length_input_window,
-        feature_dim,
+    assert (
+        output.shape
+        == (
+            batch_size,
+            number_of_series,
+            length_input_window,
+            feature_dim,
+        )
     ), f"Expected output shape {(batch_size, number_of_series, length_input_window, feature_dim)}, but got {output.shape}"
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
 

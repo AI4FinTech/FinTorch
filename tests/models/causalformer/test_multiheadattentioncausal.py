@@ -42,12 +42,15 @@ def test_multheadattention_forward_shape():
     output = mha_layer(Q, K, V)
 
     # Assertions
-    assert output.shape == (
-        batch_size,
-        number_of_heads,
-        number_of_series,
-        length_input_window,
-        feature_dim,
+    assert (
+        output.shape
+        == (
+            batch_size,
+            number_of_heads,
+            number_of_series,
+            length_input_window,
+            feature_dim,
+        )
     ), f"Expected output shape {(batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality)}, but got {output.shape}"
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
 
@@ -102,11 +105,14 @@ def test_multheadattention_forward_with_mask():
     output = mha_layer(Q, K, V, mask=mask)
 
     # Assertions
-    assert output.shape == (
-        batch_size,
-        number_of_heads,
-        number_of_series,
-        length_input_window,
-        feature_dim,
+    assert (
+        output.shape
+        == (
+            batch_size,
+            number_of_heads,
+            number_of_series,
+            length_input_window,
+            feature_dim,
+        )
     ), f"Expected output shape {(batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality)}, but got {output.shape}"
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
