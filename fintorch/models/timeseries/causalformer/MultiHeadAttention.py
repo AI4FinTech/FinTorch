@@ -73,13 +73,8 @@ class MultiHeadAttention(nn.Module):
         # Q, K, (batch_size, number_of_heads, number_of_series, hidden_dimensionality)
         # V: (batch_size, number_of_heads, number_of_series, number_of_series, length_input_window, feature_dim)
 
-        print(f"MultiheadAttention: shape of Q: {Q.shape} -- correct")
-        print(f"MultiheadAttention: shape of K: {K.shape} -- correct")
-        print(f"MultiheadAttention: shape of V: {V.shape} -- correct")
-
         qk = torch.matmul(Q, K.transpose(-2, -1))
         # qk: (batch_size, number_of_heads, number_of_series, number_of_series)
-        print(f"MultiheadAttention: shape of qk: {qk.shape} -- correct")
 
         # Scale the dot product by the square root of the hidden dimensionality
         qk = qk / ((self.input_window * self.hidden_dimensionality) ** 0.5)
@@ -93,13 +88,8 @@ class MultiHeadAttention(nn.Module):
         attention_weights = self.activation(qk / self.tau)
         attention_weights = self.dropout(attention_weights)
 
-        print(
-            f"MultiheadAttention: shape of attention_weights: {attention_weights.shape} -- correct"
-        )
         # output R^{batch size, number_of_heads, number_of_series, length_input_window, hidden}
         # einsum over dimension j = number_of_series
         output = torch.einsum("bhij,bhjitf->bhitf", attention_weights, V)
-
-        print(f"MultiheadAttention: shape of output: {output.shape} -- correct")
 
         return output
