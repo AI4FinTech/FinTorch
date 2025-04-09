@@ -92,13 +92,14 @@ class MultivariateCausalAttention(nn.Module):
         output = self.attention(Q, K, V, mask)
         # output: (batch_size, number_of_heads, number_of_series, length_input_window, feature_dimensionality)
 
-        ######### Concatenate
+        # Concatenate
         # each head has attention weighted output features, we want to concatenate these features
         # and project them into the original feature dimension space
 
         # Step 1: Here we concatenate the number of series and input window per batch, number of heads.
         # Therefore, all individual time-series become one long time-series
         # number_of_series * length_input_window = one long timeseries
+        batch_size = Q.shape[0]
         output = output.reshape(
             -1,
             self.number_of_heads,
@@ -112,7 +113,7 @@ class MultivariateCausalAttention(nn.Module):
         # Here we concatenate the features for each head into a single vector per batch, one long timeseries
         # head_concat_features = number_of_heads * feature_dimensionality
         output = output.view(
-            Q.shape[0],
+            batch_size,
             self.number_of_series * self.input_window,
             self.number_of_heads * self.feature_dimensionality,
         )
@@ -132,4 +133,4 @@ class MultivariateCausalAttention(nn.Module):
         output = self.concat_proj(output)
         # output: (batch_size, number_of_series, length_input_window, feature_dimensionality)
 
-        return output
+        return output  # type: ignore
