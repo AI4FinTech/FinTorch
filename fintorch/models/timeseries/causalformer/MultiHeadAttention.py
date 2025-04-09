@@ -6,35 +6,33 @@ import torch.nn as nn
 
 class MultiHeadAttention(nn.Module):
     """
-    MultiHeadAttention is a PyTorch module that implements a multi-head attention mechanism
-    for time series data. It computes scaled dot-product attention across multiple heads
-    and series, allowing the model to focus on different parts of the input sequence.
+    Multi-Head Attention module for the CausalFormer model.
+
+    This module implements the multi-head attention mechanism, which allows the model to
+    attend to information from different representation subspaces at different positions.
 
     Attributes:
         number_of_heads (int): The number of attention heads.
-        number_of_series (int): The number of time series in the input.
+        number_of_series (int): The number of time series in the input data.
         length_input_window (int): The length of the input time window.
         embedding_size (int): The size of the input embedding.
         tau (float): A scaling factor for the attention weights.
-        hidden_dimensionality (int): The dimensionality of each attention head, computed as
-            embedding_size divided by number_of_heads.
-        activation (nn.Softmax): The softmax activation function applied to the attention weights.
-        dropout (nn.Dropout): Dropout layer applied to the attention weights for regularization.
+        hidden_dimensionality (int): The dimensionality of the hidden space for each head.
+        activation (nn.Softmax): The softmax activation function.
+        dropout (nn.Dropout): The dropout layer.
 
     Methods:
-        forward(x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-            Computes the forward pass of the multi-head attention mechanism.
+        forward(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+            Forward pass of the multi-head attention module.
 
             Args:
-                x (torch.Tensor): The input tensor of shape
-                    (batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality).
-                mask (Optional[torch.Tensor]): An optional mask tensor of shape
-                    (batch_size, number_of_heads, number_of_series, length_input_window, length_input_window)
-                    to prevent attention to certain positions.
+                Q (torch.Tensor): Query tensor.
+                K (torch.Tensor): Key tensor.
+                V (torch.Tensor): Value tensor.
+                mask (Optional[torch.Tensor]): Optional mask tensor.
 
             Returns:
-                torch.Tensor: The output tensor of shape
-                    (batch_size, number_of_heads, number_of_series, length_input_window, hidden_dimensionality).
+                torch.Tensor: The output tensor.
 
 
     References:
