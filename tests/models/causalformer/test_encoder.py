@@ -37,7 +37,7 @@ def test_encoder_forward():
     try:
         encoder(x)
     except Exception as e:
-        assert False, f"Encoder forward pass failed with exception: {e}"
+        raise AssertionError(f"Encoder forward pass failed with exception: {e}")
 
 
 def test_encoder_embedding_output_shape():
