@@ -35,7 +35,15 @@ def test_encoder_forward():
 
     # Forward pass
     try:
-        encoder(x)
+        output = encoder(x)
+
+        # Assertions
+        expected_shape = (batch_size, number_of_series, length_input_window, feature_dimensionality)
+        assert (
+            output.shape == expected_shape
+        ), f"Expected output shape {expected_shape}, but got {output.shape}"
+        assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
+
     except Exception as e:
         raise AssertionError(f"Encoder forward pass failed with exception: {e}")
 
