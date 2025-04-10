@@ -27,6 +27,11 @@ class CausalConvolution(nn.Module):
             Transforms the input data to remove self-information.
         forward(x: torch.Tensor) -> torch.Tensor:
             Forward pass of the causal convolution module.
+
+    References:
+    - Kong, Lingbai, Wengen Li, Hanchen Yang, Yichao Zhang, Jihong Guan, and Shuigeng Zhou. 2024. “CausalFormer:
+      An Interpretable Transformer for Temporal Causal Discovery.” arXiv [Cs.LG]. arXiv. http://arxiv.org/abs/2406.16708
+
     """
 
     def __init__(

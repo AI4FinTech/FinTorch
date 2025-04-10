@@ -9,6 +9,49 @@ from fintorch.models.timeseries.causalformer.MultiHeadAttention import (
 
 
 class MultivariateCausalAttention(nn.Module):
+    """
+    MultivariateCausalAttention is a PyTorch module that implements a multivariate causal attention mechanism
+    for time-series data. It combines causal convolutions and multi-head attention to process multivariate
+    time-series inputs.
+    Attributes:
+        Q_proj (nn.Linear): Linear layer to project input embeddings to query (Q) space.
+        K_proj (nn.Linear): Linear layer to project input embeddings to key (K) space.
+        V_proj (CausalConvolution): Causal convolution layer to project raw inputs to value (V) space.
+        attention (MultiHeadAttention): Multi-head attention mechanism for computing attention scores.
+        tensor_head_dimensionality (int): Dimensionality of each attention head.
+        number_of_heads (int): Number of attention heads.
+        number_of_series (int): Number of time-series in the input.
+        input_window (int): Length of the input time-series window.
+        feature_dimensionality (int): Dimensionality of the feature space.
+        concat_proj (nn.Linear): Linear layer to project concatenated attention outputs to the original feature space.
+    Args:
+        number_of_heads (int): Number of attention heads.
+        number_of_series (int): Number of time-series in the input.
+        length_input_window (int): Length of the input time-series window.
+        embedding_size (int): Dimensionality of the input embeddings.
+        feature_dimensionality (int): Dimensionality of the feature space.
+        tau (float): Scaling factor for attention scores.
+        dropout (float): Dropout rate for regularization.
+    Methods:
+        forward(q, k, v, mask=None):
+            Computes the forward pass of the multivariate causal attention mechanism.
+            Args:
+                q (torch.Tensor): Query tensor of shape (batch_size, number_of_series, hidden_dimensionality).
+                k (torch.Tensor): Key tensor of shape (batch_size, number_of_series, hidden_dimensionality).
+                v (torch.Tensor): Value tensor of shape
+                    (batch_size, number_of_heads, number_of_series, length_input_window, feature_dimensionality).
+                mask (Optional[torch.Tensor]): Optional mask tensor for attention computation.
+            Returns:
+                torch.Tensor: Output tensor of shape
+                    (batch_size, number_of_series, length_input_window, feature_dimensionality).
+
+
+    References:
+    - Kong, Lingbai, Wengen Li, Hanchen Yang, Yichao Zhang, Jihong Guan, and Shuigeng Zhou. 2024. “CausalFormer:
+      An Interpretable Transformer for Temporal Causal Discovery.” arXiv [Cs.LG]. arXiv. http://arxiv.org/abs/2406.16708
+
+    """
+
     def __init__(
         self,
         number_of_heads: int,

@@ -45,7 +45,7 @@ class Embedding(nn.Module):
         self.dropout = dropout
         self.d_model = hidden_dimensionality
 
-        # A liinear projection layer to generate embeddingd for input time-series.
+        # A linear projection layer to generate embeddingd for input time-series.
         # We project from R^{N x T} -> R^{N x d} with d as the dimensionality
 
         # Linear projection layer
