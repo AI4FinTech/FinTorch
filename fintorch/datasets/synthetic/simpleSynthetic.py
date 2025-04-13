@@ -3,6 +3,7 @@ from typing import Any, List, Optional
 import lightning as L
 import numpy as np
 import torch
+from sklearn.preprocessing import StandardScaler  # type: ignore
 from torch.utils.data import DataLoader, Dataset
 
 
@@ -61,6 +62,9 @@ class SimpleSyntheticDataset(Dataset):  # type: ignore
         self.data = self._generate_data()
 
     def _generate_data(self) -> List[float]:
+        # Initialize the scaler
+        scaler = StandardScaler()
+
         data = []
         for i in range(self.length):
             # Trend component
@@ -77,7 +81,16 @@ class SimpleSyntheticDataset(Dataset):  # type: ignore
             # Combine components
             value = trend + seasonality + noise
             data.append(value)
-        return data
+
+        # Fit the scaler on the data and transform it
+        data_scaled = scaler.fit_transform(np.array(data).reshape(-1, 1))
+
+        # Store the scaler for later use
+        self.scaler = scaler
+
+        data_scaled = data_scaled.flatten().tolist()
+
+        return data_scaled  # type: ignore
 
     def __len__(self) -> int:
         return self.length - self.past_length - self.future_length
