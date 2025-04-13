@@ -90,7 +90,7 @@ class SimpleSyntheticDataset(Dataset):  # type: ignore
 
         data_scaled = data_scaled.flatten().tolist()
 
-        return data_scaled
+        return data_scaled  # type: ignore
 
     def __len__(self) -> int:
         return self.length - self.past_length - self.future_length

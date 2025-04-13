@@ -1,9 +1,8 @@
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
 
 import lightning as L
 import torch
 from fintorch.models.timeseries.causalformer.CausalFormer import CausalFormer
-from lightning.pytorch.utilities.types import STEP_OUTPUT
 from torch.optim.lr_scheduler import StepLR
 
 
@@ -30,26 +29,33 @@ class CausalFormerModule(L.LightningModule):
         self.save_hyperparameters()
 
         self.causalformer = CausalFormer(
-            number_of_layers=self.hparams.number_of_layers,
-            number_of_heads=self.hparams.number_of_heads,
-            number_of_series=self.hparams.number_of_series,
-            length_input_window=self.hparams.length_input_window,
-            length_output_window=self.hparams.length_output_window,
-            embedding_size=self.hparams.embedding_size,
-            feature_dimensionality=self.hparams.feature_dimensionality,
-            ffn_hidden_dimensionality=self.hparams.ffn_hidden_dimensionality,
-            output_dimensionality=self.hparams.output_dimensionality,
-            tau=self.hparams.tau,
-            dropout=self.hparams.dropout,
+            number_of_layers=self.hparams["number_of_layers"],
+            number_of_heads=self.hparams["number_of_heads"],
+            number_of_series=self.hparams["number_of_series"],
+            length_input_window=self.hparams["length_input_window"],
+            length_output_window=self.hparams["length_output_window"],
+            embedding_size=self.hparams["embedding_size"],
+            feature_dimensionality=self.hparams["feature_dimensionality"],
+            ffn_hidden_dimensionality=self.hparams["ffn_hidden_dimensionality"],
+            output_dimensionality=self.hparams["output_dimensionality"],
+            tau=self.hparams["tau"],
+            dropout=self.hparams["dropout"],
         )
 
         self.loss = torch.nn.L1Loss()
-        self.loss = torch.nn.MSELoss()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> Any:
         return self.causalformer(x)
 
-    def _prepare_data(self, batch):
+    def _prepare_data(
+        self,
+        batch: Tuple[
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            torch.Tensor,
+        ],
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         past_inputs, _, _, target = batch
         x, y = past_inputs["past_data"], target
 
@@ -61,8 +67,15 @@ class CausalFormerModule(L.LightningModule):
         return x, y
 
     def training_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> STEP_OUTPUT:
+        self,
+        batch: Tuple[
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            torch.Tensor,
+        ],
+        batch_idx: int,
+    ) -> Dict[str, torch.Tensor]:
         x, y = self._prepare_data(batch)
         y_hat = self(x)
         loss = self.loss(y_hat, y)
@@ -72,8 +85,15 @@ class CausalFormerModule(L.LightningModule):
         return {"loss": loss}
 
     def test_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> STEP_OUTPUT:
+        self,
+        batch: Tuple[
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            torch.Tensor,
+        ],
+        batch_idx: int,
+    ) -> Dict[str, torch.Tensor]:
         x, y = self._prepare_data(batch)
         y_hat = self(x)
         loss = self.loss(y_hat, y)
@@ -84,18 +104,30 @@ class CausalFormerModule(L.LightningModule):
 
     def predict_step(
         self,
-        batch: Tuple[torch.Tensor, torch.Tensor],
+        batch: Tuple[
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            torch.Tensor,
+        ],
         batch_idx: int,
         dataloader_idx: int = 0,
-    ) -> torch.Tensor:
+    ) -> Any:  # type: ignore
         x, _ = self._prepare_data(batch)
         y_hat = self(x)
         return y_hat
 
     def validation_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> torch.Tensor:
-        x, y = self._prepare_data(batch)
+        self,
+        batch: Tuple[
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            torch.Tensor,
+        ],
+        batch_idx: int,
+    ) -> Any:
+        x, y = self._prepare_data(batch)  # type: ignore
         y_hat = self(x)
         loss = self.loss(y_hat, y)
         self.log(
@@ -126,15 +158,15 @@ class CausalFormerModule(L.LightningModule):
     def configure_optimizers(self) -> Any:
         optimizer = torch.optim.Adam(
             self.parameters(),
-            lr=self.hparams.learning_rate,
-            weight_decay=self.hparams.weight_decay,
+            lr=self.hparams["learning_rate"],
+            weight_decay=self.hparams["weight_decay"],
             amsgrad=True,
         )
 
         scheduler = StepLR(
             optimizer=optimizer,
-            step_size=self.hparams.lr_step_size,
-            gamma=self.hparams.lr_gamma,
+            step_size=self.hparams["lr_step_size"],
+            gamma=self.hparams["lr_gamma"],
         )
 
         # Return the optimizer and scheduler in the format Lightning expects
