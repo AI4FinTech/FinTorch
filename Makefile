@@ -99,12 +99,7 @@ pre-commit: mypy
 	pre-commit run
 
 dev-requirements:
-	python -m piptools compile \
-    --extra dev \
-    -o dev-requirements.txt \
-    pyproject.toml
+	uv pip compile --extra dev -o dev-requirements.txt pyproject.toml
 
 requirements:
-	python -m piptools compile \
-    -o requirements.txt \
-    pyproject.toml
+	uv pip compile -o requirements.txt pyproject.toml

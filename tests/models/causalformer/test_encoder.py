@@ -38,7 +38,12 @@ def test_encoder_forward():
         output = encoder(x)
 
         # Assertions
-        expected_shape = (batch_size, number_of_series, length_input_window, feature_dimensionality)
+        expected_shape = (
+            batch_size,
+            number_of_series,
+            length_input_window,
+            feature_dimensionality,
+        )
         assert (
             output.shape == expected_shape
         ), f"Expected output shape {expected_shape}, but got {output.shape}"

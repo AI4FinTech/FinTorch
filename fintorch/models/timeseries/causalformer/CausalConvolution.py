@@ -122,6 +122,10 @@ class CausalConvolution(nn.Module):
         # x after:
         # (batch_size, number_of_heads, number_of_series, number_of_series, length_input_window, hidden_dimensionality)
         x = self.apply_kernel(x, kernel)
+
+        # TODO: check performance impact and other ways to do this, currently it might be on two devices
+        self.base = self.base.to(x.device)
+
         x = x / self.base  # divide by 6D tensor
 
         # Remove self-information (Ground-truth)
