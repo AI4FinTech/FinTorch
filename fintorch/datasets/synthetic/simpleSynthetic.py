@@ -1,13 +1,15 @@
-from typing import Any, List, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import lightning as L
 import numpy as np
 import torch
 from sklearn.preprocessing import StandardScaler  # type: ignore
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
+
+from fintorch.datasets.base import TimeSeriesDataset
 
 
-class SimpleSyntheticDataset(Dataset):  # type: ignore
+class SimpleSyntheticDataset(TimeSeriesDataset):
     """
     SimpleSyntheticDataset is a PyTorch Dataset that generates synthetic time series data
     with configurable trend, seasonality, and noise components. It is designed for tasks
@@ -24,6 +26,8 @@ class SimpleSyntheticDataset(Dataset):  # type: ignore
         past_length (int): Length of the past data window. Default is 10.
         future_length (int): Length of the future data window. Default is 5.
         static_length (int): Length of the static feature vector. Default is 2.
+        num_series (int): Number of time series to generate. Default is 1.
+        features_dim (int): Number of features for each time series. Default is 1.
     Methods:
         __len__():
             Returns the number of samples in the dataset, accounting for the past and future window lengths.
@@ -34,9 +38,13 @@ class SimpleSyntheticDataset(Dataset):  # type: ignore
             Returns:
                 tuple: A tuple containing:
                     - past_inputs (dict): Dictionary with past data tensor under the key "past_data".
+                                         Shape: (past_length, num_series, features_dim)
                     - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
+                                           Shape: (future_length, num_series, features_dim)
                     - static_inputs (dict): Dictionary with static data tensor under the key "static_data".
+                                           Shape: (static_length,)
                     - target (torch.Tensor): Target tensor representing the future data.
+                                            Shape: (future_length, num_series, features_dim)
     """
 
     def __init__(
@@ -49,72 +57,153 @@ class SimpleSyntheticDataset(Dataset):  # type: ignore
         past_length: int = 10,
         future_length: int = 5,
         static_length: int = 2,
+        num_series: int = 1,
+        features_dim: int = 1,
     ) -> None:
+        super().__init__()
         self.length = length
         self.trend_slope = trend_slope
         self.seasonality_amplitude = seasonality_amplitude
         self.seasonality_period = seasonality_period
         self.noise_level = noise_level
-        self.past_length = past_length
-        self.future_length = future_length
-        self.static_length = static_length
+        self._past_length = past_length
+        self._future_length = future_length
+        self._static_length = static_length
+        self._num_series = num_series
+        self._features_dim = features_dim
 
         self.data = self._generate_data()
 
-    def _generate_data(self) -> List[float]:
+    def _generate_data(self) -> np.ndarray:
+        """
+        Generate synthetic time series data with trend, seasonality, and noise components.
+
+        Returns:
+            np.ndarray: Generated data with shape (length, num_series, features_dim)
+        """
         # Initialize the scaler
-        scaler = StandardScaler()
+        scalers = [StandardScaler() for _ in range(self._num_series)]
 
-        data = []
-        for i in range(self.length):
-            # Trend component
-            trend = self.trend_slope * i
+        # Create empty array to store data
+        all_series_data = np.zeros((self.length, self._num_series, self._features_dim))
 
-            # Seasonality component
-            seasonality = self.seasonality_amplitude * np.sin(
-                2 * np.pi * i / self.seasonality_period
-            )
+        # Generate each series
+        for series_idx in range(self._num_series):
+            for feature_idx in range(self._features_dim):
+                # Generate a single time series
+                data = []
+                # Adjust parameters slightly for each series to create diversity
+                ts_adjust = 1.0 + 0.1 * (series_idx / max(1, self._num_series))
+                feat_adjust = 1.0 + 0.05 * (feature_idx / max(1, self._features_dim))
 
-            # Noise component
-            noise = np.random.normal(0, self.noise_level)
+                for i in range(self.length):
+                    # Trend component
+                    trend = self.trend_slope * ts_adjust * i
 
-            # Combine components
-            value = trend + seasonality + noise
-            data.append(value)
+                    # Seasonality component with phase shift for diversity
+                    phase_shift = (
+                        0.5 * np.pi * (series_idx / max(1, self._num_series - 1))
+                        if self._num_series > 1
+                        else 0
+                    )
+                    seasonality = (
+                        self.seasonality_amplitude
+                        * feat_adjust
+                        * np.sin(2 * np.pi * i / self.seasonality_period + phase_shift)
+                    )
 
-        # Fit the scaler on the data and transform it
-        data_scaled = scaler.fit_transform(np.array(data).reshape(-1, 1))
+                    # Noise component
+                    noise = np.random.normal(0, self.noise_level)
 
-        # Store the scaler for later use
-        self.scaler = scaler
+                    # Combine components
+                    value = trend + seasonality + noise
+                    data.append(value)
 
-        data_scaled = data_scaled.flatten().tolist()
+                # Scale the data
+                data_array = np.array(data).reshape(-1, 1)
+                scaled_data = scalers[series_idx].fit_transform(data_array)
 
-        return data_scaled  # type: ignore
+                # Store in the main array
+                all_series_data[:, series_idx, feature_idx] = scaled_data.flatten()
+
+        # Store the scalers for later use
+        self.scalers = scalers
+
+        return all_series_data
 
     def __len__(self) -> int:
-        return self.length - self.past_length - self.future_length
+        return self.length - self._past_length - self._future_length
 
-    def __getitem__(self, idx: int) -> Any:
-        past_data = self.data[idx : idx + self.past_length]
+    @property
+    def time_steps(self) -> int:
+        return self._past_length
+
+    @property
+    def future_steps(self) -> int:
+        return self._future_length
+
+    @property
+    def series_dim(self) -> int:
+        return self._num_series
+
+    @property
+    def features_dim(self) -> int:
+        return self._features_dim
+
+    @property
+    def static_length(self) -> int:
+        return self._static_length
+
+    def __getitem__(
+        self, idx: int
+    ) -> Tuple[
+        Dict[str, torch.Tensor],
+        Dict[str, torch.Tensor],
+        Dict[str, torch.Tensor],
+        torch.Tensor,
+    ]:
+        """
+        Get a sample from the dataset at the specified index.
+
+        Args:
+            idx (int): The index of the sample to retrieve
+
+        Returns:
+            tuple: A tuple containing:
+                - past_inputs (dict): Dictionary with past data tensor under the key "past_data".
+                                     Shape: (past_length, num_series, features_dim)
+                - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
+                                       Shape: (future_length, num_series, features_dim)
+                - static_inputs (dict): Dictionary with static data tensor under the key "static_data".
+                                       Shape: (static_length,)
+                - target (torch.Tensor): Target tensor representing the future data.
+                                        Shape: (future_length, num_series, features_dim)
+        """
+        # Extract the past and future window data
+        past_data = self.data[idx : idx + self._past_length]
         future_data = self.data[
-            idx + self.past_length : idx + self.past_length + self.future_length
+            idx + self._past_length : idx + self._past_length + self._future_length
         ]
-        target = future_data
+        target = future_data.copy()  # Create a copy to avoid reference issues
 
         # Generate static data
-        static_data = np.random.rand(self.static_length)
+        static_data = np.random.rand(self._static_length)
 
         # Convert to tensors
-        past_data = torch.tensor(past_data).float().unsqueeze(-1)  # type: ignore
-        future_data = torch.tensor(future_data).float()  # type: ignore
+        past_data = torch.tensor(
+            past_data
+        ).float()  # Shape: (past_length, num_series, features_dim)
+        future_data = torch.tensor(
+            future_data
+        ).float()  # Shape: (future_length, num_series, features_dim)
+        static_data = torch.tensor(static_data).float()  # Shape: (static_length,)
+        target = torch.tensor(
+            target
+        ).float()  # Shape: (future_length, num_series, features_dim)
 
-        static_data = torch.tensor(static_data).float()  # type: ignore
-        target = torch.tensor(target).float()  # type: ignore
-
-        # Create a dictionary for past, future, and static data
+        # Create dictionaries for the inputs
         past_inputs = {"past_data": past_data}
-        future_inputs = {"future_data": future_data.unsqueeze(-1)}  # type: ignore
+        future_inputs = {"future_data": future_data}
         static_inputs = {"static_data": static_data}
 
         return past_inputs, future_inputs, static_inputs, target
@@ -137,6 +226,8 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         past_length (int): Number of past time steps to include in the input sequence. Default is 10.
         future_length (int): Number of future time steps to predict. Default is 5.
         static_length (int): Number of static features to include in the dataset. Default is 2.
+        num_series (int): Number of time series to generate. Default is 1.
+        features_dim (int): Number of features for each time series. Default is 1.
         workers (int): Number of worker threads for data loading. Default is 1.
     Methods:
         setup(stage=None):
@@ -164,6 +255,8 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         past_length: int = 10,
         future_length: int = 5,
         static_length: int = 2,
+        num_series: int = 1,
+        features_dim: int = 1,
         workers: int = 1,
     ):
         super().__init__()
@@ -178,9 +271,17 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         self.past_length = past_length
         self.future_length = future_length
         self.static_length = static_length
+        self.num_series = num_series
+        self.features_dim = features_dim
         self.workers = workers
 
     def setup(self, stage: Optional[str] = None) -> None:
+        """
+        Set up the datasets for training, validation, and testing.
+
+        Args:
+            stage: Optional stage parameter for different dataset splits
+        """
         self.train_dataset = SimpleSyntheticDataset(
             length=self.train_length,
             trend_slope=self.trend_slope,
@@ -190,6 +291,8 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
             past_length=self.past_length,
             future_length=self.future_length,
             static_length=self.static_length,
+            num_series=self.num_series,
+            features_dim=self.features_dim,
         )
 
         self.test_dataset = SimpleSyntheticDataset(
@@ -201,6 +304,8 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
             past_length=self.past_length,
             future_length=self.future_length,
             static_length=self.static_length,
+            num_series=self.num_series,
+            features_dim=self.features_dim,
         )
 
         self.val_dataset = SimpleSyntheticDataset(
@@ -212,9 +317,12 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
             past_length=self.past_length,
             future_length=self.future_length,
             static_length=self.static_length,
+            num_series=self.num_series,
+            features_dim=self.features_dim,
         )
 
     def train_dataloader(self) -> DataLoader[Any]:
+        """Returns the DataLoader for training data"""
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -223,6 +331,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         )
 
     def val_dataloader(self) -> DataLoader[Any]:
+        """Returns the DataLoader for validation data"""
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
@@ -231,6 +340,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         )
 
     def test_dataloader(self) -> DataLoader[Any]:
+        """Returns the DataLoader for test data"""
         return DataLoader(
             self.test_dataset,
             batch_size=self.batch_size,
@@ -239,6 +349,7 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         )
 
     def predict_dataloader(self) -> DataLoader[Any]:
+        """Returns the DataLoader for prediction data"""
         return DataLoader(
             self.test_dataset,
             batch_size=self.batch_size,

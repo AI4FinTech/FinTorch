@@ -258,13 +258,16 @@ if __name__ == "__main__":
         selected_batch_predictions = all_predictions[batch_idx]
         _, _, _, selected_batch_target = final_data_module.test_dataset[batch_idx]
 
+        # Ensure proper reshaping for target and predictions
+        # Get first series (index 0) of both tensors
+        prediction_to_plot = selected_batch_predictions[0].detach().cpu()
+        target_to_plot = selected_batch_target.permute(1, 0, 2)[0].detach().cpu()
+
         plt.subplot(num_batches_to_plot, 1, idx + 1)  # Create subplots
 
+        plt.plot(target_to_plot.flatten(), label="Target", marker="o", linestyle="-")
         plt.plot(
-            selected_batch_target.squeeze(), label="Target", marker="o", linestyle="-"
-        )
-        plt.plot(
-            selected_batch_predictions.squeeze(),
+            prediction_to_plot.flatten(),
             label="Predicted",
             marker="x",
             linestyle="--",

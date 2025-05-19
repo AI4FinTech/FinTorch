@@ -91,3 +91,21 @@ class MultiHeadAttention(nn.Module):
         output = torch.einsum("bhij,bhjitf->bhitf", attention_weights, V)
 
         return output
+
+    def layerwise_relevance_propagation(self, x: torch.Tensor) -> torch.Tensor:
+        rel = self.w_concat.relprop(x)
+        rel = rel.reshape(
+            -1, self.series_num * self.input_window, self.n_head * self.feature_dim
+        )
+        rel = self.split(rel)
+        rel = rel.reshape(
+            -1, self.n_head, self.series_num, self.input_window, self.feature_dim
+        )
+        rel_q, rel_k, rel_v = self.attention.relprop(rel)
+        rel_q, rel_k = self.concat(rel_q), self.concat(rel_k)
+        rel_q, rel_k, rel_v = (
+            self.Wq.relprop(rel_q),
+            self.Wk.relprop(rel_k),
+            self.Wv.relprop(rel_v),
+        )
+        return rel_q, rel_k, rel_v

@@ -61,7 +61,7 @@ class Embedding(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (batch_size, number_of_series, length_input_window, feature_dimensionality)
         batch_size = x.shape[0]
-        x = x.view(
+        x = x.contiguous().view(
             batch_size,
             self.number_of_series,
             self.length_input_window * self.feature_dimensionality,

@@ -1,11 +1,10 @@
-import os
-
+import numpy as np
 import lightning as L
 import matplotlib.pyplot as plt
 import torch
 from lightning.pytorch.callbacks import EarlyStopping
+from torch.utils.data import DataLoader, Dataset
 
-from fintorch.datasets.synthetic import SimpleSyntheticDataModule
 from fintorch.models.timeseries.tft import (
     GatedResidualNetwork,
     InterpretableMultiHeadAttention,
@@ -118,7 +117,8 @@ for head in range(number_of_heads):
     ax.set_title(f"Attention Map - Head {head+1}")
 
 fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.7, label="Attention Weight")
-plt.show()
+plt.savefig("attention_maps.png")
+plt.close()
 
 
 print("####### TFT ########")
@@ -266,10 +266,131 @@ print("Prediction:", output.shape)
 # print("#################### TFT MODULE WITH DATASET ###################")
 
 
-#
+# Create a simple dataset for TFT that works with the new SimpleSyntheticDataset format
+class SimpleAdaptedDataset(Dataset):
+    def __init__(self, length, past_length, future_length, static_length=2):
+        self.length = length
+        self.past_length = past_length
+        self.future_length = future_length
+        self.static_length = static_length
+
+        # Generate synthetic time series data with trend, seasonality and noise
+        x = np.arange(length)
+        trend = 0.1 * x
+        seasonality = 10 * np.sin(2 * np.pi * x / 100)
+        noise = np.random.normal(0, 5, size=length)
+
+        self.data = trend + seasonality + noise
+
+    def __len__(self):
+        return self.length - self.past_length - self.future_length
+
+    def __getitem__(self, idx):
+        # Extract past and future windows
+        past_data = self.data[idx : idx + self.past_length]
+        future_data = self.data[
+            idx + self.past_length : idx + self.past_length + self.future_length
+        ]
+
+        # Generate random static data
+        static_data = np.random.rand(self.static_length)
+
+        # Convert to tensors and create dictionary format expected by TFT
+        past_data_tensor = (
+            torch.tensor(past_data).float().reshape(-1, 1)
+        )  # [past_length, 1]
+        future_data_tensor = (
+            torch.tensor(future_data).float().reshape(-1, 1)
+        )  # [future_length, 1]
+        static_data_tensor = torch.tensor(static_data).float()  # [static_length]
+
+        # Create input dictionaries
+        past_inputs = {"past_data": past_data_tensor}
+        future_inputs = {"future_data": future_data_tensor}
+        static_inputs = {"static_data": static_data_tensor}
+
+        # Target is the future data
+        target = torch.tensor(future_data).float()
+
+        return past_inputs, future_inputs, static_inputs, target
+
+
+class SimpleAdaptedDataModule(L.LightningDataModule):
+    def __init__(
+        self,
+        train_length,
+        val_length,
+        test_length,
+        past_length,
+        future_length,
+        static_length,
+        batch_size,
+        workers=1,
+    ):
+        super().__init__()
+        self.train_length = train_length
+        self.val_length = val_length
+        self.test_length = test_length
+        self.past_length = past_length
+        self.future_length = future_length
+        self.static_length = static_length
+        self.batch_size = batch_size
+        self.workers = workers
+
+    def setup(self, stage=None):
+        self.train_dataset = SimpleAdaptedDataset(
+            length=self.train_length,
+            past_length=self.past_length,
+            future_length=self.future_length,
+            static_length=self.static_length,
+        )
+
+        self.val_dataset = SimpleAdaptedDataset(
+            length=self.val_length,
+            past_length=self.past_length,
+            future_length=self.future_length,
+            static_length=self.static_length,
+        )
+
+        self.test_dataset = SimpleAdaptedDataset(
+            length=self.test_length,
+            past_length=self.past_length,
+            future_length=self.future_length,
+            static_length=self.static_length,
+        )
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.workers,
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.workers,
+        )
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.workers,
+        )
+
+    def predict_dataloader(self):
+        return self.test_dataloader()
+
+
+# Now let's setup parameters and create the modules
 static_length = 2
-past_inputs = 1
-future_inputs = 1
+past_input_dim = 1
+future_input_dim = 1
 noise_level = 5
 trend_slope = 0.1
 seasonality_amplitude = 10
@@ -282,8 +403,8 @@ number_of_future_inputs = 12
 embedding_size_inputs = hidden_dimension = 32
 dropout = 0.5
 number_of_heads = 1
-past_inputs = {"past_data": past_inputs}
-future_inputs = {"future_data": future_inputs}
+past_inputs = {"past_data": past_input_dim}
+future_inputs = {"future_data": future_input_dim}
 static_inputs = {"static_data": static_length}
 
 # Create an instance of TemporalFusionTransformerModule
@@ -301,20 +422,16 @@ tft_module = TemporalFusionTransformerModule(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 )
 
-# Create an instance of SimpleSyntheticDataModule
-data_module = SimpleSyntheticDataModule(
+# Create an instance of our adapted DataModule
+data_module = SimpleAdaptedDataModule(
     train_length=1000,
     val_length=100,
     test_length=100,
     batch_size=batch_size,
-    noise_level=noise_level,
     past_length=number_of_past_inputs,
     future_length=number_of_future_inputs,
     static_length=static_length,
-    trend_slope=trend_slope,
-    seasonality_amplitude=seasonality_amplitude,
-    seasonality_period=seasonality_period,
-    workers=os.cpu_count(),
+    workers=1,  # Set to 1 for easier debugging
 )
 
 # Set the precision
@@ -323,23 +440,20 @@ torch.set_float32_matmul_precision("medium")
 # Prepare the data
 data_module.setup()
 
-
-plot_all_data = data_module.train_dataset.data
+# Plot sample data from the training dataset
+plot_all_data = np.array([data_module.train_dataset.data[i] for i in range(500)])
 
 # Plot all data
 plt.figure(figsize=(15, 5))
-plt.plot(plot_all_data, label="All Data")
+plt.plot(plot_all_data, label="Sample Data")
 plt.xlabel("Time Step")
 plt.ylabel("Value")
-plt.title("All Data")
+plt.title("Sample Synthetic Data")
 plt.legend()
-plt.show()
+plt.savefig("sample_synthetic_data.png")
+plt.close()
 
-
-train_dataloader = data_module.train_dataloader()
-
-
-# Create a trainer with TensorBoard for better monitoring
+# Create a trainer with early stopping
 early_stopping = EarlyStopping("val_loss_epoch", patience=50)
 trainer = L.Trainer(max_epochs=50, callbacks=[early_stopping])
 

@@ -34,7 +34,7 @@ LENGTH_INPUT_WINDOW = 24  # Corresponds to past_length
 LENGTH_OUTPUT_WINDOW = 12  # Corresponds to future_length
 
 NUMBER_OF_LAYERS = 1
-NUMBER_OF_HEADS = 1
+NUMBER_OF_HEADS = 2
 EMBEDDING_SIZE = 32
 FFN_HIDDEN_DIMENSIONALITY = 32
 TAU = 1.0  # Scaling factor for attention (adjust as needed)
@@ -71,7 +71,10 @@ data_module.setup()
 # --- (Optional) Plot Data ---
 print("Plotting sample data...")
 try:
-    plot_data = data_module.train_dataset.data[:500]  # Plot first 500 points
+    # Get data for the first time series and first feature
+    plot_data = data_module.train_dataset.data[
+        :500, 0, 0
+    ]  # Plot first 500 points for first series and feature
     plt.figure(figsize=(15, 5))
     plt.plot(plot_data, label="Synthetic Training Data Sample")
     plt.xlabel("Time Step")
@@ -184,11 +187,16 @@ for idx in range(0, num_batches_to_plot):
     selected_batch_predictions = all_predictions[batch_idx]
     _, _, _, selected_batch_target = data_module.test_dataset[batch_idx]
 
+    # Ensure proper reshaping for target and predictions
+    # Get first series (index 0) of both tensors
+    prediction_to_plot = selected_batch_predictions[0].detach().cpu()
+    target_to_plot = selected_batch_target.permute(1, 0, 2)[0].detach().cpu()
+
     plt.subplot(num_batches_to_plot, 1, idx + 1)  # Create subplots
 
-    plt.plot(selected_batch_target.squeeze(), label="Target", marker="o", linestyle="-")
+    plt.plot(target_to_plot.flatten(), label="Target", marker="o", linestyle="-")
     plt.plot(
-        selected_batch_predictions.squeeze(),
+        prediction_to_plot.flatten(),
         label="Predicted",
         marker="x",
         linestyle="--",
@@ -201,5 +209,6 @@ for idx in range(0, num_batches_to_plot):
 
 plt.tight_layout()  # Adjust subplot parameters for a tight layout
 plt.show()
+plt.savefig("causalformer_predictions_simple.png")
 
 print("Example script finished.")

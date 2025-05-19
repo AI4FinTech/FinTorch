@@ -105,6 +105,9 @@ ENV/
 # mypy
 .mypy_cache/
 
+# PyTorch Lightning logs
+lightning_logs/
+
 # IDE settings
 .vscode/
 .idea/

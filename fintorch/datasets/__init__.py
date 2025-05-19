@@ -5,6 +5,9 @@ from .invoice import InvoiceDataset
 from .marketdata import MarketDataset
 from .stockticker import StockTicker
 from .airpassenger import AirPassengerDataset, AirPassengerDataModule
+from .diamondata import DiamondDataset, DiamondDataModule
+from .base import TimeSeriesDataset
+from .synthetic import SimpleSyntheticDataset, SimpleSyntheticDataModule
 
 __all__ = [
     "AuctionDataset",
@@ -15,4 +18,9 @@ __all__ = [
     "StockTicker",
     "AirPassengerDataset",
     "AirPassengerDataModule",
+    "DiamondDataset",
+    "DiamondDataModule",
+    "TimeSeriesDataset",
+    "SimpleSyntheticDataset",
+    "SimpleSyntheticDataModule",
 ]

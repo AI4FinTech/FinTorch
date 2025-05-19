@@ -132,3 +132,16 @@ class CausalConvolution(nn.Module):
         x = self.transform_x(x)
 
         return x
+
+    def layerwise_relevance_propagation(self, x: torch.Tensor) -> torch.Tensor:
+        for i in range(self.number_of_series):
+            x[:, :, i, i, :, :] = x[:, :, i, i, :, :].roll(-1, dims=2)
+
+        x = x * self.base
+        x_k, x_x = self.mul.layerwise_relevance_propagation(
+            x
+        )  # TODO: What does this do?
+        self.layerwise_relevance_propagation_value = (
+            x_k  # Store in layer, similar to grad property
+        )
+        return x_x

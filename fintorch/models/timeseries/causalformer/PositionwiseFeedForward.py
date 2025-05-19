@@ -47,3 +47,10 @@ class PositionwiseFeedForward(nn.Module):
         x = self.dropout(x)
         x = self.fc2(x)
         return x
+
+    def layerwise_relevance_propagation(self, x: torch.Tensor) -> torch.Tensor:
+        rel = self.linear2.relprop(x)
+        rel = self.dropout.relprop(rel)
+        rel = self.activation.relprop(rel)
+        rel = self.linear1.relprop(rel)
+        return rel

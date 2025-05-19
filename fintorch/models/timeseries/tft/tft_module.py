@@ -35,6 +35,8 @@ class TemporalFusionTransformerModule(L.LightningModule):
         tft_model (TemporalFusionTransformer): The underlying TFT model.
 
     Methods:
+        _prepare_data(batch):
+            Prepares the data from SimpleSyntheticDataset for use with the TFT model.
         forward(past_inputs, future_inputs, static_inputs):
             Computes the forward pass of the TFT model.
         quantile_loss(model_output, target):
@@ -51,7 +53,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
             Performs a single prediction step.
 
     Reference:
-    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. “Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting.” arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
+    Lim, Bryan, Sercan O. Arik, Nicolas Loeff, and Tomas Pfister. 2019. "Temporal Fusion Transformers for Interpretable Multi-Horizon Time Series Forecasting." arXiv [Stat.ML]. arXiv. http://arxiv.org/abs/1912.09363.
 
     """
 
@@ -169,6 +171,75 @@ class TemporalFusionTransformerModule(L.LightningModule):
             raise ValueError("Batch must be a tuple or list")
         return past_inputs, future_inputs, static_inputs, target
 
+    def _prepare_data(
+        self,
+        batch: Tuple[
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            torch.Tensor,
+        ],
+    ) -> Tuple[
+        Dict[str, torch.Tensor],
+        Dict[str, torch.Tensor],
+        Dict[str, torch.Tensor],
+        torch.Tensor,
+    ]:
+        """
+        Prepares the data from SimpleSyntheticDataset for use with the TFT model.
+
+        The modified SimpleSyntheticDataset returns data with shape:
+        - past_inputs["past_data"]: [batch_size, past_length, num_series, features_dim]
+        - future_inputs["future_data"]: [batch_size, future_length, num_series, features_dim]
+        - static_inputs["static_data"]: [batch_size, static_length]
+        - target: [batch_size, future_length, num_series, features_dim]
+
+        TFT expects:
+        - past_inputs["past_data"]: [batch_size, past_length, features_dim]
+        - future_inputs["future_data"]: [batch_size, future_length, features_dim]
+        - static_inputs["static_data"]: [batch_size, static_length]
+        - target: [batch_size, future_length]
+
+        Args:
+            batch: A tuple containing past_inputs, future_inputs, static_inputs, and target.
+
+        Returns:
+            Tuple of processed past_inputs, future_inputs, static_inputs, and target.
+        """
+        past_inputs, future_inputs, static_inputs, target = batch
+
+        # Handle past_inputs
+        if "past_data" in past_inputs:
+            past_data = past_inputs["past_data"]
+            # Check if we need to reshape the past data
+            if (
+                past_data.ndim == 4
+            ):  # [batch_size, past_length, num_series, features_dim]
+                # For now, take the first series only since TFT expects [batch_size, past_length, features_dim]
+                past_data = past_data[:, :, 0, :]
+            past_inputs["past_data"] = past_data
+
+        # Handle future_inputs
+        if "future_data" in future_inputs:
+            future_data = future_inputs["future_data"]
+            # Check if we need to reshape the future data
+            if (
+                future_data.ndim == 4
+            ):  # [batch_size, future_length, num_series, features_dim]
+                # For now, take the first series only
+                future_data = future_data[:, :, 0, :]
+            future_inputs["future_data"] = future_data
+
+        # Handle target
+        if target.ndim == 4:  # [batch_size, future_length, num_series, features_dim]
+            # For simplicity, take the first series and first feature
+            target = target[:, :, 0, 0]
+        elif target.ndim == 3:  # [batch_size, future_length, num_series]
+            # Take the first series
+            target = target[:, :, 0]
+
+        return past_inputs, future_inputs, static_inputs, target
+
     def training_step(
         self,
         batch: Union[
@@ -182,6 +253,10 @@ class TemporalFusionTransformerModule(L.LightningModule):
         ],
         batch_idx: int,
     ) -> torch.Tensor:
+        # Prepare data from SimpleSyntheticDataset if needed
+        if isinstance(batch, tuple) and len(batch) == 4:
+            batch = self._prepare_data(batch)
+
         past_inputs, future_inputs, static_inputs, target = self._unpack_batch(batch)
 
         output, _ = self.forward(past_inputs, future_inputs, static_inputs)  # type: ignore
@@ -207,6 +282,10 @@ class TemporalFusionTransformerModule(L.LightningModule):
         ],
         batch_idx: int,
     ) -> torch.Tensor:
+        # Prepare data from SimpleSyntheticDataset if needed
+        if isinstance(batch, tuple) and len(batch) == 4:
+            batch = self._prepare_data(batch)
+
         past_inputs, future_inputs, static_inputs, target = self._unpack_batch(batch)  # type: ignore
 
         output, _ = self.forward(past_inputs, future_inputs, static_inputs)  # type: ignore
@@ -231,6 +310,10 @@ class TemporalFusionTransformerModule(L.LightningModule):
         ],
         batch_idx: int,
     ) -> torch.Tensor:
+        # Prepare data from SimpleSyntheticDataset if needed
+        if isinstance(batch, tuple) and len(batch) == 4:
+            batch = self._prepare_data(batch)
+
         past_inputs, future_inputs, static_inputs, target = self._unpack_batch(batch)
         output, _ = self.forward(past_inputs, future_inputs, static_inputs)  # type: ignore
 
@@ -259,6 +342,10 @@ class TemporalFusionTransformerModule(L.LightningModule):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> Any:
+        # Prepare data from SimpleSyntheticDataset if needed
+        if isinstance(batch, tuple) and len(batch) == 4:
+            batch = self._prepare_data(batch)
+
         past_inputs, future_inputs, static_inputs, _ = self._unpack_batch(batch)  # type: ignore
         output, _ = self.forward(past_inputs, future_inputs, static_inputs)  # type: ignore
 

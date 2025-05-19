@@ -59,11 +59,27 @@ class CausalFormerModule(L.LightningModule):
         past_inputs, _, _, target = batch
         x, y = past_inputs["past_data"], target
 
-        # Adds number of features dimensionality
-        x = x.unsqueeze(-1)
-        x = x.permute(0, 2, 1, 3)
-        # Adds number of series dimensionality
-        y = y.unsqueeze(-1).unsqueeze(1)
+        # Handle input tensor shape adaptively
+        # Expected input shape from SimpleSyntheticDataset: [batch_size, past_length, num_series, features_dim]
+        # Expected shape for CausalFormer: [batch_size, num_series, past_length, feature_dimensionality]
+
+        # Check input dimensions and reshape accordingly
+        if x.ndim == 3:  # [batch_size, past_length, num_series]
+            # Add feature dimension if it's missing
+            x = x.unsqueeze(-1)  # [batch_size, past_length, num_series, 1]
+
+        # Permute to the expected shape for the CausalFormer
+        x = x.permute(0, 2, 1, 3)  # [batch_size, num_series, past_length, feature_dim]
+
+        # Handle target tensor shape
+        if y.ndim == 2:  # [batch_size, future_length]
+            y = y.unsqueeze(1)  # Add series dimension
+
+        # If y has 4 dimensions already [batch_size, future_length, num_series, feature_dim]
+        # we need to permute to match the CausalFormer output format [batch_size, num_series, future_length, feature_dim]
+        if y.ndim == 4:
+            y = y.permute(0, 2, 1, 3)
+
         return x, y
 
     def training_step(
