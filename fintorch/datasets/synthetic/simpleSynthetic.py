@@ -28,6 +28,7 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
         static_length (int): Length of the static feature vector. Default is 2.
         num_series (int): Number of time series to generate. Default is 1.
         features_dim (int): Number of features for each time series. Default is 1.
+        scalers (List[List[StandardScaler]]): 2D list of scalers, one per (series, feature) pair.
     Methods:
         __len__():
             Returns the number of samples in the dataset, accounting for the past and future window lengths.
@@ -81,8 +82,11 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
         Returns:
             np.ndarray: Generated data with shape (length, num_series, features_dim)
         """
-        # Initialize the scaler
-        scalers = [StandardScaler() for _ in range(self._num_series)]
+        # Initialize scalers as a 2D list: one scaler per (series, feature) pair
+        scalers = [
+            [StandardScaler() for _ in range(self._features_dim)]
+            for _ in range(self._num_series)
+        ]
 
         # Create empty array to store data
         all_series_data = np.zeros((self.length, self._num_series, self._features_dim))
@@ -119,9 +123,9 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
                     value = trend + seasonality + noise
                     data.append(value)
 
-                # Scale the data
+                # Scale the data using the correct scaler for this (series, feature) pair
                 data_array = np.array(data).reshape(-1, 1)
-                scaled_data = scalers[series_idx].fit_transform(data_array)
+                scaled_data = scalers[series_idx][feature_idx].fit_transform(data_array)
 
                 # Store in the main array
                 all_series_data[:, series_idx, feature_idx] = scaled_data.flatten()
@@ -153,6 +157,39 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
     @property
     def static_length(self) -> int:
         return self._static_length
+
+    def get_scaler(self, series_idx: int, feature_idx: int) -> StandardScaler:
+        """
+        Get the scaler for a specific (series, feature) pair.
+
+        Args:
+            series_idx (int): Index of the series
+            feature_idx (int): Index of the feature
+
+        Returns:
+            StandardScaler: The scaler fitted for the specified series and feature
+        """
+        if series_idx >= self._num_series or feature_idx >= self._features_dim:
+            raise IndexError(
+                f"Invalid indices: series_idx={series_idx} (max: {self._num_series-1}), "
+                f"feature_idx={feature_idx} (max: {self._features_dim-1})"
+            )
+        return self.scalers[series_idx][feature_idx]
+
+    def inverse_transform(self, data: np.ndarray, series_idx: int, feature_idx: int) -> np.ndarray:
+        """
+        Apply inverse transformation to scaled data using the appropriate scaler.
+
+        Args:
+            data (np.ndarray): Scaled data to inverse transform
+            series_idx (int): Index of the series
+            feature_idx (int): Index of the feature
+
+        Returns:
+            np.ndarray: Inverse transformed data
+        """
+        scaler = self.get_scaler(series_idx, feature_idx)
+        return scaler.inverse_transform(data.reshape(-1, 1)).flatten()
 
     def __getitem__(
         self, idx: int

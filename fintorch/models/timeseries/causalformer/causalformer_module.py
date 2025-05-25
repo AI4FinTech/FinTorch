@@ -56,6 +56,24 @@ class CausalFormerModule(L.LightningModule):
             torch.Tensor,
         ],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Prepare input and target tensors for the CausalFormer model.
+
+        Input tensor transformations:
+        - Input from SimpleSyntheticDataset: [batch_size, past_length, num_series, features_dim]
+        - Input for CausalFormer: [batch_size, num_series, past_length, feature_dimensionality]
+
+        Target tensor transformations:
+        - Target 2D: [batch_size, future_length] -> [batch_size, num_series, future_length, feature_dim]
+        - Target 3D: [batch_size, future_length, num_series] -> [batch_size, num_series, future_length, feature_dim]
+        - Target 4D: [batch_size, future_length, num_series, feature_dim] -> [batch_size, num_series, future_length, feature_dim]
+
+        Args:
+            batch: Tuple containing (past_inputs, future_inputs, static_inputs, target)
+
+        Returns:
+            Tuple of (input_tensor, target_tensor) in CausalFormer expected format
+        """
         past_inputs, _, _, target = batch
         x, y = past_inputs["past_data"], target
 
@@ -71,13 +89,19 @@ class CausalFormerModule(L.LightningModule):
         # Permute to the expected shape for the CausalFormer
         x = x.permute(0, 2, 1, 3)  # [batch_size, num_series, past_length, feature_dim]
 
-        # Handle target tensor shape
+        # Handle target tensor shape - ensure it becomes 4D [batch_size, num_series, future_length, feature_dim]
         if y.ndim == 2:  # [batch_size, future_length]
-            y = y.unsqueeze(1)  # Add series dimension
-
-        # If y has 4 dimensions already [batch_size, future_length, num_series, feature_dim]
-        # we need to permute to match the CausalFormer output format [batch_size, num_series, future_length, feature_dim]
-        if y.ndim == 4:
+            # Add both series and feature dimensions
+            y = y.unsqueeze(1).unsqueeze(-1)  # [batch_size, 1, future_length, 1]
+            # Expand to match the number of series from input tensor
+            num_series = x.shape[1]
+            y = y.expand(-1, num_series, -1, -1)  # [batch_size, num_series, future_length, 1]
+        elif y.ndim == 3:  # [batch_size, future_length, num_series]
+            # Add feature dimension and permute
+            y = y.unsqueeze(-1)  # [batch_size, future_length, num_series, 1]
+            y = y.permute(0, 2, 1, 3)  # [batch_size, num_series, future_length, 1]
+        elif y.ndim == 4:  # [batch_size, future_length, num_series, feature_dim]
+            # Permute to match the CausalFormer output format [batch_size, num_series, future_length, feature_dim]
             y = y.permute(0, 2, 1, 3)
 
         return x, y
