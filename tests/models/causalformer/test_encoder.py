@@ -44,9 +44,9 @@ def test_encoder_forward():
             length_input_window,
             feature_dimensionality,
         )
-        assert (
-            output.shape == expected_shape
-        ), f"Expected output shape {expected_shape}, but got {output.shape}"
+        assert output.shape == expected_shape, (
+            f"Expected output shape {expected_shape}, but got {output.shape}"
+        )
         assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
 
     except Exception as e:
@@ -89,7 +89,7 @@ def test_encoder_embedding_output_shape():
 
     # Assertions
     expected_shape = (batch_size, number_of_series, embedding_size)
-    assert (
-        x_emb.shape == expected_shape
-    ), f"Expected embedding output shape {expected_shape}, but got {x_emb.shape}"
+    assert x_emb.shape == expected_shape, (
+        f"Expected embedding output shape {expected_shape}, but got {x_emb.shape}"
+    )
     assert isinstance(x_emb, torch.Tensor), "Embedding output should be a torch.Tensor"

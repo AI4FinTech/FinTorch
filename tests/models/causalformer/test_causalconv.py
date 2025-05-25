@@ -33,9 +33,9 @@ def test_stack_shifted_kernel_shape():
     print(f"Expected shape: {expected_shape}")
 
     # Assertions
-    assert (
-        stacked_kernel.shape == expected_shape
-    ), f"Expected shape {expected_shape}, but got {stacked_kernel.shape}"
+    assert stacked_kernel.shape == expected_shape, (
+        f"Expected shape {expected_shape}, but got {stacked_kernel.shape}"
+    )
 
 
 def test_stack_shifted_kernel_lower_triangular():
@@ -58,9 +58,9 @@ def test_stack_shifted_kernel_lower_triangular():
     for i in range(length_input_window):
         for j in range(length_input_window):
             if j > i:
-                assert torch.all(
-                    stacked_kernel[..., i, j] == 0
-                ), f"Kernel is not lower triangular at position ({i}, {j})"
+                assert torch.all(stacked_kernel[..., i, j] == 0), (
+                    f"Kernel is not lower triangular at position ({i}, {j})"
+                )
 
 
 def test_apply_kernel():
@@ -164,15 +164,15 @@ def test_transform_x():
         length_input_window,
         hidden_dimensionality,
     )
-    assert (
-        transformed_x.shape == expected_shape
-    ), f"Expected output shape {expected_shape}, but got {transformed_x.shape}"
+    assert transformed_x.shape == expected_shape, (
+        f"Expected output shape {expected_shape}, but got {transformed_x.shape}"
+    )
 
     # Check if the first element is zero
     for i in range(number_of_series):
-        assert torch.all(
-            transformed_x[:, :, i, i, 0, :] == 0
-        ), f"Expected first element to be zero for series {i}"
+        assert torch.all(transformed_x[:, :, i, i, 0, :] == 0), (
+            f"Expected first element to be zero for series {i}"
+        )
 
     # Check if the other elements are shifted
     for i in range(number_of_series):
@@ -214,9 +214,9 @@ def test_forward_pass():
         length_input_window,
         hidden_dimensionality,
     )
-    assert (
-        output.shape == expected_shape
-    ), f"Expected output shape {expected_shape}, but got {output.shape}"
+    assert output.shape == expected_shape, (
+        f"Expected output shape {expected_shape}, but got {output.shape}"
+    )
 
     # Check if the output is a tensor
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
@@ -256,6 +256,6 @@ def test_base_shape():
 
     # Check if the base shape is correct
     expected_shape = (1, 1, 1, 1, length_input_window, 1)
-    assert (
-        causal_conv.base.shape == expected_shape
-    ), f"Expected base shape {expected_shape}, but got {causal_conv.base.shape}"
+    assert causal_conv.base.shape == expected_shape, (
+        f"Expected base shape {expected_shape}, but got {causal_conv.base.shape}"
+    )

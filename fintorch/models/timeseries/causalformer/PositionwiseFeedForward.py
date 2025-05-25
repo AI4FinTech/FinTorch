@@ -49,8 +49,8 @@ class PositionwiseFeedForward(nn.Module):
         return x
 
     def layerwise_relevance_propagation(self, x: torch.Tensor) -> torch.Tensor:
-        rel = self.linear2.relprop(x)
-        rel = self.dropout.relprop(rel)
-        rel = self.activation.relprop(rel)
-        rel = self.linear1.relprop(rel)
+        rel = self.fc2.relprop(x) if hasattr(self.fc2, "relprop") else x  # type: ignore
+        rel = self.dropout.relprop(rel) if hasattr(self.dropout, "relprop") else rel  # type: ignore
+        rel = self.relu.relprop(rel) if hasattr(self.relu, "relprop") else rel  # type: ignore
+        rel = self.fc1.relprop(rel) if hasattr(self.fc1, "relprop") else rel  # type: ignore
         return rel

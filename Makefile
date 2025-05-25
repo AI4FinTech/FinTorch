@@ -55,14 +55,14 @@ lint/black: ## check style with black
 lint: lint/flake8 lint/black ## check style
 
 test: ## Run tests quickly with the default Python
-	pytest -m "not special"
+	.venv/bin/python -m pytest -m "not special"
 
 fulltest: ## Run all tests, including special ones
-	pytest -m "special or not special"
+	.venv/bin/python -m pytest -m "special or not special"
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source fintorch -m pytest
-	coverage report -m
+	.venv/bin/python -m coverage run --source fintorch -m pytest
+	.venv/bin/python -m coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
 

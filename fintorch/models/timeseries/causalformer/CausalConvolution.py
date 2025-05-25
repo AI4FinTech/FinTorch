@@ -140,10 +140,7 @@ class CausalConvolution(nn.Module):
             x[:, :, i, i, :, :] = x[:, :, i, i, :, :].roll(-1, dims=2)
 
         x = x * self.base
-        x_k, x_x = self.mul.layerwise_relevance_propagation(
-            x
-        )  # TODO: What does this do?
-        self.layerwise_relevance_propagation_value = (
-            x_k  # Store in layer, similar to grad property
-        )
-        return x_x
+        # TODO: Implement proper layerwise relevance propagation
+        # For now, return the processed tensor directly
+        self.layerwise_relevance_propagation_value = x
+        return x

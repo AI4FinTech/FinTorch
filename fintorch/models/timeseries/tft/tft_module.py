@@ -107,9 +107,9 @@ class TemporalFusionTransformerModule(L.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        assert (
-            number_of_past_inputs > horizon
-        ), "number_of_past_inputs must be larger than horizon"
+        assert number_of_past_inputs > horizon, (
+            "number_of_past_inputs must be larger than horizon"
+        )
 
         # Multi-series handling configuration
         self.series_selection_method = series_selection_method
@@ -122,7 +122,9 @@ class TemporalFusionTransformerModule(L.LightningModule):
             raise ValueError(f"series_selection_method must be one of {valid_methods}")
 
         if series_selection_method == "index" and series_index is None:
-            raise ValueError("series_index must be provided when using 'index' selection method")
+            raise ValueError(
+                "series_index must be provided when using 'index' selection method"
+            )
 
         valid_aggregations = ["mean", "sum", "max", "min"]
         if series_aggregation not in valid_aggregations:
@@ -157,16 +159,16 @@ class TemporalFusionTransformerModule(L.LightningModule):
         target = target.unsqueeze(-1)
 
         # Check for correct shapes
-        assert (
-            len(model_output.shape) == 4
-        ), f"Model output shape incorrect: {model_output.shape}"
+        assert len(model_output.shape) == 4, (
+            f"Model output shape incorrect: {model_output.shape}"
+        )
         assert len(target.shape) == 3, f"Target shape incorrect: {target.shape}"
-        assert (
-            model_output.shape[:2] == target.shape[:2]
-        ), f"Mismatch between predicted: {model_output.shape} and target shape:{target.shape}"
-        assert (
-            model_output.shape[3] == self.tft_model.number_of_quantiles
-        ), "Mismatch between number of predicted quantiles and target quantiles"
+        assert model_output.shape[:2] == target.shape[:2], (
+            f"Mismatch between predicted: {model_output.shape} and target shape:{target.shape}"
+        )
+        assert model_output.shape[3] == self.tft_model.number_of_quantiles, (
+            "Mismatch between number of predicted quantiles and target quantiles"
+        )
 
         dim_q = 3  # quantile dimension is the third dimension by definition
         device = model_output.device
@@ -264,14 +266,18 @@ class TemporalFusionTransformerModule(L.LightningModule):
         # Handle past_inputs
         if "past_data" in past_inputs:
             past_data = past_inputs["past_data"]
-            if past_data.ndim == 4:  # [batch_size, past_length, num_series, features_dim]
+            if (
+                past_data.ndim == 4
+            ):  # [batch_size, past_length, num_series, features_dim]
                 past_data = self._process_multi_series_data(past_data)
             past_inputs["past_data"] = past_data
 
         # Handle future_inputs
         if "future_data" in future_inputs:
             future_data = future_inputs["future_data"]
-            if future_data.ndim == 4:  # [batch_size, future_length, num_series, features_dim]
+            if (
+                future_data.ndim == 4
+            ):  # [batch_size, future_length, num_series, features_dim]
                 future_data = self._process_multi_series_data(future_data)
             future_inputs["future_data"] = future_data
 
@@ -295,8 +301,14 @@ class TemporalFusionTransformerModule(L.LightningModule):
         elif self.series_selection_method == "last":
             return data[:, :, -1, :]
         elif self.series_selection_method == "index":
+            if self.series_index is None:
+                raise ValueError(
+                    "series_index cannot be None when using 'index' selection method"
+                )
             if self.series_index >= data.shape[2]:
-                raise IndexError(f"series_index {self.series_index} out of range for {data.shape[2]} series")
+                raise IndexError(
+                    f"series_index {self.series_index} out of range for {data.shape[2]} series"
+                )
             return data[:, :, self.series_index, :]
         elif self.series_selection_method == "aggregate":
             if self.series_aggregation == "mean":
@@ -312,7 +324,9 @@ class TemporalFusionTransformerModule(L.LightningModule):
             batch_size, time_length, num_series, features_dim = data.shape
             return data.view(batch_size, time_length, num_series * features_dim)
 
-        raise ValueError(f"Unknown series_selection_method: {self.series_selection_method}")
+        raise ValueError(
+            f"Unknown series_selection_method: {self.series_selection_method}"
+        )
 
     def _process_multi_series_target(self, target: torch.Tensor) -> torch.Tensor:
         """
@@ -330,12 +344,20 @@ class TemporalFusionTransformerModule(L.LightningModule):
             elif self.series_selection_method == "last":
                 return target[:, :, -1, 0]
             elif self.series_selection_method == "index":
+                if self.series_index is None:
+                    raise ValueError(
+                        "series_index cannot be None when using 'index' selection method"
+                    )
                 if self.series_index >= target.shape[2]:
-                    raise IndexError(f"series_index {self.series_index} out of range for {target.shape[2]} series")
+                    raise IndexError(
+                        f"series_index {self.series_index} out of range for {target.shape[2]} series"
+                    )
                 return target[:, :, self.series_index, 0]
             elif self.series_selection_method == "aggregate":
                 # Aggregate across series, take first feature
-                target_series = target[:, :, :, 0]  # [batch_size, future_length, num_series]
+                target_series = target[
+                    :, :, :, 0
+                ]  # [batch_size, future_length, num_series]
                 if self.series_aggregation == "mean":
                     return target_series.mean(dim=2)
                 elif self.series_aggregation == "sum":
@@ -355,8 +377,14 @@ class TemporalFusionTransformerModule(L.LightningModule):
             elif self.series_selection_method == "last":
                 return target[:, :, -1]
             elif self.series_selection_method == "index":
+                if self.series_index is None:
+                    raise ValueError(
+                        "series_index cannot be None when using 'index' selection method"
+                    )
                 if self.series_index >= target.shape[2]:
-                    raise IndexError(f"series_index {self.series_index} out of range for {target.shape[2]} series")
+                    raise IndexError(
+                        f"series_index {self.series_index} out of range for {target.shape[2]} series"
+                    )
                 return target[:, :, self.series_index]
             elif self.series_selection_method == "aggregate":
                 if self.series_aggregation == "mean":

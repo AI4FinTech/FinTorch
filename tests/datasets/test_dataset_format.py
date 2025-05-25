@@ -17,11 +17,11 @@ try:
     from fintorch.datasets.base.base_dataset import TimeSeriesDataset
 except ImportError:
     # Alternative import path
-    from FinTorch.fintorch.datasets.synthetic.simpleSynthetic import (
+    from fintorch.datasets.synthetic.simpleSynthetic import (
         SimpleSyntheticDataset,
     )
-    from FinTorch.fintorch.datasets.diamondata import DiamondDataset
-    from FinTorch.fintorch.datasets.base.base_dataset import TimeSeriesDataset
+    from fintorch.datasets.diamondata import DiamondDataset
+    from fintorch.datasets.base.base_dataset import TimeSeriesDataset
 
 
 class TestDatasetFormat(unittest.TestCase):

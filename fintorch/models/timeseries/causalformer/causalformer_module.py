@@ -95,7 +95,9 @@ class CausalFormerModule(L.LightningModule):
             y = y.unsqueeze(1).unsqueeze(-1)  # [batch_size, 1, future_length, 1]
             # Expand to match the number of series from input tensor
             num_series = x.shape[1]
-            y = y.expand(-1, num_series, -1, -1)  # [batch_size, num_series, future_length, 1]
+            y = y.expand(
+                -1, num_series, -1, -1
+            )  # [batch_size, num_series, future_length, 1]
         elif y.ndim == 3:  # [batch_size, future_length, num_series]
             # Add feature dimension and permute
             y = y.unsqueeze(-1)  # [batch_size, future_length, num_series, 1]

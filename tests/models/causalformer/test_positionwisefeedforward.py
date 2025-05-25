@@ -30,9 +30,9 @@ def test_positionwisefeedforward_output_shape():
     output = ff_layer(x)
 
     # Assertions (batch_size, number_of_series, length_input_window, feature_dimensionality)
-    assert (
-        output.shape == x.shape
-    ), f"Expected output shape {x.shape}, but got {output.shape}"
+    assert output.shape == x.shape, (
+        f"Expected output shape {x.shape}, but got {output.shape}"
+    )
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
 
 
@@ -76,13 +76,13 @@ def test_positionwisefeedforward_dropout_effect():
 
     # Assertions for train mode
     # Check that output in train mode is different from eval mode
-    assert not torch.equal(
-        output_eval_1, output_train_1
-    ), "Output in train mode should differ from eval mode due to dropout"
+    assert not torch.equal(output_eval_1, output_train_1), (
+        "Output in train mode should differ from eval mode due to dropout"
+    )
     # Check that two forward passes in train mode are different (highly likely with dropout > 0)
-    assert not torch.equal(
-        output_train_1, output_train_2
-    ), "Consecutive outputs in train mode should differ due to dropout"
+    assert not torch.equal(output_train_1, output_train_2), (
+        "Consecutive outputs in train mode should differ due to dropout"
+    )
 
 
 def test_positionwisefeedforward_computation():
@@ -124,8 +124,8 @@ def test_positionwisefeedforward_computation():
         feature_dimensionality,
     )
 
-    assert (
-        output.shape == expected_shape
-    ), f"Expected output shape {expected_shape}, but got {output.shape}"
+    assert output.shape == expected_shape, (
+        f"Expected output shape {expected_shape}, but got {output.shape}"
+    )
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
     # Add more specific value checks here if weights were manually set

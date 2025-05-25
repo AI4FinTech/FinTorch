@@ -13,7 +13,7 @@ from fintorch.datasets.base import TimeSeriesDataset
 
 
 # --- Data Loading Classes ---
-def _download_data(url: str, local_path: str):
+def _download_data(url: str, local_path: str) -> None:
     """Downloads data from URL to local_path if not already present."""
     if not os.path.exists(local_path):
         print(f"Downloading data from {url} to {local_path}...")
@@ -265,20 +265,30 @@ class DiamondDataModule(L.LightningDataModule):
         val_split: float = 0.15,
     ):
         super().__init__()
-        # Save all hyperparameters (including static_length)
+        # Store hyperparameters as instance variables
+        self.local_path = local_path
+        self.time_step = time_step
+        self.output_window = output_window
+        self.static_length = static_length
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.train_split = train_split
+        self.val_split = val_split
+
+        # Save all hyperparameters
         self.save_hyperparameters()
 
         # Validate splits
-        self.test_split = 1.0 - self.hparams.train_split - self.hparams.val_split  # type: ignore
+        self.test_split = 1.0 - self.train_split - self.val_split
         if not (
-            0 < self.hparams.train_split < 1
-            and 0 < self.hparams.val_split < 1
+            0 < self.train_split < 1
+            and 0 < self.val_split < 1
             and 0 < self.test_split < 1
-        ):  # type: ignore
+        ):
             raise ValueError(
                 "Train, validation, and test splits must be between 0 and 1 and sum to 1."
             )
-        if self.hparams.train_split + self.hparams.val_split >= 1.0:  # type: ignore
+        if self.train_split + self.val_split >= 1.0:
             raise ValueError("Sum of train_split and val_split must be less than 1.")
 
         # Initialize dataset placeholders
@@ -294,16 +304,16 @@ class DiamondDataModule(L.LightningDataModule):
         """Loads data, creates dataset instance, and splits it."""
         if not self.dataset:
             try:
-                if not os.path.exists(self.hparams.local_path):  # type: ignore
+                if not os.path.exists(self.local_path):
                     print(
-                        f"Data not found locally at {self.hparams.local_path}, attempting download in setup..."
-                    )  # type: ignore
+                        f"Data not found locally at {self.local_path}, attempting download in setup..."
+                    )
 
                 self.dataset = DiamondDataset(
-                    local_path=self.hparams.local_path,  # type: ignore
-                    time_step=self.hparams.time_step,  # type: ignore
-                    output_window=self.hparams.output_window,  # type: ignore
-                    static_length=self.hparams.static_length,  # type: ignore Pass static_length
+                    local_path=self.local_path,
+                    time_step=self.time_step,
+                    output_window=self.output_window,
+                    static_length=self.static_length,  # Pass static_length
                 )
                 # Store dimensions derived from the dataset
                 self.series_num = self.dataset.series_dim
@@ -312,8 +322,8 @@ class DiamondDataModule(L.LightningDataModule):
                 self.output_dim = 1  # Based on reshape in dataset
 
                 total_len = len(self.dataset)
-                train_len = int(total_len * self.hparams.train_split)  # type: ignore
-                val_len = int(total_len * self.hparams.val_split)  # type: ignore
+                train_len = int(total_len * self.train_split)
+                val_len = int(total_len * self.val_split)
                 test_len = total_len - train_len - val_len
 
                 if train_len <= 0 or val_len <= 0 or test_len <= 0:
@@ -361,10 +371,10 @@ class DiamondDataModule(L.LightningDataModule):
             )
         return DataLoader(
             self.train_dataset,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.batch_size,
             shuffle=True,
-            num_workers=self.hparams.num_workers,
-        )  # type: ignore
+            num_workers=self.num_workers,
+        )
 
     def val_dataloader(self) -> DataLoader[Any]:
         if not self.val_dataset:
@@ -373,10 +383,10 @@ class DiamondDataModule(L.LightningDataModule):
             )
         return DataLoader(
             self.val_dataset,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.batch_size,
             shuffle=False,
-            num_workers=self.hparams.num_workers,
-        )  # type: ignore
+            num_workers=self.num_workers,
+        )
 
     def test_dataloader(self) -> DataLoader[Any]:
         if not self.test_dataset:
@@ -385,10 +395,10 @@ class DiamondDataModule(L.LightningDataModule):
             )
         return DataLoader(
             self.test_dataset,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.batch_size,
             shuffle=False,
-            num_workers=self.hparams.num_workers,
-        )  # type: ignore
+            num_workers=self.num_workers,
+        )
 
     def predict_dataloader(self) -> DataLoader[Any]:
         if not self.test_dataset:
@@ -397,7 +407,7 @@ class DiamondDataModule(L.LightningDataModule):
             )
         return DataLoader(
             self.test_dataset,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.batch_size,
             shuffle=False,
-            num_workers=self.hparams.num_workers,
-        )  # type: ignore
+            num_workers=self.num_workers,
+        )

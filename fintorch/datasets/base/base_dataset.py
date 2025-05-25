@@ -5,7 +5,17 @@ import torch
 from torch.utils.data import Dataset
 
 
-class TimeSeriesDataset(Dataset, ABC):
+class TimeSeriesDataset(
+    Dataset[
+        Tuple[
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            Dict[str, torch.Tensor],
+            torch.Tensor,
+        ]
+    ],
+    ABC,
+):
     """
     Base abstract class for time series datasets in FinTorch.
 

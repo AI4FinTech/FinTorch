@@ -194,7 +194,7 @@ class TemporalFusionTransformer(nn.Module):
         )
 
     def _init_lstm_states(
-        self, static_inputs: torch.Tensor, device: str, batch_size: int
+        self, static_inputs: Optional[torch.Tensor], device: str, batch_size: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         if static_inputs is None:
             h0 = torch.zeros(1, batch_size, self.embedding_size_inputs, device=device)

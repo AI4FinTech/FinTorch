@@ -46,7 +46,9 @@ try:
                 )
                 # Filter out callbacks that cause issues
                 return [
-                    cb for cb in callbacks if not str(cb.__class__).startswith("ray.tune")
+                    cb
+                    for cb in callbacks
+                    if not str(cb.__class__).startswith("ray.tune")
                 ]
             else:
                 raise

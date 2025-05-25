@@ -1,18 +1,19 @@
 import torch
+from typing import Tuple, Any
 
 
 class causal_explanation:
-    def __init__(self, model):
+    def __init__(self, model: Any) -> None:
         self.model = model
 
     def generate_relevance_propagation_for_batch(
-        self, batch_size, input, interpreted_series
-    ):
+        self, batch_size: int, input: torch.Tensor, interpreted_series: int
+    ) -> None:
         # TODO: maybe we can make this part of the module
         # Create batches of the inputs
         pass
 
-    def _generate_RP(self, input, interpreted_series):
+    def _generate_RP(self, input: torch.Tensor, interpreted_series: int) -> Tuple[torch.Tensor, torch.Tensor]:
         # input: [total_batch, input_window, number_of_series, feature_dim]
         # index of the series we interpret (find causal relatinship with)
 
@@ -29,7 +30,7 @@ class causal_explanation:
         one_hot = torch.sum(one_hot * output)
         # Reset gradients and perform backward pass
         self.model.zero_grad()
-        one_hot.backward(retain_graph=True)
+        one_hot.backward(retain_graph=True)  # type: ignore
         # Apply regression relevance propagation to calculate relevance scores
         self.model.relprop(one_hot_vector)
         relAs = []

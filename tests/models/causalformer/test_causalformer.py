@@ -33,9 +33,9 @@ def test_causalformer_initialization():
     )
 
     # Assertions
-    assert isinstance(
-        model.encoder, Encoder
-    ), "Encoder should be an instance of Encoder"
+    assert isinstance(model.encoder, Encoder), (
+        "Encoder should be an instance of Encoder"
+    )
     assert model.fully_connected.in_features == feature_dimensionality, (
         f"Expected fully_connected in_features to be {feature_dimensionality}, "
         f"but got {model.fully_connected.in_features}"

@@ -406,25 +406,25 @@ class EllipticppDataModule(pl.LightningDataModule):
     ) -> None:
         super().__init__()
 
-        assert (
-            isinstance(edge, tuple) and len(edge) == 3
-        ), "edge must be a tuple of length 3"
-        assert (
-            isinstance(num_val, float) and 0 <= num_val <= 1
-        ), "num_val must be a float between 0 and 1"
-        assert (
-            isinstance(num_test, float) and 0 <= num_test <= 1
-        ), "num_test must be a float between 0 and 1"
+        assert isinstance(edge, tuple) and len(edge) == 3, (
+            "edge must be a tuple of length 3"
+        )
+        assert isinstance(num_val, float) and 0 <= num_val <= 1, (
+            "num_val must be a float between 0 and 1"
+        )
+        assert isinstance(num_test, float) and 0 <= num_test <= 1, (
+            "num_test must be a float between 0 and 1"
+        )
         assert (
             isinstance(disjoint_train_ratio, float) and 0 <= disjoint_train_ratio <= 1
         ), "disjoint_train_ratio must be a float between 0 and 1"
-        assert (
-            isinstance(neg_sampling_ratio, float) and neg_sampling_ratio > 0
-        ), "neg_sampling_ratio must be a positive float"
+        assert isinstance(neg_sampling_ratio, float) and neg_sampling_ratio > 0, (
+            "neg_sampling_ratio must be a positive float"
+        )
 
-        assert (
-            isinstance(batch_size, int) and batch_size > 0
-        ), "batch_size must be a positive integer"
+        assert isinstance(batch_size, int) and batch_size > 0, (
+            "batch_size must be a positive integer"
+        )
         assert isinstance(neg_sampling, str), "neg_sampling must be a string"
 
         assert isinstance(num_neighbors, list) and all(

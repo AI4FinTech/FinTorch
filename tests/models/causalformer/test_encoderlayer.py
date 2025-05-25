@@ -51,9 +51,9 @@ def test_encoderlayer_output_shape():
 
     # Assertions
     expected_shape = (BATCH_SIZE, NUM_SERIES, INPUT_WINDOW, FEATURE_DIM)
-    assert (
-        output.shape == expected_shape
-    ), f"Expected output shape {expected_shape}, but got {output.shape}"
+    assert output.shape == expected_shape, (
+        f"Expected output shape {expected_shape}, but got {output.shape}"
+    )
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
 
 
@@ -89,9 +89,9 @@ def test_encoderlayer_dropout_norm_effect():
     )
     # Output should be different from the raw input 'x' due to attention, FFN, and norm
     # (unless layers happen to be identity, which is unlikely)
-    assert not torch.equal(
-        output_eval_1, x
-    ), "Output in eval mode should differ from raw input 'x'"
+    assert not torch.equal(output_eval_1, x), (
+        "Output in eval mode should differ from raw input 'x'"
+    )
 
     # --- Training Mode ---
     encoder_layer.train()
@@ -102,13 +102,13 @@ def test_encoderlayer_dropout_norm_effect():
 
     # Assertions for train mode
     # Check that output in train mode is different from eval mode (due to dropout)
-    assert not torch.allclose(
-        output_eval_1, output_train_1
-    ), "Output in train mode should differ from eval mode due to dropout/norm"
+    assert not torch.allclose(output_eval_1, output_train_1), (
+        "Output in train mode should differ from eval mode due to dropout/norm"
+    )
     # Check that two forward passes in train mode are different (highly likely with dropout > 0)
-    assert not torch.allclose(
-        output_train_1, output_train_2
-    ), "Consecutive outputs in train mode should differ due to dropout"
+    assert not torch.allclose(output_train_1, output_train_2), (
+        "Consecutive outputs in train mode should differ due to dropout"
+    )
 
 
 def test_encoderlayer_runs_with_mask_none():
@@ -134,7 +134,7 @@ def test_encoderlayer_runs_with_mask_none():
 
     # Assertions
     expected_shape = (BATCH_SIZE, NUM_SERIES, INPUT_WINDOW, FEATURE_DIM)
-    assert (
-        output.shape == expected_shape
-    ), f"Expected output shape {expected_shape}, but got {output.shape}"
+    assert output.shape == expected_shape, (
+        f"Expected output shape {expected_shape}, but got {output.shape}"
+    )
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"

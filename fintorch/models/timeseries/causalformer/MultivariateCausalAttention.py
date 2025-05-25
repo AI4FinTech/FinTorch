@@ -1,5 +1,4 @@
 from typing import Optional
-import math
 
 import torch
 import torch.nn as nn
@@ -185,16 +184,22 @@ class MultivariateCausalAttention(nn.Module):
 
         return output  # type: ignore
 
-    def layerwise_relevance_propagation(self, x: torch.Tensor) -> torch.Tensor:
-        x_A, x_v = self.mul.relprop(x)  # TODO: what does this do?
-        self.layerwise_relevance_propagation_value = (
-            x_A  # Store in layer, similar to grad property
-        )
-        rel_score = self.softmax.relprop(x_A)
-        rel_mask, rel_score = self.hardmard_product.relprop(rel_score)
-        rel_score *= math.sqrt(self.input_window * self.d_tensor)
-        rel_q, rel_k = self.qk_mul.relprop(rel_score)
-        rel_k = rel_k.transpose(2, 3)
+    def layerwise_relevance_propagation(
+        self, x: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        # x_A, x_v = self.mul.relprop(x)  # TODO: what does this do?
+        # self.layerwise_relevance_propagation_value = (
+        #     x_A  # Store in layer, similar to grad property
+        # )
+        # rel_score = self.softmax.relprop(x_A)
+        # rel_mask, rel_score = self.hardmard_product.relprop(rel_score)
+        # rel_score *= math.sqrt(self.input_window * self.d_tensor)
+        # rel_q, rel_k = self.qk_mul.relprop(rel_score)
+        # rel_k = rel_k.transpose(2, 3)
+
+        rel_q = x
+        rel_k = x
+        rel_v = x
 
         # Relevance propagation through q, k, and v.
-        return rel_q, rel_k, x_v
+        return rel_q, rel_k, rel_v

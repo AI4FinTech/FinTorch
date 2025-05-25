@@ -30,9 +30,9 @@ def test_embedding_forward():
     output = embedding_layer(x)
 
     # Assertions
-    assert (
-        output.shape == (batch_size, number_of_series, hidden_dimensionality)
-    ), f"Expected output shape {(batch_size, number_of_series, hidden_dimensionality)}, but got {output.shape}"
+    assert output.shape == (batch_size, number_of_series, hidden_dimensionality), (
+        f"Expected output shape {(batch_size, number_of_series, hidden_dimensionality)}, but got {output.shape}"
+    )
     assert isinstance(output, torch.Tensor), "Output should be a torch.Tensor"
 
 
@@ -70,6 +70,6 @@ def test_embedding_dropout_effect():
         assert_close(output_eval, output_eval),
         "Output in eval mode should be deterministic",
     )
-    assert not torch.equal(
-        output_eval, output_train
-    ), "Output in train mode should differ due to dropout"
+    assert not torch.equal(output_eval, output_train), (
+        "Output in train mode should differ due to dropout"
+    )

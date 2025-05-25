@@ -114,7 +114,7 @@ for head in range(number_of_heads):
     ax.set_xlabel("Key Sequence Position")
     if head == 0:
         ax.set_ylabel("Query Sequence Position")
-    ax.set_title(f"Attention Map - Head {head+1}")
+    ax.set_title(f"Attention Map - Head {head + 1}")
 
 fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.7, label="Attention Weight")
 plt.savefig("attention_maps.png")
