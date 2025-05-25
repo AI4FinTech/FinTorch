@@ -2,11 +2,12 @@ import logging
 import os
 import shutil
 from datetime import date as Date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import lightning as L
 import pandas as pd  # type: ignore
 import polars as pol
+import torch
 import yfinance as yf  # type: ignore
 from neuralforecast.tsdataset import TimeSeriesDataset  # type: ignore
 from sklearn.preprocessing import StandardScaler  # type: ignore
@@ -123,7 +124,12 @@ class StockTicker(Dataset):  # type: ignore
             raise RuntimeError("Dataset not loaded. Call load() first.")
         return self.length
 
-    def __getitem__(self, idx: int) -> Any:
+    def __getitem__(self, idx: int) -> Tuple[
+        Dict[str, torch.Tensor],
+        Dict[str, torch.Tensor],
+        Dict[str, Optional[torch.Tensor]],
+        torch.Tensor
+    ]:
         """
         Get an item from the dataset
 
@@ -158,10 +164,13 @@ class StockTicker(Dataset):  # type: ignore
             .squeeze()
         )
 
-        # Create a dictionary for past, future, and static data
+        # Create dictionaries for past, future, and static data
         past_inputs = {"past_data": past_data}
+        future_data = data[idx + self.past_length : idx + self.past_length + self.future_length].to_torch().float()
+        future_inputs = {"future_data": future_data}
+        static_inputs = {"static_data": None}
 
-        return past_inputs, target
+        return past_inputs, future_inputs, static_inputs, target
 
     def raw_file_names(self) -> list[str]:
         """

@@ -48,8 +48,7 @@ def test_simple_synthetic_dataset_getitem():
 
     assert isinstance(static_inputs, dict)
     assert "static_data" in static_inputs
-    assert isinstance(static_inputs["static_data"], torch.Tensor)
-    assert static_inputs["static_data"].shape == (3,)
+    assert static_inputs["static_data"] is None
 
     assert isinstance(target, torch.Tensor)
     assert target.shape == (6,)

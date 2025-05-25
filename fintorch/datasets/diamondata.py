@@ -2,7 +2,6 @@ import os
 from typing import Any, Dict, Optional, Tuple
 
 import lightning as L
-import numpy as np
 import pandas as pd
 import requests  # For downloading data
 import torch
@@ -49,8 +48,7 @@ class DiamondDataset(TimeSeriesDataset):
                           Shape: (time_step, series_num, 1)
     - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
                            Shape: (output_window, series_num, 1)
-    - static_inputs (dict): Dictionary with static data tensor under the key "static_data".
-                           Shape: (static_length,)
+    - static_inputs (dict): Dictionary with static data set to None under the key "static_data".
     - target (torch.Tensor): Target tensor representing the future data.
                             Shape: (output_window, series_num, 1)
     """
@@ -182,7 +180,7 @@ class DiamondDataset(TimeSeriesDataset):
     ) -> Tuple[
         Dict[str, torch.Tensor],
         Dict[str, torch.Tensor],
-        Dict[str, torch.Tensor],
+        Dict[str, Optional[torch.Tensor]],
         torch.Tensor,
     ]:
         """
@@ -197,8 +195,7 @@ class DiamondDataset(TimeSeriesDataset):
                                       Shape: (time_step, series_num, 1)
                 - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
                                         Shape: (output_window, series_num, 1)
-                - static_inputs (dict): Dictionary with static data tensor under the key "static_data".
-                                        Shape: (static_length,)
+                - static_inputs (dict): Dictionary with static data set to None under the key "static_data".
                 - target (torch.Tensor): Target tensor representing the future data.
                                          Shape: (output_window, series_num, 1)
         """
@@ -214,8 +211,8 @@ class DiamondDataset(TimeSeriesDataset):
         past_data_np = past_data_np.reshape(self._time_step, self._series_num, 1)
         target_np = target_np.reshape(self._output_window, self._series_num, 1)
 
-        # Generate dummy static data for this item
-        static_data_np = np.random.rand(self._static_length).astype(np.float32)
+        # Set static data to None
+        static_data = None
 
         # Convert to tensors
         past_data = torch.from_numpy(
@@ -224,9 +221,6 @@ class DiamondDataset(TimeSeriesDataset):
         target = torch.from_numpy(
             target_np
         ).float()  # Shape: (output_window, series_num, 1)
-        static_data = torch.from_numpy(
-            static_data_np
-        ).float()  # Shape: (static_length,)
 
         # Create dictionaries matching the required structure
         past_inputs = {"past_data": past_data}
@@ -247,8 +241,7 @@ class DiamondDataModule(L.LightningDataModule):
                           Shape: (time_step, series_num, 1)
     - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
                            Shape: (output_window, series_num, 1)
-    - static_inputs (dict): Dictionary with static data tensor under the key "static_data".
-                           Shape: (static_length,)
+    - static_inputs (dict): Dictionary with static data set to None under the key "static_data".
     - target (torch.Tensor): Target tensor representing the future data.
                             Shape: (output_window, series_num, 1)
     """

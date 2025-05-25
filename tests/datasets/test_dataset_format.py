@@ -108,7 +108,7 @@ class TestDatasetFormat(unittest.TestCase):
             future_inputs["future_data"].shape,
             (self.future_steps, self.series_dim, self.features_dim),
         )
-        self.assertEqual(static_inputs["static_data"].shape, (self.static_length,))
+        self.assertIsNone(static_inputs["static_data"])
         self.assertEqual(
             target.shape, (self.future_steps, self.series_dim, self.features_dim)
         )
@@ -130,7 +130,7 @@ class TestDatasetFormat(unittest.TestCase):
             future_inputs["future_data"].shape,
             (self.future_steps, self.diamond_dataset.series_dim, 1),
         )
-        self.assertEqual(static_inputs["static_data"].shape, (self.static_length,))
+        self.assertIsNone(static_inputs["static_data"])
         self.assertEqual(
             target.shape, (self.future_steps, self.diamond_dataset.series_dim, 1)
         )
@@ -143,13 +143,12 @@ class TestDatasetFormat(unittest.TestCase):
         # Check types
         self.assertIsInstance(past_inputs["past_data"], torch.Tensor)
         self.assertIsInstance(future_inputs["future_data"], torch.Tensor)
-        self.assertIsInstance(static_inputs["static_data"], torch.Tensor)
+        self.assertIsNone(static_inputs["static_data"])
         self.assertIsInstance(target, torch.Tensor)
 
         # Check dtypes
         self.assertEqual(past_inputs["past_data"].dtype, torch.float32)
         self.assertEqual(future_inputs["future_data"].dtype, torch.float32)
-        self.assertEqual(static_inputs["static_data"].dtype, torch.float32)
         self.assertEqual(target.dtype, torch.float32)
 
         # Get an item from the diamond dataset
@@ -158,13 +157,12 @@ class TestDatasetFormat(unittest.TestCase):
         # Check types
         self.assertIsInstance(past_inputs["past_data"], torch.Tensor)
         self.assertIsInstance(future_inputs["future_data"], torch.Tensor)
-        self.assertIsInstance(static_inputs["static_data"], torch.Tensor)
+        self.assertIsNone(static_inputs["static_data"])
         self.assertIsInstance(target, torch.Tensor)
 
         # Check dtypes
         self.assertEqual(past_inputs["past_data"].dtype, torch.float32)
         self.assertEqual(future_inputs["future_data"].dtype, torch.float32)
-        self.assertEqual(static_inputs["static_data"].dtype, torch.float32)
         self.assertEqual(target.dtype, torch.float32)
 
 

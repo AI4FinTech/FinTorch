@@ -15,7 +15,7 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
     SimpleSyntheticDataset is a PyTorch Dataset that generates synthetic time series data
     with configurable trend, seasonality, and noise components. It is designed for tasks
     involving time series forecasting and includes past, future, and static data features.
-    Note that the static data is randomly generated and does not contain relevant information for
+    Note that the static data is set to None as it does not contain relevant information for
     the model to learn from.
 
     Attributes:
@@ -43,8 +43,7 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
                                          Shape: (past_length, num_series, features_dim)
                     - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
                                            Shape: (future_length, num_series, features_dim)
-                    - static_inputs (dict): Dictionary with static data tensor under the key "static_data".
-                                           Shape: (static_length,)
+                    - static_inputs (dict): Dictionary with static data set to None under the key "static_data".
                     - target (torch.Tensor): Target tensor representing the future data.
                                             Shape: (future_length, num_series, features_dim)
     """
@@ -208,7 +207,7 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
     ) -> Tuple[
         Dict[str, torch.Tensor],
         Dict[str, torch.Tensor],
-        Dict[str, torch.Tensor],
+        Dict[str, Optional[torch.Tensor]],
         torch.Tensor,
     ]:
         """
@@ -223,8 +222,7 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
                                      Shape: (past_length, num_series, features_dim)
                 - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
                                        Shape: (future_length, num_series, features_dim)
-                - static_inputs (dict): Dictionary with static data tensor under the key "static_data".
-                                       Shape: (static_length,)
+                - static_inputs (dict): Dictionary with static data set to None under the key "static_data".
                 - target (torch.Tensor): Target tensor representing the future data.
                                         Shape: (future_length, num_series, features_dim)
         """
@@ -235,13 +233,12 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
         ]
         target_np = future_data_np.copy()  # Create a copy to avoid reference issues
 
-        # Generate static data
-        static_data_np: npt.NDArray[np.float64] = np.random.rand(self._static_length)
+        # Set static data to None
+        static_data = None
 
         # Convert to tensors and squeeze to remove singleton dimensions when num_series=1 and features_dim=1
         past_data = torch.tensor(past_data_np).float()
         future_data = torch.tensor(future_data_np).float()
-        static_data = torch.tensor(static_data_np).float()
         target = torch.tensor(target_np).float()
 
         # Squeeze singleton dimensions if num_series=1 and features_dim=1

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch.utils.data import Dataset
@@ -10,7 +10,7 @@ class TimeSeriesDataset(
         Tuple[
             Dict[str, torch.Tensor],
             Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
+            Dict[str, Optional[torch.Tensor]],
             torch.Tensor,
         ]
     ],
@@ -28,7 +28,7 @@ class TimeSeriesDataset(
     The standard format for time series data in FinTorch is:
     - past_data: (time_steps, series_dim, features_dim)
     - future_data: (future_steps, series_dim, features_dim)
-    - static_data: (static_length,)
+    - static_data: (static_length,) or None if no static data available
     - target: (future_steps, series_dim, features_dim)
 
     Where:
@@ -55,7 +55,7 @@ class TimeSeriesDataset(
     ) -> Tuple[
         Dict[str, torch.Tensor],
         Dict[str, torch.Tensor],
-        Dict[str, torch.Tensor],
+        Dict[str, Optional[torch.Tensor]],
         torch.Tensor,
     ]:
         """
@@ -71,7 +71,7 @@ class TimeSeriesDataset(
                 - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
                                        Shape: (future_steps, series_dim, features_dim)
                 - static_inputs (dict): Dictionary with static data tensor under the key "static_data".
-                                       Shape: (static_length,)
+                                       Shape: (static_length,) or None if no static data
                 - target (torch.Tensor): Target tensor representing the future data.
                                         Shape: (future_steps, series_dim, features_dim)
         """

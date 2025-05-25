@@ -8,6 +8,36 @@ from torch.utils.data import DataLoader, Dataset
 
 
 class ElectricityDataset(Dataset):  # type: ignore
+    """
+    A PyTorch Dataset for the Electricity dataset.
+    This dataset provides time-series data for training and testing machine learning models.
+    It uses hourly energy consumption data and applies StandardScaler normalization.
+
+    Args:
+        past_length (int, optional): The number of past time steps to include in the input. Default is 10.
+        future_length (int, optional): The number of future time steps to predict. Default is 5.
+        start_idx (int, optional): The starting index of the dataset slice. Default is 0.
+        end_idx (int, optional): The ending index of the dataset slice. If None, it is set to the length of the data
+                                 minus `past_length` and `future_length`. Default is None.
+
+    Returns:
+        tuple: A tuple containing:
+            - past_inputs (dict): Dictionary with past data tensor under the key "past_data".
+                                 Shape: (past_length, 1)
+            - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
+                                   Shape: (future_length, 1)
+            - static_inputs (dict): Dictionary with static data set to None under the key "static_data".
+            - target (torch.Tensor): Target tensor representing the future data.
+                                    Shape: (future_length,)
+
+    Example:
+        dataset = ElectricityDataset(past_length=12, future_length=6)
+        past_inputs, future_inputs, static_inputs, target = dataset[0]
+        print(past_inputs["past_data"].shape)  # torch.Size([12, 1])
+        print(future_inputs["future_data"].shape)  # torch.Size([6, 1])
+        print(static_inputs["static_data"])  # None
+        print(target.shape)  # torch.Size([6])
+    """
     def __init__(
         self,
         past_length: int = 10,
@@ -56,7 +86,12 @@ class ElectricityDataset(Dataset):  # type: ignore
     def __len__(self) -> int:
         return self.length - self.past_length - self.future_length
 
-    def __getitem__(self, idx: int) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[
+        Dict[str, torch.Tensor],
+        Dict[str, torch.Tensor],
+        Dict[str, Optional[torch.Tensor]],
+        torch.Tensor
+    ]:
         if isinstance(idx, slice):
             return [
                 self[i]
@@ -73,12 +108,15 @@ class ElectricityDataset(Dataset):  # type: ignore
 
         # Convert to tensors
         past_data = torch.tensor(past_data).float().unsqueeze(-1)
+        future_data = torch.tensor(target).float().unsqueeze(-1)
         target = torch.tensor(target).float()
 
-        # Create a dictionary for past, future, and static data
+        # Create dictionaries for past, future, and static data
         past_inputs = {"past_data": past_data}
+        future_inputs = {"future_data": future_data}
+        static_inputs = {"static_data": None}
 
-        return past_inputs, target
+        return past_inputs, future_inputs, static_inputs, target
 
 
 class ElectricityDataModule(L.LightningDataModule):
