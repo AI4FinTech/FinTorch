@@ -61,7 +61,34 @@ class Embedding(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (batch_size, number_of_series, length_input_window, feature_dimensionality)
         batch_size = x.shape[0]
-        x = x.contiguous().view(
+
+        # Validate input tensor dimensions
+        if len(x.shape) != 4:
+            raise ValueError(
+                f"Expected input tensor to have 4 dimensions, but got {len(x.shape)} dimensions. "
+                f"Expected shape: (batch_size, number_of_series, length_input_window, feature_dimensionality)"
+            )
+
+        if x.shape[1] != self.number_of_series:
+            raise ValueError(
+                f"Input tensor's number_of_series dimension ({x.shape[1]}) does not match "
+                f"expected value ({self.number_of_series})"
+            )
+
+        if x.shape[2] != self.length_input_window:
+            raise ValueError(
+                f"Input tensor's length_input_window dimension ({x.shape[2]}) does not match "
+                f"expected value ({self.length_input_window})"
+            )
+
+        if x.shape[3] != self.feature_dimensionality:
+            raise ValueError(
+                f"Input tensor's feature_dimensionality dimension ({x.shape[3]}) does not match "
+                f"expected value ({self.feature_dimensionality})"
+            )
+
+        # Reshape the tensor using reshape for safer operation
+        x = x.reshape(
             batch_size,
             self.number_of_series,
             self.length_input_window * self.feature_dimensionality,

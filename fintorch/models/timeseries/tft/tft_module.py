@@ -30,6 +30,36 @@ class TemporalFusionTransformerModule(L.LightningModule):
         batch_size (int): The batch size.
         device (str): The device to use for computation (e.g., "cpu" or "cuda").
         quantiles (list[float]): List of quantiles to predict.
+        series_selection_method (str): Method for handling multi-series data. Options:
+            - "first": Use only the first series (default, backward compatible)
+            - "last": Use only the last series
+            - "index": Use series at specific index (requires series_index)
+            - "aggregate": Aggregate across all series using series_aggregation method
+            - "flatten": Flatten all series into additional features
+        series_index (Optional[int]): Index of series to use when series_selection_method="index".
+        series_aggregation (str): Aggregation method when series_selection_method="aggregate".
+            Options: "mean", "sum", "max", "min" (default: "mean").
+
+    Examples:
+        # Use first series only (default behavior)
+        model = TemporalFusionTransformerModule(
+            ..., series_selection_method="first"
+        )
+
+        # Use third series (index 2)
+        model = TemporalFusionTransformerModule(
+            ..., series_selection_method="index", series_index=2
+        )
+
+        # Average all series together
+        model = TemporalFusionTransformerModule(
+            ..., series_selection_method="aggregate", series_aggregation="mean"
+        )
+
+        # Flatten all series as additional features
+        model = TemporalFusionTransformerModule(
+            ..., series_selection_method="flatten"
+        )
 
     Attributes:
         tft_model (TemporalFusionTransformer): The underlying TFT model.
@@ -71,12 +101,32 @@ class TemporalFusionTransformerModule(L.LightningModule):
         batch_size: int,
         device: str,
         quantiles: List[float] = [0.1, 0.5, 0.9],
+        series_selection_method: str = "first",
+        series_index: Optional[int] = None,
+        series_aggregation: str = "mean",
     ):
         super().__init__()
         self.save_hyperparameters()
         assert (
             number_of_past_inputs > horizon
         ), "number_of_past_inputs must be larger than horizon"
+
+        # Multi-series handling configuration
+        self.series_selection_method = series_selection_method
+        self.series_index = series_index
+        self.series_aggregation = series_aggregation
+
+        # Validate series selection parameters
+        valid_methods = ["first", "last", "index", "aggregate", "flatten"]
+        if series_selection_method not in valid_methods:
+            raise ValueError(f"series_selection_method must be one of {valid_methods}")
+
+        if series_selection_method == "index" and series_index is None:
+            raise ValueError("series_index must be provided when using 'index' selection method")
+
+        valid_aggregations = ["mean", "sum", "max", "min"]
+        if series_aggregation not in valid_aggregations:
+            raise ValueError(f"series_aggregation must be one of {valid_aggregations}")
 
         self.tft_model = TemporalFusionTransformer(
             number_of_past_inputs,
@@ -200,6 +250,9 @@ class TemporalFusionTransformerModule(L.LightningModule):
         - static_inputs["static_data"]: [batch_size, static_length]
         - target: [batch_size, future_length]
 
+        The method now supports multiple strategies for handling multi-series data based on
+        the series_selection_method configuration.
+
         Args:
             batch: A tuple containing past_inputs, future_inputs, static_inputs, and target.
 
@@ -211,34 +264,114 @@ class TemporalFusionTransformerModule(L.LightningModule):
         # Handle past_inputs
         if "past_data" in past_inputs:
             past_data = past_inputs["past_data"]
-            # Check if we need to reshape the past data
-            if (
-                past_data.ndim == 4
-            ):  # [batch_size, past_length, num_series, features_dim]
-                # For now, take the first series only since TFT expects [batch_size, past_length, features_dim]
-                past_data = past_data[:, :, 0, :]
+            if past_data.ndim == 4:  # [batch_size, past_length, num_series, features_dim]
+                past_data = self._process_multi_series_data(past_data)
             past_inputs["past_data"] = past_data
 
         # Handle future_inputs
         if "future_data" in future_inputs:
             future_data = future_inputs["future_data"]
-            # Check if we need to reshape the future data
-            if (
-                future_data.ndim == 4
-            ):  # [batch_size, future_length, num_series, features_dim]
-                # For now, take the first series only
-                future_data = future_data[:, :, 0, :]
+            if future_data.ndim == 4:  # [batch_size, future_length, num_series, features_dim]
+                future_data = self._process_multi_series_data(future_data)
             future_inputs["future_data"] = future_data
 
         # Handle target
-        if target.ndim == 4:  # [batch_size, future_length, num_series, features_dim]
-            # For simplicity, take the first series and first feature
-            target = target[:, :, 0, 0]
-        elif target.ndim == 3:  # [batch_size, future_length, num_series]
-            # Take the first series
-            target = target[:, :, 0]
+        target = self._process_multi_series_target(target)
 
         return past_inputs, future_inputs, static_inputs, target
+
+    def _process_multi_series_data(self, data: torch.Tensor) -> torch.Tensor:
+        """
+        Process multi-series data based on the configured selection method.
+
+        Args:
+            data: Input tensor of shape [batch_size, time_length, num_series, features_dim]
+
+        Returns:
+            Processed tensor of shape [batch_size, time_length, output_features_dim]
+        """
+        if self.series_selection_method == "first":
+            return data[:, :, 0, :]
+        elif self.series_selection_method == "last":
+            return data[:, :, -1, :]
+        elif self.series_selection_method == "index":
+            if self.series_index >= data.shape[2]:
+                raise IndexError(f"series_index {self.series_index} out of range for {data.shape[2]} series")
+            return data[:, :, self.series_index, :]
+        elif self.series_selection_method == "aggregate":
+            if self.series_aggregation == "mean":
+                return data.mean(dim=2)
+            elif self.series_aggregation == "sum":
+                return data.sum(dim=2)
+            elif self.series_aggregation == "max":
+                return data.max(dim=2)[0]
+            elif self.series_aggregation == "min":
+                return data.min(dim=2)[0]
+        elif self.series_selection_method == "flatten":
+            # Flatten series and features dimensions
+            batch_size, time_length, num_series, features_dim = data.shape
+            return data.view(batch_size, time_length, num_series * features_dim)
+
+        raise ValueError(f"Unknown series_selection_method: {self.series_selection_method}")
+
+    def _process_multi_series_target(self, target: torch.Tensor) -> torch.Tensor:
+        """
+        Process multi-series target data based on the configured selection method.
+
+        Args:
+            target: Target tensor of varying dimensions
+
+        Returns:
+            Processed tensor of shape [batch_size, future_length]
+        """
+        if target.ndim == 4:  # [batch_size, future_length, num_series, features_dim]
+            if self.series_selection_method == "first":
+                return target[:, :, 0, 0]
+            elif self.series_selection_method == "last":
+                return target[:, :, -1, 0]
+            elif self.series_selection_method == "index":
+                if self.series_index >= target.shape[2]:
+                    raise IndexError(f"series_index {self.series_index} out of range for {target.shape[2]} series")
+                return target[:, :, self.series_index, 0]
+            elif self.series_selection_method == "aggregate":
+                # Aggregate across series, take first feature
+                target_series = target[:, :, :, 0]  # [batch_size, future_length, num_series]
+                if self.series_aggregation == "mean":
+                    return target_series.mean(dim=2)
+                elif self.series_aggregation == "sum":
+                    return target_series.sum(dim=2)
+                elif self.series_aggregation == "max":
+                    return target_series.max(dim=2)[0]
+                elif self.series_aggregation == "min":
+                    return target_series.min(dim=2)[0]
+            elif self.series_selection_method == "flatten":
+                # For target, we still need to return [batch_size, future_length]
+                # so we aggregate across series and features
+                return target.mean(dim=(2, 3))
+
+        elif target.ndim == 3:  # [batch_size, future_length, num_series]
+            if self.series_selection_method == "first":
+                return target[:, :, 0]
+            elif self.series_selection_method == "last":
+                return target[:, :, -1]
+            elif self.series_selection_method == "index":
+                if self.series_index >= target.shape[2]:
+                    raise IndexError(f"series_index {self.series_index} out of range for {target.shape[2]} series")
+                return target[:, :, self.series_index]
+            elif self.series_selection_method == "aggregate":
+                if self.series_aggregation == "mean":
+                    return target.mean(dim=2)
+                elif self.series_aggregation == "sum":
+                    return target.sum(dim=2)
+                elif self.series_aggregation == "max":
+                    return target.max(dim=2)[0]
+                elif self.series_aggregation == "min":
+                    return target.min(dim=2)[0]
+            elif self.series_selection_method == "flatten":
+                return target.mean(dim=2)
+
+        # If target is already 2D or has unexpected dimensions, return as-is
+        return target
 
     def training_step(
         self,
