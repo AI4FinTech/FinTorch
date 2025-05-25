@@ -57,10 +57,12 @@ class CausalConvolution(nn.Module):
         self.register_parameter("kernel", self.kernel)
 
         # 6D tensor because the output of apply_kernel is a 6D tensor
-        self.base = torch.tensor([i for i in range(1, self.input_window + 1)]).reshape(
-            1, 1, 1, 1, -1, 1
+        self.register_buffer(
+            "base", 
+            torch.tensor([i for i in range(1, self.input_window + 1)]).reshape(
+                1, 1, 1, 1, -1, 1
+            )
         )
-
     def shift_kernel(self, kernel: torch.Tensor, shifts: int) -> torch.Tensor:
         # kernel: (number_of_heads, number_of_series, number_of_series, length_input_window)
         return torch.roll(kernel, shifts=shifts + 1, dims=3)
