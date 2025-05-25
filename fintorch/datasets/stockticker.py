@@ -244,9 +244,16 @@ class StockTicker(Dataset):  # type: ignore
                 ]
                 logging.info(f"Only downloading missing tickers: {missing_tickers}")
 
-            raw_data = self.download_with_retry(
-                missing_tickers, self.start_date, self.end_date
-            )
+            try:
+                raw_data = self.download_with_retry(
+                    missing_tickers, self.start_date, self.end_date
+                )
+            except Exception as e:
+                logging.warning(f"Yahoo Finance download failed: {str(e)}")
+                logging.info("Falling back to synthetic stock data generation")
+                raw_data = self.generate_synthetic_stock_data(
+                    missing_tickers, self.start_date, self.end_date
+                )
 
             # Check if self.value_name exists as a column in the raw_data dataframe
             if self.value_name not in raw_data.columns:

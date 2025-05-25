@@ -250,12 +250,12 @@ class TemporalFusionTransformer(nn.Module):
         past = self.variable_selection_past(past_inputs)
         future = (
             self.variable_selection_future(future_inputs)
-            if future_inputs is not None
+            if future_inputs is not None and hasattr(self, 'variable_selection_future')
             else None
         )
         static = (
             self.variable_selection_static(static_inputs)
-            if static_inputs is not None
+            if static_inputs is not None and hasattr(self, 'variable_selection_static')
             else None
         )
 

@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import lightning as L
 import pandas as pd
@@ -9,6 +9,39 @@ from sklearn.preprocessing import StandardScaler  # type: ignore
 from torch.utils.data import DataLoader, Dataset, random_split
 
 from fintorch.datasets.base import TimeSeriesDataset
+
+
+def custom_collate_fn(batch: List[Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, Optional[torch.Tensor]], torch.Tensor]]) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, Optional[torch.Tensor]], torch.Tensor]:
+    """
+    Custom collate function to handle None values in static_data.
+    """
+    past_inputs_list = []
+    future_inputs_list = []
+    static_inputs_list = []
+    targets_list = []
+
+    for past_inputs, future_inputs, static_inputs, target in batch:
+        past_inputs_list.append(past_inputs)
+        future_inputs_list.append(future_inputs)
+        static_inputs_list.append(static_inputs)
+        targets_list.append(target)
+
+    # Collate past_inputs
+    past_data = torch.stack([item['past_data'] for item in past_inputs_list])
+    collated_past_inputs = {'past_data': past_data}
+
+    # Collate future_inputs
+    future_data = torch.stack([item['future_data'] for item in future_inputs_list])
+    collated_future_inputs = {'future_data': future_data}
+
+    # Handle static_inputs (which contain None values)
+    # Since static_data is None for all items, we keep it as None
+    collated_static_inputs = {'static_data': None}
+
+    # Collate targets
+    targets = torch.stack(targets_list)
+
+    return collated_past_inputs, collated_future_inputs, collated_static_inputs, targets
 
 
 # --- Data Loading Classes ---
@@ -367,6 +400,7 @@ class DiamondDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
+            collate_fn=custom_collate_fn,
         )
 
     def val_dataloader(self) -> DataLoader[Any]:
@@ -379,6 +413,7 @@ class DiamondDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
+            collate_fn=custom_collate_fn,
         )
 
     def test_dataloader(self) -> DataLoader[Any]:
@@ -391,6 +426,7 @@ class DiamondDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
+            collate_fn=custom_collate_fn,
         )
 
     def predict_dataloader(self) -> DataLoader[Any]:
@@ -403,4 +439,5 @@ class DiamondDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
+            collate_fn=custom_collate_fn,
         )

@@ -16,7 +16,7 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
 # --- Configuration ---
 # Data Parameters (Updated for DiamondDataModule with download)
-LOCAL_DATA_PATH = "../data_0.csv"  # Local filename for downloaded data
+LOCAL_DATA_PATH = "data_0.csv"  # Local filename for downloaded data
 TIME_STEP = 24  # Input window length (past)
 OUTPUT_WINDOW = 12  # Output window length (future/prediction)
 STATIC_LENGTH = 0  # CausalFormer doesn't use static features in this setup
@@ -41,6 +41,7 @@ EMBEDDING_SIZE = 128
 FFN_HIDDEN_DIMENSIONALITY = 128
 TAU = 1.0
 DROPOUT = 0.2
+NUMBER_OF_SERIES = 4  # Default value, will be updated from data
 
 # Training Hyperparameters
 LEARNING_RATE = 0.01
