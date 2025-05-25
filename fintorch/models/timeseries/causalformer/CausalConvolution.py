@@ -117,7 +117,7 @@ class CausalConvolution(nn.Module):
 
         # Get stack shifted kernel
         kernel = self.stack_shifted_kernel(self.kernel)
-        kernel.requires_grad_()  # makes this a learnable kernel
+        kernel = self.stack_shifted_kernel(self.kernel)
 
         # kernel: (number_of_heads, number_of_series, number_of_series, length_input_window, length_input_window)
 
