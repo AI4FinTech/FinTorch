@@ -140,7 +140,8 @@ class DiamondDataset(TimeSeriesDataset):
         # Store indices instead of pre-processed samples to save memory
         # and allow generating static features per-item
         self.indices = []
-        for i in range(self._time_step, len(self.data) + 1):
+-       for i in range(self._time_step, len(self.data) + 1):
++       for i in range(self._time_step, len(self.data) - self._output_window + 1):
             if i >= self._output_window:
                 # Check if both past and future windows fit within bounds
                 if (i - self._time_step >= 0) and (i - self._output_window >= 0):
@@ -153,8 +154,6 @@ class DiamondDataset(TimeSeriesDataset):
                 f"Warning: No valid sample indices generated. Check time_step ({self._time_step}), "
                 f"output_window ({self._output_window}), and data length ({len(self.data)})."
             )
-
-    def __len__(self) -> int:
         """Returns the total number of samples."""
         return len(self.indices)
 
