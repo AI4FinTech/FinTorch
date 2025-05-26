@@ -219,11 +219,11 @@ class TestTemporalFusionTransformerModule:
     def test_quantile_loss_calculation(self, model):
         """Test quantile loss calculation"""
         batch_size, horizon = 4, 5
-        y_pred = torch.randn(batch_size, horizon, 3)  # 3 quantiles
-        y_true = torch.randn(batch_size, horizon, 1)
-        quantiles = [0.1, 0.5, 0.9]
+        # Model output shape: [batch, horizon, series, quantiles]
+        y_pred = torch.randn(batch_size, horizon, 1, 3)  # 3 quantiles
+        y_true = torch.randn(batch_size, horizon)  # 2D target, will be reshaped internally
 
-        loss = model.quantile_loss(y_pred, y_true, quantiles)
+        loss = model.quantile_loss(y_pred, y_true)
 
         assert isinstance(loss, torch.Tensor)
         assert loss.item() >= 0

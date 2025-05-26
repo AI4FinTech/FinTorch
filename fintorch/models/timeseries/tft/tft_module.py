@@ -155,22 +155,27 @@ class TemporalFusionTransformerModule(L.LightningModule):
         # Convert new format to legacy format for TFT core model
         # This maintains compatibility with the existing TFT implementation
         if past_inputs is None:
-            past_inputs = {
-                "past_target": num_past_target_features,
-                "past_known_cov": num_past_known_cov_features,
-                "past_unknown_cov": num_past_unknown_cov_features,
-            }
+            past_inputs = {}
+            # Always include past_target - it's required for TFT to work
+            if num_past_target_features <= 0:
+                raise ValueError("num_past_target_features must be > 0 - TFT requires at least past target data")
+            past_inputs["past_target"] = num_past_target_features
+            if num_past_known_cov_features > 0:
+                past_inputs["past_known_cov"] = num_past_known_cov_features
+            if num_past_unknown_cov_features > 0:
+                past_inputs["past_unknown_cov"] = num_past_unknown_cov_features
 
         if future_inputs is None:
-            future_inputs = {
-                "future_known_cov": num_future_known_cov_features,
-            }
+            future_inputs = {}
+            if num_future_known_cov_features > 0:
+                future_inputs["future_known_cov"] = num_future_known_cov_features
 
         if static_inputs is None:
-            static_inputs = {
-                "static_real": num_static_real_features,
-                "static_categorical": num_static_categorical_features,
-            }
+            static_inputs = {}
+            if num_static_real_features > 0:
+                static_inputs["static_real"] = num_static_real_features
+            if num_static_categorical_features > 0:
+                static_inputs["static_categorical"] = num_static_categorical_features
 
         self.tft_model = TemporalFusionTransformer(
             number_of_past_inputs,

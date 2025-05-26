@@ -11,3 +11,5 @@ Tutorials
    tutorials/tradingattheclose/tradingattheclose
    tutorials/marketdata/marketdata
    tutorials/funsd/funsd
+   tutorials/tft/tft
+   tutorials/timeseries/timeseries_datasets_tutorial

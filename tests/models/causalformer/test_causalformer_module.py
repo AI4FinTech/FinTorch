@@ -10,10 +10,10 @@ class TestCausalFormerModule:
 
     @pytest.fixture
     def default_params(self):
-        """Default parameters for model initialization"""
+        """Default parameters for CausalFormer testing"""
         return {
-            "number_of_layers": 3,
-            "number_of_heads": 4,
+            "number_of_layers": 2,
+            "number_of_heads": 2,
             "number_of_series": 1,
             "length_input_window": 20,
             "length_output_window": 10,
@@ -125,13 +125,15 @@ class TestCausalFormerModule:
 
     def test_forward_pass(self, model):
         """Test basic forward pass"""
-        batch_size, num_series, seq_len, features = 4, 1, 20, 32
+        batch_size, num_series, seq_len, features = 4, 1, 20, 6  # Match feature_dimensionality
         x = torch.randn(batch_size, num_series, seq_len, features)
 
         model.eval()
         with torch.no_grad():
             output = model(x)
 
+        assert output.shape == (batch_size, num_series, 10, 1)
+        assert torch.isfinite(output).all()
         assert output is not None
         assert isinstance(output, torch.Tensor)
         assert output.shape[0] == batch_size
@@ -345,6 +347,8 @@ class TestCausalFormerModule:
         # Test 2D target [batch, time]
         batch_2d = {
             "past_target": torch.randn(batch_size, 20, 1, 1),
+            "past_covariates_known_future": torch.randn(batch_size, 20, 1, 3),
+            "past_covariates_unknown_future": torch.randn(batch_size, 20, 1, 2),
             "output_target": torch.randn(batch_size, 10)
         }
         x, y = model._prepare_data(batch_2d)
@@ -353,10 +357,12 @@ class TestCausalFormerModule:
         # Test 3D target [batch, time, series]
         batch_3d = {
             "past_target": torch.randn(batch_size, 20, 1, 1),
-            "output_target": torch.randn(batch_size, 10, 2)
+            "past_covariates_known_future": torch.randn(batch_size, 20, 1, 3),
+            "past_covariates_unknown_future": torch.randn(batch_size, 20, 1, 2),
+            "output_target": torch.randn(batch_size, 10, 1)
         }
         x, y = model._prepare_data(batch_3d)
-        assert y.shape == (batch_size, 2, 10, 1)
+        assert y.shape == (batch_size, 1, 10, 1)
 
     def test_series_selection_methods_integration(self, default_params, sample_batch_multi_series):
         """Test different series selection methods with actual training steps"""
@@ -370,10 +376,15 @@ class TestCausalFormerModule:
                 params["series_aggregation"] = "mean"
             elif method == "index":
                 params["series_index"] = 1
+            elif method == "flatten":
+                # For flatten method, adjust feature_dimensionality to account for multiple series
+                params["feature_dimensionality"] = 6 * sample_batch_multi_series["past_target"].shape[2]  # 6 features * num_series
 
             model = CausalFormerModule(**params)
             result = model.training_step(sample_batch_multi_series, 0)
+
             assert "loss" in result
+            assert torch.isfinite(result["loss"])
             assert result["loss"].item() >= 0
 
     def test_configure_optimizers(self, model):
@@ -431,11 +442,14 @@ class TestCausalFormerModule:
             batch = {
                 "past_target": torch.randn(batch_size, 20, 1, 1),
                 "past_covariates_known_future": torch.randn(batch_size, 20, 1, 3),
+                "past_covariates_unknown_future": torch.randn(batch_size, 20, 1, 2),
                 "output_target": torch.randn(batch_size, 10, 1, 1),
             }
 
             result = model.training_step(batch, 0)
+
             assert "loss" in result
+            assert torch.isfinite(result["loss"])
             assert result["loss"].item() >= 0
 
     def test_different_sequence_lengths(self, default_params):
@@ -449,11 +463,14 @@ class TestCausalFormerModule:
             batch = {
                 "past_target": torch.randn(8, input_len, 1, 1),
                 "past_covariates_known_future": torch.randn(8, input_len, 1, 3),
+                "past_covariates_unknown_future": torch.randn(8, input_len, 1, 2),
                 "output_target": torch.randn(8, output_len, 1, 1),
             }
 
             result = model.training_step(batch, 0)
+
             assert "loss" in result
+            assert torch.isfinite(result["loss"])
             assert result["loss"].item() >= 0
 
     @pytest.mark.parametrize("dropout", [0.0, 0.1, 0.3, 0.5])
