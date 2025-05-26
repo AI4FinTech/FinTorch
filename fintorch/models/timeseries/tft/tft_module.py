@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import lightning as L
 import torch
@@ -24,12 +24,16 @@ class TemporalFusionTransformerModule(L.LightningModule):
         hidden_dimension (int): The dimensionality of the hidden layers.
         dropout (float): Dropout rate to apply to the input tensor.
         number_of_heads (int): The number of attention heads.
-        past_inputs (Dict[str, int]): A dictionary mapping past input feature names to their dimensions.
-        future_inputs (Dict[str, int]): A dictionary mapping future input feature names to their dimensions.
-        static_inputs (Dict[str, int]): A dictionary mapping static input feature names to their dimensions.
+        num_past_target_features (int): Number of past target features.
+        num_past_known_cov_features (int): Number of past known covariate features.
+        num_past_unknown_cov_features (int): Number of past unknown covariate features.
+        num_future_known_cov_features (int): Number of future known covariate features.
+        num_static_real_features (int): Number of real-valued static features.
+        num_static_categorical_features (int): Number of categorical static features.
+        static_categorical_cardinalities (List[int]): List of cardinalities for each categorical feature.
         batch_size (int): The batch size.
         device (str): The device to use for computation (e.g., "cpu" or "cuda").
-        quantiles (list[float]): List of quantiles to predict.
+        quantiles (List[float]): List of quantiles to predict.
         series_selection_method (str): Method for handling multi-series data. Options:
             - "first": Use only the first series (default, backward compatible)
             - "last": Use only the last series
@@ -66,7 +70,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
     Methods:
         _prepare_data(batch):
-            Prepares the data from SimpleSyntheticDataset for use with the TFT model.
+            Prepares the data from the new standardized format for use with the TFT model.
         forward(past_inputs, future_inputs, static_inputs):
             Computes the forward pass of the TFT model.
         quantile_loss(model_output, target):
@@ -95,15 +99,24 @@ class TemporalFusionTransformerModule(L.LightningModule):
         hidden_dimension: int,
         dropout: float,
         number_of_heads: int,
-        past_inputs: Dict[str, int],
-        future_inputs: Dict[str, int],
-        static_inputs: Dict[str, int],
+        # New granular feature parameters
+        num_past_target_features: int,
+        num_past_known_cov_features: int,
+        num_past_unknown_cov_features: int,
+        num_future_known_cov_features: int,
+        num_static_real_features: int,
+        num_static_categorical_features: int,
+        static_categorical_cardinalities: List[int],
         batch_size: int,
         device: str,
         quantiles: List[float] = [0.1, 0.5, 0.9],
         series_selection_method: str = "first",
         series_index: Optional[int] = None,
         series_aggregation: str = "mean",
+        # Legacy parameters for backward compatibility
+        past_inputs: Optional[Dict[str, int]] = None,
+        future_inputs: Optional[Dict[str, int]] = None,
+        static_inputs: Optional[Dict[str, int]] = None,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -130,6 +143,35 @@ class TemporalFusionTransformerModule(L.LightningModule):
         if series_aggregation not in valid_aggregations:
             raise ValueError(f"series_aggregation must be one of {valid_aggregations}")
 
+        # Store new feature dimensions
+        self.num_past_target_features = num_past_target_features
+        self.num_past_known_cov_features = num_past_known_cov_features
+        self.num_past_unknown_cov_features = num_past_unknown_cov_features
+        self.num_future_known_cov_features = num_future_known_cov_features
+        self.num_static_real_features = num_static_real_features
+        self.num_static_categorical_features = num_static_categorical_features
+        self.static_categorical_cardinalities = static_categorical_cardinalities
+
+        # Convert new format to legacy format for TFT core model
+        # This maintains compatibility with the existing TFT implementation
+        if past_inputs is None:
+            past_inputs = {
+                "past_target": num_past_target_features,
+                "past_known_cov": num_past_known_cov_features,
+                "past_unknown_cov": num_past_unknown_cov_features,
+            }
+
+        if future_inputs is None:
+            future_inputs = {
+                "future_known_cov": num_future_known_cov_features,
+            }
+
+        if static_inputs is None:
+            static_inputs = {
+                "static_real": num_static_real_features,
+                "static_categorical": num_static_categorical_features,
+            }
+
         self.tft_model = TemporalFusionTransformer(
             number_of_past_inputs,
             horizon,
@@ -147,9 +189,9 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
     def forward(
         self,
-        past_inputs: Dict[str, int],
-        future_inputs: Dict[str, int],
-        static_inputs: Dict[str, int],
+        past_inputs: Dict[str, torch.Tensor],
+        future_inputs: Dict[str, torch.Tensor],
+        static_inputs: Dict[str, torch.Tensor],
     ) -> Any:
         return self.tft_model(past_inputs, future_inputs, static_inputs)
 
@@ -181,107 +223,100 @@ class TemporalFusionTransformerModule(L.LightningModule):
 
     def _unpack_batch(
         self,
-        batch: Union[
-            Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]],
-            Tuple[
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                torch.Tensor,
-            ],
-        ],
-    ) -> Tuple[
-        Dict[str, torch.Tensor],
-        Optional[Dict[str, torch.Tensor]],
-        Optional[Dict[str, torch.Tensor]],
-        torch.Tensor,
-    ]:
+        batch: Union[Dict[str, torch.Tensor], Any],
+    ) -> Dict[str, torch.Tensor]:
         """
-        Unpacks the batch.
-        Supports two formats:
-         - Format 1 (4-tuple): (past_inputs, future_inputs, static_inputs, target)
-         - Format 2 (2-tuple): (inputs, target) where inputs can be either:
-              a) a tuple of (past_inputs, future_inputs, static_inputs), or
-              b) a single tensor (only past_inputs)
+        Unpacks the batch from the new standardized format.
+        Supports the new single dictionary format.
         """
-        if isinstance(batch, (list, tuple)):
-            if len(batch) == 4:
-                past_inputs, future_inputs, static_inputs, target = batch
-            elif len(batch) == 2:
-                inputs, target = batch  # type: ignore[assignment]
-                if isinstance(inputs, (list, tuple)) and len(inputs) == 3:
-                    past_inputs, future_inputs, static_inputs = inputs
-                else:
-                    # Assume only past_inputs are provided as a dict.
-                    past_inputs = inputs  # type: ignore[assignment]
-                    future_inputs, static_inputs = None, None
-            else:  # type: ignore[unreachable]
-                raise ValueError(
-                    f"Unexpected batch format: expected 2 or 4 items, got {len(batch)}"
-                )
+        if isinstance(batch, dict):
+            return batch
         else:
-            raise ValueError("Batch must be a tuple or list")
-        return past_inputs, future_inputs, static_inputs, target
+            raise ValueError("Batch must be a dictionary in the new standardized format")
 
     def _prepare_data(
         self,
-        batch: Tuple[
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            torch.Tensor,
-        ],
-    ) -> Tuple[
+        batch: Dict[str, torch.Tensor],
+    ) -> tuple[
         Dict[str, torch.Tensor],
         Dict[str, torch.Tensor],
         Dict[str, torch.Tensor],
         torch.Tensor,
     ]:
         """
-        Prepares the data from SimpleSyntheticDataset for use with the TFT model.
+        Prepares the data from the new standardized format for use with the TFT model.
 
-        The modified SimpleSyntheticDataset returns data with shape:
-        - past_inputs["past_data"]: [batch_size, past_length, num_series, features_dim]
-        - future_inputs["future_data"]: [batch_size, future_length, num_series, features_dim]
-        - static_inputs["static_data"]: [batch_size, static_length]
-        - target: [batch_size, future_length, num_series, features_dim]
+        The new standardized format provides data with shape:
+        - past_target: [batch_size, past_time_steps, series_dim, num_target_features]
+        - past_covariates_known_future: [batch_size, past_time_steps, series_dim, num_known_cov_features]
+        - past_covariates_unknown_future: [batch_size, past_time_steps, series_dim, num_unknown_cov_features]
+        - future_covariates_known: [batch_size, future_time_steps, series_dim, num_known_cov_features]
+        - output_target: [batch_size, future_time_steps, series_dim, num_target_features]
+        - static_features_real: [batch_size, series_dim, num_static_real_features]
+        - static_features_categorical: [batch_size, series_dim, num_static_categorical_features]
 
         TFT expects:
-        - past_inputs["past_data"]: [batch_size, past_length, features_dim]
-        - future_inputs["future_data"]: [batch_size, future_length, features_dim]
-        - static_inputs["static_data"]: [batch_size, static_length]
-        - target: [batch_size, future_length]
+        - past_inputs[key]: [batch_size, past_time_steps, features_dim]
+        - future_inputs[key]: [batch_size, future_time_steps, features_dim]
+        - static_inputs[key]: [batch_size, features_dim]
+        - target: [batch_size, future_time_steps]
 
-        The method now supports multiple strategies for handling multi-series data based on
+        The method supports multiple strategies for handling multi-series data based on
         the series_selection_method configuration.
 
         Args:
-            batch: A tuple containing past_inputs, future_inputs, static_inputs, and target.
+            batch: A dictionary containing the new standardized format tensors.
 
         Returns:
             Tuple of processed past_inputs, future_inputs, static_inputs, and target.
         """
-        past_inputs, future_inputs, static_inputs, target = batch
+        # Process past inputs
+        past_inputs = {}
+        if "past_target" in batch:
+            past_target = batch["past_target"]
+            if past_target.ndim == 4:  # [batch_size, time_steps, series_dim, features_dim]
+                past_target = self._process_multi_series_data(past_target)
+            past_inputs["past_target"] = past_target
 
-        # Handle past_inputs
-        if "past_data" in past_inputs:
-            past_data = past_inputs["past_data"]
-            if (
-                past_data.ndim == 4
-            ):  # [batch_size, past_length, num_series, features_dim]
-                past_data = self._process_multi_series_data(past_data)
-            past_inputs["past_data"] = past_data
+        if "past_covariates_known_future" in batch:
+            past_known_cov = batch["past_covariates_known_future"]
+            if past_known_cov.ndim == 4:
+                past_known_cov = self._process_multi_series_data(past_known_cov)
+            past_inputs["past_known_cov"] = past_known_cov
 
-        # Handle future_inputs
-        if "future_data" in future_inputs:
-            future_data = future_inputs["future_data"]
-            if (
-                future_data.ndim == 4
-            ):  # [batch_size, future_length, num_series, features_dim]
-                future_data = self._process_multi_series_data(future_data)
-            future_inputs["future_data"] = future_data
+        if "past_covariates_unknown_future" in batch:
+            past_unknown_cov = batch["past_covariates_unknown_future"]
+            if past_unknown_cov.ndim == 4:
+                past_unknown_cov = self._process_multi_series_data(past_unknown_cov)
+            past_inputs["past_unknown_cov"] = past_unknown_cov
 
-        # Handle target
+        # Process future inputs
+        future_inputs = {}
+        if "future_covariates_known" in batch:
+            future_known_cov = batch["future_covariates_known"]
+            if future_known_cov.ndim == 4:
+                future_known_cov = self._process_multi_series_data(future_known_cov)
+            future_inputs["future_known_cov"] = future_known_cov
+
+        # Process static inputs
+        static_inputs = {}
+        if "static_features_real" in batch:
+            static_real = batch["static_features_real"]
+            if static_real.ndim == 3:  # [batch_size, series_dim, features_dim]
+                static_real = self._process_multi_series_static_data(static_real)
+            static_inputs["static_real"] = static_real
+
+        if "static_features_categorical" in batch:
+            static_categorical = batch["static_features_categorical"]
+            if static_categorical.ndim == 3:  # [batch_size, series_dim, features_dim]
+                static_categorical = self._process_multi_series_static_data(static_categorical)
+            elif static_categorical.dtype == torch.long:
+                # Convert categorical to float for TFT compatibility
+                static_categorical = static_categorical.float()
+            static_inputs["static_categorical"] = static_categorical
+
+        # Process target
+        target = batch["output_target"]
         target = self._process_multi_series_target(target)
 
         return past_inputs, future_inputs, static_inputs, target
@@ -328,21 +363,69 @@ class TemporalFusionTransformerModule(L.LightningModule):
             f"Unknown series_selection_method: {self.series_selection_method}"
         )
 
+    def _process_multi_series_static_data(self, data: torch.Tensor) -> torch.Tensor:
+        """
+        Process multi-series static data based on the configured selection method.
+
+        Args:
+            data: Input tensor of shape [batch_size, num_series, features_dim]
+
+        Returns:
+            Processed tensor of shape [batch_size, output_features_dim]
+        """
+        # Convert to float if it's categorical (long) data
+        if data.dtype == torch.long:
+            data = data.float()
+
+        if self.series_selection_method == "first":
+            return data[:, 0, :]
+        elif self.series_selection_method == "last":
+            return data[:, -1, :]
+        elif self.series_selection_method == "index":
+            if self.series_index is None:
+                raise ValueError(
+                    "series_index cannot be None when using 'index' selection method"
+                )
+            if self.series_index >= data.shape[1]:
+                raise IndexError(
+                    f"series_index {self.series_index} out of range for {data.shape[1]} series"
+                )
+            return data[:, self.series_index, :]
+        elif self.series_selection_method == "aggregate":
+            if self.series_aggregation == "mean":
+                return data.mean(dim=1)
+            elif self.series_aggregation == "sum":
+                return data.sum(dim=1)
+            elif self.series_aggregation == "max":
+                return data.max(dim=1)[0]
+            elif self.series_aggregation == "min":
+                return data.min(dim=1)[0]
+        elif self.series_selection_method == "flatten":
+            # Flatten series and features dimensions
+            batch_size, num_series, features_dim = data.shape
+            return data.view(batch_size, num_series * features_dim)
+
+        raise ValueError(
+            f"Unknown series_selection_method: {self.series_selection_method}"
+        )
+
     def _process_multi_series_target(self, target: torch.Tensor) -> torch.Tensor:
         """
         Process multi-series target data based on the configured selection method.
 
         Args:
-            target: Target tensor of varying dimensions
+            target: Input tensor of shape [batch_size, time_length, num_series, features_dim]
+                   or [batch_size, time_length, num_series]
 
         Returns:
-            Processed tensor of shape [batch_size, future_length]
+            Processed tensor of shape [batch_size, time_length]
         """
-        if target.ndim == 4:  # [batch_size, future_length, num_series, features_dim]
+        # Handle different target shapes
+        if target.ndim == 4:  # [batch_size, time_length, num_series, features_dim]
             if self.series_selection_method == "first":
-                return target[:, :, 0, 0]
+                result = target[:, :, 0, :]
             elif self.series_selection_method == "last":
-                return target[:, :, -1, 0]
+                result = target[:, :, -1, :]
             elif self.series_selection_method == "index":
                 if self.series_index is None:
                     raise ValueError(
@@ -352,30 +435,36 @@ class TemporalFusionTransformerModule(L.LightningModule):
                     raise IndexError(
                         f"series_index {self.series_index} out of range for {target.shape[2]} series"
                     )
-                return target[:, :, self.series_index, 0]
+                result = target[:, :, self.series_index, :]
             elif self.series_selection_method == "aggregate":
-                # Aggregate across series, take first feature
-                target_series = target[
-                    :, :, :, 0
-                ]  # [batch_size, future_length, num_series]
                 if self.series_aggregation == "mean":
-                    return target_series.mean(dim=2)
+                    result = target.mean(dim=2)
                 elif self.series_aggregation == "sum":
-                    return target_series.sum(dim=2)
+                    result = target.sum(dim=2)
                 elif self.series_aggregation == "max":
-                    return target_series.max(dim=2)[0]
+                    result = target.max(dim=2)[0]
                 elif self.series_aggregation == "min":
-                    return target_series.min(dim=2)[0]
+                    result = target.min(dim=2)[0]
+                else:
+                    raise ValueError(f"Unknown aggregation method: {self.series_aggregation}")
             elif self.series_selection_method == "flatten":
-                # For target, we still need to return [batch_size, future_length]
-                # so we aggregate across series and features
-                return target.mean(dim=(2, 3))
+                # For target, we typically don't flatten - instead average across series
+                result = target.mean(dim=2)
+            else:
+                raise ValueError(f"Unknown series_selection_method: {self.series_selection_method}")
 
-        elif target.ndim == 3:  # [batch_size, future_length, num_series]
+            # If result still has features dimension, take the first feature or average
+            if result.ndim == 3:  # [batch_size, time_length, features_dim]
+                if result.shape[2] == 1:
+                    result = result.squeeze(-1)  # [batch_size, time_length]
+                else:
+                    result = result.mean(dim=2)  # Average across features
+
+        elif target.ndim == 3:  # [batch_size, time_length, num_series]
             if self.series_selection_method == "first":
-                return target[:, :, 0]
+                result = target[:, :, 0]
             elif self.series_selection_method == "last":
-                return target[:, :, -1]
+                result = target[:, :, -1]
             elif self.series_selection_method == "index":
                 if self.series_index is None:
                     raise ValueError(
@@ -385,129 +474,129 @@ class TemporalFusionTransformerModule(L.LightningModule):
                     raise IndexError(
                         f"series_index {self.series_index} out of range for {target.shape[2]} series"
                     )
-                return target[:, :, self.series_index]
+                result = target[:, :, self.series_index]
             elif self.series_selection_method == "aggregate":
                 if self.series_aggregation == "mean":
-                    return target.mean(dim=2)
+                    result = target.mean(dim=2)
                 elif self.series_aggregation == "sum":
-                    return target.sum(dim=2)
+                    result = target.sum(dim=2)
                 elif self.series_aggregation == "max":
-                    return target.max(dim=2)[0]
+                    result = target.max(dim=2)[0]
                 elif self.series_aggregation == "min":
-                    return target.min(dim=2)[0]
+                    result = target.min(dim=2)[0]
+                else:
+                    raise ValueError(f"Unknown aggregation method: {self.series_aggregation}")
             elif self.series_selection_method == "flatten":
-                return target.mean(dim=2)
+                # For target, we typically don't flatten - instead average across series
+                result = target.mean(dim=2)
+            else:
+                raise ValueError(f"Unknown series_selection_method: {self.series_selection_method}")
+        else:
+            # Target is already in the right shape [batch_size, time_length]
+            result = target
 
-        # If target is already 2D or has unexpected dimensions, return as-is
-        return target
+        return result
 
     def training_step(
         self,
-        batch: Union[
-            Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]],
-            Tuple[
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                torch.Tensor,
-            ],
-        ],
+        batch: Dict[str, torch.Tensor],
         batch_idx: int,
-    ) -> torch.Tensor:
-        # Prepare data from SimpleSyntheticDataset if needed
-        if isinstance(batch, tuple) and len(batch) == 4:
-            batch = self._prepare_data(batch)
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Performs a single training step.
 
-        past_inputs, future_inputs, static_inputs, target = self._unpack_batch(batch)
+        Args:
+            batch: A dictionary containing the batch data in the new standardized format.
+            batch_idx: The index of the current batch.
 
-        output, _ = self.forward(past_inputs, future_inputs, static_inputs)  # type: ignore
+        Returns:
+            A dictionary containing the training loss.
+        """
+        batch = self._unpack_batch(batch)
+        past_inputs, future_inputs, static_inputs, target = self._prepare_data(batch)
 
-        # Calculate the loss
-        loss = self.quantile_loss(output, target)
+        model_output = self(past_inputs, future_inputs, static_inputs)
+        loss = self.quantile_loss(model_output[0], target)
 
-        # Log the loss
-        self.log("train_loss_epoch", loss, on_epoch=True, on_step=False)
-
-        return loss
+        self.log(
+            "train_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
+        return {"loss": loss}
 
     def validation_step(
         self,
-        batch: Union[
-            Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]],
-            Tuple[
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                torch.Tensor,
-            ],
-        ],
+        batch: Dict[str, torch.Tensor],
         batch_idx: int,
-    ) -> torch.Tensor:
-        # Prepare data from SimpleSyntheticDataset if needed
-        if isinstance(batch, tuple) and len(batch) == 4:
-            batch = self._prepare_data(batch)
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Performs a single validation step.
 
-        past_inputs, future_inputs, static_inputs, target = self._unpack_batch(batch)  # type: ignore
+        Args:
+            batch: A dictionary containing the batch data in the new standardized format.
+            batch_idx: The index of the current batch.
 
-        output, _ = self.forward(past_inputs, future_inputs, static_inputs)  # type: ignore
+        Returns:
+            A dictionary containing the validation loss.
+        """
+        batch = self._unpack_batch(batch)
+        past_inputs, future_inputs, static_inputs, target = self._prepare_data(batch)
 
-        # Calculate the loss
-        loss = self.quantile_loss(output, target)
+        model_output = self(past_inputs, future_inputs, static_inputs)
+        loss = self.quantile_loss(model_output[0], target)
 
-        # Log the loss
-        self.log("val_loss_epoch", loss, on_epoch=True, on_step=False)
-        return loss
+        self.log(
+            "val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
+        return {"loss": loss}
 
     def test_step(
         self,
-        batch: Union[
-            Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]],
-            Tuple[
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                torch.Tensor,
-            ],
-        ],
+        batch: Dict[str, torch.Tensor],
         batch_idx: int,
-    ) -> torch.Tensor:
-        # Prepare data from SimpleSyntheticDataset if needed
-        if isinstance(batch, tuple) and len(batch) == 4:
-            batch = self._prepare_data(batch)
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Performs a single test step.
 
-        past_inputs, future_inputs, static_inputs, target = self._unpack_batch(batch)
-        output, _ = self.forward(past_inputs, future_inputs, static_inputs)  # type: ignore
+        Args:
+            batch: A dictionary containing the batch data in the new standardized format.
+            batch_idx: The index of the current batch.
 
-        # Calculate the loss
-        loss = self.quantile_loss(output, target)
+        Returns:
+            A dictionary containing the test loss.
+        """
+        batch = self._unpack_batch(batch)
+        past_inputs, future_inputs, static_inputs, target = self._prepare_data(batch)
 
-        # Log the loss
-        self.log("test_loss", loss)
-        return loss
+        model_output = self(past_inputs, future_inputs, static_inputs)
+        loss = self.quantile_loss(model_output[0], target)
 
-    def configure_optimizers(self) -> torch.optim.Optimizer:
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        return optimizer
+        self.log(
+            "test_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
+        return {"loss": loss}
+
+    def configure_optimizers(self) -> Any:
+        return torch.optim.Adam(self.parameters(), lr=0.01)
 
     def predict_step(
         self,
-        batch: Union[
-            Tuple[torch.Tensor, torch.Tensor],
-            Tuple[
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                Dict[str, torch.Tensor],
-                torch.Tensor,
-            ],
-        ],
+        batch: Dict[str, torch.Tensor],
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> Any:
-        # Prepare data from SimpleSyntheticDataset if needed
-        if isinstance(batch, tuple) and len(batch) == 4:
-            batch = self._prepare_data(batch)
+        """
+        Performs a single prediction step.
 
-        past_inputs, future_inputs, static_inputs, _ = self._unpack_batch(batch)  # type: ignore
-        output, _ = self.forward(past_inputs, future_inputs, static_inputs)  # type: ignore
+        Args:
+            batch: A dictionary containing the batch data in the new standardized format.
+            batch_idx: The index of the current batch.
+            dataloader_idx: The index of the current dataloader.
 
-        return output
+        Returns:
+            The model predictions.
+        """
+        batch = self._unpack_batch(batch)
+        past_inputs, future_inputs, static_inputs, _ = self._prepare_data(batch)
+
+        model_output = self(past_inputs, future_inputs, static_inputs)
+        return model_output

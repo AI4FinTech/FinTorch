@@ -60,6 +60,8 @@ click==8.1.7
     #   ray
     #   rich-click
     #   wandb
+cloudpickle==3.1.1
+    # via hyperopt
 colorlog==6.8.2
     # via optuna
 contourpy==1.2.1
@@ -116,6 +118,8 @@ fsspec[http]==2024.6.1
     #   ray
     #   torch
     #   torch-geometric
+future==1.0.0
+    # via hyperopt
 gitdb==4.0.11
     # via gitpython
 gitpython==3.1.43
@@ -125,6 +129,8 @@ greenlet==3.1.1
 html5lib==1.1
     # via yfinance
 huggingface-hub==0.24.0
+    # via fintorch (pyproject.toml)
+hyperopt==0.2.7
     # via fintorch (pyproject.toml)
 identify==2.6.0
     # via pre-commit
@@ -222,6 +228,7 @@ nbsphinx==0.8.6
 networkx==3.3
     # via
     #   fintorch (pyproject.toml)
+    #   hyperopt
     #   torch
 neuralforecast==1.7.6
     # via fintorch (pyproject.toml)
@@ -234,6 +241,7 @@ numpy==1.26.4
     #   contourpy
     #   coreforecast
     #   fintorch (pyproject.toml)
+    #   hyperopt
     #   lightning
     #   matplotlib
     #   neuralforecast
@@ -369,6 +377,8 @@ py==1.11.0
     # via
     #   pytest
     #   tox
+py4j==0.10.9.9
+    # via hyperopt
 pyarrow==17.0.0
     # via ray
 pycodestyle==2.5.0
@@ -430,7 +440,7 @@ pyzmq==26.0.3
     # via jupyter-client
 questionary==2.0.1
     # via bump-my-version
-ray[tune]==2.10.0
+ray[tune]==2.44.0
     # via
     #   fintorch (pyproject.toml)
     #   neuralforecast
@@ -469,6 +479,7 @@ scikit-learn==1.5.1
     # via torch-geometric
 scipy==1.14.0
     # via
+    #   hyperopt
     #   scikit-learn
     #   torch-geometric
 seaborn==0.13.2
@@ -482,6 +493,7 @@ six==1.16.0
     #   bleach
     #   docker-pycreds
     #   html5lib
+    #   hyperopt
     #   kaggle
     #   python-dateutil
     #   tox
@@ -491,7 +503,7 @@ snowballstemmer==2.2.0
     # via sphinx
 soupsieve==2.5
     # via beautifulsoup4
-sphinx==4.1.2
+sphinx==5.3.0
     # via
     #   fintorch (pyproject.toml)
     #   nbsphinx
@@ -559,6 +571,7 @@ tox==3.14.0
 tqdm==4.66.4
     # via
     #   huggingface-hub
+    #   hyperopt
     #   kaggle
     #   lightning
     #   optuna

@@ -92,78 +92,79 @@ class TestDatasetFormat(unittest.TestCase):
     def test_getitem_format(self):
         """Test the format of the getitem method."""
         # Get an item from the synthetic dataset
-        past_inputs, future_inputs, static_inputs, target = self.synthetic_dataset[0]
+        synthetic_item = self.synthetic_dataset[0]
 
-        # Check keys exist
-        self.assertIn("past_data", past_inputs)
-        self.assertIn("future_data", future_inputs)
-        self.assertIn("static_data", static_inputs)
+        # Check required keys exist
+        required_keys = [
+            "past_target",
+            "past_covariates_known_future",
+            "past_covariates_unknown_future",
+            "future_covariates_known",
+            "output_target",
+            "static_features_real",
+            "static_features_categorical"
+        ]
+        for key in required_keys:
+            self.assertIn(key, synthetic_item)
 
-        # Check shapes
+        # Check shapes for synthetic dataset
         self.assertEqual(
-            past_inputs["past_data"].shape,
+            synthetic_item["past_target"].shape,
             (self.time_steps, self.series_dim, self.features_dim),
         )
         self.assertEqual(
-            future_inputs["future_data"].shape,
+            synthetic_item["output_target"].shape,
             (self.future_steps, self.series_dim, self.features_dim),
-        )
-        self.assertIsNone(static_inputs["static_data"])
-        self.assertEqual(
-            target.shape, (self.future_steps, self.series_dim, self.features_dim)
         )
 
         # Get an item from the diamond dataset
-        past_inputs, future_inputs, static_inputs, target = self.diamond_dataset[0]
+        diamond_item = self.diamond_dataset[0]
 
-        # Check keys exist
-        self.assertIn("past_data", past_inputs)
-        self.assertIn("future_data", future_inputs)
-        self.assertIn("static_data", static_inputs)
+        # Check required keys exist
+        for key in required_keys:
+            self.assertIn(key, diamond_item)
 
-        # Check shapes
+        # Check shapes for diamond dataset
         self.assertEqual(
-            past_inputs["past_data"].shape,
+            diamond_item["past_target"].shape,
             (self.time_steps, self.diamond_dataset.series_dim, 1),
         )
         self.assertEqual(
-            future_inputs["future_data"].shape,
+            diamond_item["output_target"].shape,
             (self.future_steps, self.diamond_dataset.series_dim, 1),
-        )
-        self.assertIsNone(static_inputs["static_data"])
-        self.assertEqual(
-            target.shape, (self.future_steps, self.diamond_dataset.series_dim, 1)
         )
 
     def test_types(self):
         """Test the types of the data returned by getitem."""
         # Get an item from the synthetic dataset
-        past_inputs, future_inputs, static_inputs, target = self.synthetic_dataset[0]
+        synthetic_item = self.synthetic_dataset[0]
 
-        # Check types
-        self.assertIsInstance(past_inputs["past_data"], torch.Tensor)
-        self.assertIsInstance(future_inputs["future_data"], torch.Tensor)
-        self.assertIsNone(static_inputs["static_data"])
-        self.assertIsInstance(target, torch.Tensor)
+        # Check types for main tensors
+        self.assertIsInstance(synthetic_item["past_target"], torch.Tensor)
+        self.assertIsInstance(synthetic_item["output_target"], torch.Tensor)
+        self.assertIsInstance(synthetic_item["static_features_real"], torch.Tensor)
+        self.assertIsInstance(synthetic_item["static_features_categorical"], torch.Tensor)
 
         # Check dtypes
-        self.assertEqual(past_inputs["past_data"].dtype, torch.float32)
-        self.assertEqual(future_inputs["future_data"].dtype, torch.float32)
-        self.assertEqual(target.dtype, torch.float32)
+        self.assertEqual(synthetic_item["past_target"].dtype, torch.float32)
+        self.assertEqual(synthetic_item["output_target"].dtype, torch.float32)
+        self.assertEqual(synthetic_item["static_features_real"].dtype, torch.float32)
+        self.assertEqual(synthetic_item["static_features_categorical"].dtype, torch.long)
 
         # Get an item from the diamond dataset
-        past_inputs, future_inputs, static_inputs, target = self.diamond_dataset[0]
+        diamond_item = self.diamond_dataset[0]
 
-        # Check types
-        self.assertIsInstance(past_inputs["past_data"], torch.Tensor)
-        self.assertIsInstance(future_inputs["future_data"], torch.Tensor)
-        self.assertIsNone(static_inputs["static_data"])
-        self.assertIsInstance(target, torch.Tensor)
+        # Check types for main tensors
+        self.assertIsInstance(diamond_item["past_target"], torch.Tensor)
+        self.assertIsInstance(diamond_item["output_target"], torch.Tensor)
+        self.assertIsInstance(diamond_item["static_features_real"], torch.Tensor)
+        self.assertIsInstance(diamond_item["static_features_categorical"], torch.Tensor)
 
         # Check dtypes
-        self.assertEqual(past_inputs["past_data"].dtype, torch.float32)
-        self.assertEqual(future_inputs["future_data"].dtype, torch.float32)
-        self.assertEqual(target.dtype, torch.float32)
+        self.assertEqual(diamond_item["past_target"].dtype, torch.float32)
+        self.assertEqual(diamond_item["output_target"].dtype, torch.float32)
+        self.assertEqual(diamond_item["static_features_real"].dtype, torch.float32)
+        self.assertEqual(diamond_item["static_features_categorical"].dtype, torch.long)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import lightning as L
 import pandas as pd
@@ -9,39 +9,6 @@ from sklearn.preprocessing import StandardScaler  # type: ignore
 from torch.utils.data import DataLoader, Dataset, random_split
 
 from fintorch.datasets.base import TimeSeriesDataset
-
-
-def custom_collate_fn(batch: List[Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, Optional[torch.Tensor]], torch.Tensor]]) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, Optional[torch.Tensor]], torch.Tensor]:
-    """
-    Custom collate function to handle None values in static_data.
-    """
-    past_inputs_list = []
-    future_inputs_list = []
-    static_inputs_list = []
-    targets_list = []
-
-    for past_inputs, future_inputs, static_inputs, target in batch:
-        past_inputs_list.append(past_inputs)
-        future_inputs_list.append(future_inputs)
-        static_inputs_list.append(static_inputs)
-        targets_list.append(target)
-
-    # Collate past_inputs
-    past_data = torch.stack([item['past_data'] for item in past_inputs_list])
-    collated_past_inputs = {'past_data': past_data}
-
-    # Collate future_inputs
-    future_data = torch.stack([item['future_data'] for item in future_inputs_list])
-    collated_future_inputs = {'future_data': future_data}
-
-    # Handle static_inputs (which contain None values)
-    # Since static_data is None for all items, we keep it as None
-    collated_static_inputs = {'static_data': None}
-
-    # Collate targets
-    targets = torch.stack(targets_list)
-
-    return collated_past_inputs, collated_future_inputs, collated_static_inputs, targets
 
 
 # --- Data Loading Classes ---
@@ -137,23 +104,31 @@ class DiamondDataset(TimeSeriesDataset):
         self.data = self.scaler.fit_transform(raw_data)
 
         # --- Construct Input Sample Indices (data is retrieved in __getitem__) ---
-        # Store indices instead of pre-processed samples to save memory
-        # and allow generating static features per-item
-        self.indices = []
--       for i in range(self._time_step, len(self.data) + 1):
-+       for i in range(self._time_step, len(self.data) - self._output_window + 1):
+        self.indices = self._generate_indices()
+
+    def _generate_indices(self) -> List[int]:
+        """
+        Generate valid sample indices based on time step and output window constraints.
+
+        Returns:
+            list: A list of valid end indices for sample windows
+        """
+        indices = []
+        for i in range(self._time_step, len(self.data) + 1):
             if i >= self._output_window:
                 # Check if both past and future windows fit within bounds
                 if (i - self._time_step >= 0) and (i - self._output_window >= 0):
-                    self.indices.append(i)  # Store the end index 'i'
-            else:
-                pass
+                    indices.append(i)  # Store the end index 'i'
 
-        if not self.indices:
+        if not indices:
             print(
                 f"Warning: No valid sample indices generated. Check time_step ({self._time_step}), "
                 f"output_window ({self._output_window}), and data length ({len(self.data)})."
             )
+
+        return indices
+
+    def __len__(self) -> int:
         """Returns the total number of samples."""
         return len(self.indices)
 
@@ -207,29 +182,82 @@ class DiamondDataset(TimeSeriesDataset):
         """
         return self._static_length
 
-    def __getitem__(
-        self, idx: int
-    ) -> Tuple[
-        Dict[str, torch.Tensor],
-        Dict[str, torch.Tensor],
-        Dict[str, Optional[torch.Tensor]],
-        torch.Tensor,
-    ]:
+    @property
+    def static_categorical_cardinalities(self) -> List[int]:
         """
-        Retrieves a single sample from the dataset in the specified dictionary format.
+        Returns a list of cardinalities for each static categorical feature.
+
+        Returns:
+            List[int]: Empty list since DiamondDataset has no categorical features.
+        """
+        return []
+
+    @property
+    def num_target_features(self) -> int:
+        """
+        Returns the number of target features.
+
+        Returns:
+            int: The number of target features (1 for DiamondDataset).
+        """
+        return 1
+
+    @property
+    def num_known_future_cov_features(self) -> int:
+        """
+        Returns the number of covariates with known future values.
+
+        Returns:
+            int: The number of known future covariate features (0 for DiamondDataset).
+        """
+        return 0
+
+    @property
+    def num_unknown_future_cov_features(self) -> int:
+        """
+        Returns the number of covariates without known future values.
+
+        Returns:
+            int: The number of unknown future covariate features (0 for DiamondDataset).
+        """
+        return 0
+
+    @property
+    def num_static_real_features(self) -> int:
+        """
+        Returns the number of real-valued static features.
+
+        Returns:
+            int: The number of real-valued static features (0 for DiamondDataset).
+        """
+        return 0
+
+    @property
+    def num_static_categorical_features(self) -> int:
+        """
+        Returns the number of categorical static features.
+
+        Returns:
+            int: The number of categorical static features (0 for DiamondDataset).
+        """
+        return 0
+
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        """
+        Retrieves a single sample from the dataset in the standardized dictionary format.
 
         Args:
             idx (int): Index of the sample to retrieve.
 
         Returns:
-            tuple: A tuple containing:
-                - past_inputs (dict): Dictionary with past data tensor under the key "past_data".
-                                      Shape: (time_step, series_num, 1)
-                - future_inputs (dict): Dictionary with future data tensor under the key "future_data".
-                                        Shape: (output_window, series_num, 1)
-                - static_inputs (dict): Dictionary with static data set to None under the key "static_data".
-                - target (torch.Tensor): Target tensor representing the future data.
-                                         Shape: (output_window, series_num, 1)
+            Dict[str, torch.Tensor]: A dictionary containing tensors with the following keys:
+                - "past_target": Historical target values, shape (time_step, series_num, 1)
+                - "past_covariates_known_future": Empty tensor (no known future covariates)
+                - "past_covariates_unknown_future": Empty tensor (no unknown future covariates)
+                - "future_covariates_known": Empty tensor (no known future covariates)
+                - "output_target": Target values to predict, shape (output_window, series_num, 1)
+                - "static_features_real": Empty tensor (no real static features)
+                - "static_features_categorical": Empty tensor (no categorical static features)
         """
         # Get the end index for the current sample
         end_idx = self.indices[idx]
@@ -243,24 +271,26 @@ class DiamondDataset(TimeSeriesDataset):
         past_data_np = past_data_np.reshape(self._time_step, self._series_num, 1)
         target_np = target_np.reshape(self._output_window, self._series_num, 1)
 
-        # Set static data to None
-        static_data = None
-
         # Convert to tensors
-        past_data = torch.from_numpy(
-            past_data_np
-        ).float()  # Shape: (time_step, series_num, 1)
-        target = torch.from_numpy(
-            target_np
-        ).float()  # Shape: (output_window, series_num, 1)
+        past_target = torch.from_numpy(past_data_np).float()
+        output_target = torch.from_numpy(target_np).float()
 
-        # Create dictionaries matching the required structure
-        past_inputs = {"past_data": past_data}
-        future_inputs = {"future_data": target}
-        static_inputs = {"static_data": static_data}
+        # Create empty tensors for features not used in DiamondDataset
+        empty_past_cov = torch.empty((self._time_step, self._series_num, 0), dtype=torch.float32)
+        empty_future_cov = torch.empty((self._output_window, self._series_num, 0), dtype=torch.float32)
+        empty_static_real = torch.empty((self._series_num, 0), dtype=torch.float32)
+        empty_static_categorical = torch.empty((self._series_num, 0), dtype=torch.long)
 
-        # Return in the specified tuple format - target already has shape (output_window, series_num, 1)
-        return past_inputs, future_inputs, static_inputs, target
+        # Return standardized dictionary format
+        return {
+            "past_target": past_target,
+            "past_covariates_known_future": empty_past_cov,
+            "past_covariates_unknown_future": empty_past_cov,
+            "future_covariates_known": empty_future_cov,
+            "output_target": output_target,
+            "static_features_real": empty_static_real,
+            "static_features_categorical": empty_static_categorical,
+        }
 
 
 class DiamondDataModule(L.LightningDataModule):
@@ -399,7 +429,6 @@ class DiamondDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
-            collate_fn=custom_collate_fn,
         )
 
     def val_dataloader(self) -> DataLoader[Any]:
@@ -412,7 +441,6 @@ class DiamondDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=custom_collate_fn,
         )
 
     def test_dataloader(self) -> DataLoader[Any]:
@@ -425,7 +453,6 @@ class DiamondDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=custom_collate_fn,
         )
 
     def predict_dataloader(self) -> DataLoader[Any]:
@@ -438,5 +465,4 @@ class DiamondDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=custom_collate_fn,
         )

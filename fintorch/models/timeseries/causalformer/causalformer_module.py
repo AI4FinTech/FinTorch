@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 import lightning as L
 import torch
@@ -7,6 +7,13 @@ from torch.optim.lr_scheduler import StepLR
 
 
 class CausalFormerModule(L.LightningModule):
+    """
+    CausalFormer Lightning Module that works with the new standardized dictionary format.
+
+    This module processes time series data in the new standardized format and converts it
+    to the format expected by the CausalFormer core model.
+    """
+
     def __init__(
         self,
         number_of_layers: int,
@@ -24,9 +31,32 @@ class CausalFormerModule(L.LightningModule):
         lr_step_size: int = 30,
         lr_gamma: float = 0.1,
         weight_decay: float = 0,
+        # New parameters for handling standardized format
+        series_selection_method: str = "first",
+        series_index: int = 0,
+        series_aggregation: str = "mean",
     ):
         super().__init__()
         self.save_hyperparameters()
+
+        # Store series handling parameters
+        self.series_selection_method = series_selection_method
+        self.series_index = series_index
+        self.series_aggregation = series_aggregation
+
+        # Validate series selection parameters
+        valid_methods = ["first", "last", "index", "aggregate", "flatten"]
+        if series_selection_method not in valid_methods:
+            raise ValueError(f"series_selection_method must be one of {valid_methods}")
+
+        if series_selection_method == "index" and series_index is None:
+            raise ValueError(
+                "series_index must be provided when using 'index' selection method"
+            )
+
+        valid_aggregations = ["mean", "sum", "max", "min"]
+        if series_aggregation not in valid_aggregations:
+            raise ValueError(f"series_aggregation must be one of {valid_aggregations}")
 
         self.causalformer = CausalFormer(
             number_of_layers=self.hparams["number_of_layers"],
@@ -47,57 +77,107 @@ class CausalFormerModule(L.LightningModule):
     def forward(self, x: torch.Tensor) -> Any:
         return self.causalformer(x)
 
+    def _process_multi_series_data(self, data: torch.Tensor) -> torch.Tensor:
+        """
+        Process multi-series data based on the configured selection method.
+
+        Args:
+            data: Input tensor of shape [batch_size, time_length, num_series, features_dim]
+
+        Returns:
+            Processed tensor based on series_selection_method
+        """
+        if self.series_selection_method == "first":
+            return data[:, :, 0, :]
+        elif self.series_selection_method == "last":
+            return data[:, :, -1, :]
+        elif self.series_selection_method == "index":
+            if self.series_index >= data.shape[2]:
+                raise IndexError(
+                    f"series_index {self.series_index} out of range for {data.shape[2]} series"
+                )
+            return data[:, :, self.series_index, :]
+        elif self.series_selection_method == "aggregate":
+            if self.series_aggregation == "mean":
+                return data.mean(dim=2)
+            elif self.series_aggregation == "sum":
+                return data.sum(dim=2)
+            elif self.series_aggregation == "max":
+                return data.max(dim=2)[0]
+            elif self.series_aggregation == "min":
+                return data.min(dim=2)[0]
+        elif self.series_selection_method == "flatten":
+            # Flatten series and features dimensions
+            batch_size, time_length, num_series, features_dim = data.shape
+            return data.view(batch_size, time_length, num_series * features_dim)
+
+        raise ValueError(
+            f"Unknown series_selection_method: {self.series_selection_method}"
+        )
+
     def _prepare_data(
         self,
-        batch: Tuple[
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            torch.Tensor,
-        ],
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        batch: Dict[str, torch.Tensor],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Prepare input and target tensors for the CausalFormer model.
 
         Input tensor transformations:
-        - Input from SimpleSyntheticDataset: [batch_size, past_length, num_series, features_dim]
+        - Input from new standardized format: combines past_target, past_covariates_known_future,
+          and past_covariates_unknown_future into a single tensor
         - Input for CausalFormer: [batch_size, num_series, past_length, feature_dimensionality]
 
         Target tensor transformations:
-        - Target 2D: [batch_size, future_length] -> [batch_size, num_series, future_length, feature_dim]
-        - Target 3D: [batch_size, future_length, num_series] -> [batch_size, num_series, future_length, feature_dim]
-        - Target 4D: [batch_size, future_length, num_series, feature_dim] -> [batch_size, num_series, future_length, feature_dim]
+        - Target from new format: [batch_size, future_length, num_series, num_target_features]
+        - Target for CausalFormer: [batch_size, num_series, future_length, feature_dim]
 
         Args:
-            batch: Tuple containing (past_inputs, future_inputs, static_inputs, target)
+            batch: Dictionary containing the new standardized format tensors
 
         Returns:
             Tuple of (input_tensor, target_tensor) in CausalFormer expected format
         """
-        past_inputs, _, _, target = batch
-        x, y = past_inputs["past_data"], target
+        # Combine all past features
+        past_features = []
+
+        if "past_target" in batch:
+            past_features.append(batch["past_target"])
+
+        if "past_covariates_known_future" in batch:
+            past_features.append(batch["past_covariates_known_future"])
+
+        if "past_covariates_unknown_future" in batch:
+            past_features.append(batch["past_covariates_unknown_future"])
+
+        # Concatenate all past features along the feature dimension
+        if past_features:
+            x = torch.cat(past_features, dim=-1)  # [batch_size, past_length, series_dim, total_features]
+        else:
+            raise ValueError("No past features found in batch")
+
+        # Get target
+        y = batch["output_target"]  # [batch_size, future_length, series_dim, num_target_features]
 
         # Handle input tensor shape adaptively
-        # Expected input shape from SimpleSyntheticDataset: [batch_size, past_length, num_series, features_dim]
         # Expected shape for CausalFormer: [batch_size, num_series, past_length, feature_dimensionality]
+        if x.ndim == 3:  # [batch_size, past_length, total_features]
+            # Add series dimension if it's missing
+            x = x.unsqueeze(1)  # [batch_size, 1, past_length, total_features]
+        elif x.ndim == 4:  # [batch_size, past_length, series_dim, total_features]
+            # Permute to the expected shape for the CausalFormer
+            x = x.permute(0, 2, 1, 3)  # [batch_size, series_dim, past_length, total_features]
 
-        # Check input dimensions and reshape accordingly
-        if x.ndim == 3:  # [batch_size, past_length, num_series]
-            # Add feature dimension if it's missing
-            x = x.unsqueeze(-1)  # [batch_size, past_length, num_series, 1]
-
-        # Permute to the expected shape for the CausalFormer
-        x = x.permute(0, 2, 1, 3)  # [batch_size, num_series, past_length, feature_dim]
+        # Handle multi-series data if needed
+        if x.shape[1] > 1:  # Multiple series
+            # Apply series selection/aggregation if configured
+            x_processed = self._process_multi_series_data(x.permute(0, 2, 1, 3))  # Convert back to [batch, time, series, feat]
+            x = x_processed.unsqueeze(1)  # Add back single series dimension: [batch, 1, time, feat]
+            x = x.permute(0, 1, 2, 3)  # Keep as [batch, 1, time, feat] then permute to [batch, 1, time, feat]
 
         # Handle target tensor shape - ensure it becomes 4D [batch_size, num_series, future_length, feature_dim]
         if y.ndim == 2:  # [batch_size, future_length]
             # Add both series and feature dimensions
             y = y.unsqueeze(1).unsqueeze(-1)  # [batch_size, 1, future_length, 1]
-            # Expand to match the number of series from input tensor
-            num_series = x.shape[1]
-            y = y.expand(
-                -1, num_series, -1, -1
-            )  # [batch_size, num_series, future_length, 1]
         elif y.ndim == 3:  # [batch_size, future_length, num_series]
             # Add feature dimension and permute
             y = y.unsqueeze(-1)  # [batch_size, future_length, num_series, 1]
@@ -106,16 +186,18 @@ class CausalFormerModule(L.LightningModule):
             # Permute to match the CausalFormer output format [batch_size, num_series, future_length, feature_dim]
             y = y.permute(0, 2, 1, 3)
 
+        # Handle multi-series target if needed
+        if y.shape[1] > 1:  # Multiple series
+            # Apply series selection/aggregation if configured
+            y_processed = self._process_multi_series_data(y.permute(0, 2, 1, 3))  # Convert back to [batch, time, series, feat]
+            y = y_processed.unsqueeze(1)  # Add back single series dimension
+            y = y.permute(0, 1, 2, 3)  # Ensure correct shape for target
+
         return x, y
 
     def training_step(
         self,
-        batch: Tuple[
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            torch.Tensor,
-        ],
+        batch: Dict[str, torch.Tensor],
         batch_idx: int,
     ) -> Dict[str, torch.Tensor]:
         x, y = self._prepare_data(batch)
@@ -126,14 +208,22 @@ class CausalFormerModule(L.LightningModule):
         )
         return {"loss": loss}
 
+    def validation_step(
+        self,
+        batch: Dict[str, torch.Tensor],
+        batch_idx: int,
+    ) -> Dict[str, torch.Tensor]:
+        x, y = self._prepare_data(batch)
+        y_hat = self(x)
+        loss = self.loss(y_hat, y)
+        self.log(
+            "val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
+        return {"loss": loss}
+
     def test_step(
         self,
-        batch: Tuple[
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            torch.Tensor,
-        ],
+        batch: Dict[str, torch.Tensor],
         batch_idx: int,
     ) -> Dict[str, torch.Tensor]:
         x, y = self._prepare_data(batch)
@@ -146,56 +236,13 @@ class CausalFormerModule(L.LightningModule):
 
     def predict_step(
         self,
-        batch: Tuple[
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            torch.Tensor,
-        ],
+        batch: Dict[str, torch.Tensor],
         batch_idx: int,
         dataloader_idx: int = 0,
-    ) -> Any:  # type: ignore
+    ) -> Any:
         x, _ = self._prepare_data(batch)
         y_hat = self(x)
         return y_hat
-
-    def validation_step(
-        self,
-        batch: Tuple[
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            Dict[str, torch.Tensor],
-            torch.Tensor,
-        ],
-        batch_idx: int,
-    ) -> Any:
-        x, y = self._prepare_data(batch)  # type: ignore
-        y_hat = self(x)
-        loss = self.loss(y_hat, y)
-        self.log(
-            "val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
-        )
-        return loss
-
-    # def loss(self, predicted, labels):
-
-    #     print(f"labels:{labels}")
-    #     mask = ~torch.ne(labels).float()
-    #     num_valid = torch.sum(mask)
-
-    #     if num_valid == 0:
-    #         return torch.tensor(0.0, device=predicted.device, dtype=predicted.dtype)
-
-    #     abs_error = torch.abs(predicted - labels)
-
-    #     masked_abs_error = abs_error * mask
-
-    #     # TODO: add model regularization to the loss
-    #     # TODO: add LAM loss
-
-    #     mae = torch.sum(masked_abs_error) / num_valid
-
-    #     return mae
 
     def configure_optimizers(self) -> Any:
         optimizer = torch.optim.Adam(
@@ -218,6 +265,5 @@ class CausalFormerModule(L.LightningModule):
                 "scheduler": scheduler,
                 "interval": "epoch",  # How often to step the scheduler ('epoch' or 'step')
                 "frequency": 1,  # How many intervals pass between steps
-                # "monitor": "val_loss", # Optional: For schedulers like ReduceLROnPlateau
             },
         }
