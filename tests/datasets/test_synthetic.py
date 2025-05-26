@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 from fintorch.datasets.synthetic.simpleSynthetic import (
     SimpleSyntheticDataModule,
     SimpleSyntheticDataset,
+    custom_collate_fn,
 )
 
 
@@ -295,3 +296,209 @@ def test_dataloader_batching():
     assert batch["output_target"].shape == (4, 5, 1, 1)
     assert batch["static_features_real"].shape == (4, 1, 2)
     assert batch["static_features_categorical"].shape == (4, 1, 1)
+
+
+def test_custom_collate_fn_basic():
+    """Test basic functionality of custom_collate_fn."""
+    # Create mock batch data
+    batch = [
+        {
+            "past_target": torch.randn(10, 1, 1),
+            "past_covariates_known_future": torch.randn(10, 1, 2),
+            "future_covariates_known": torch.randn(5, 1, 2),
+            "output_target": torch.randn(5, 1, 1),
+            "static_features_real": torch.randn(1, 2),
+        },
+        {
+            "past_target": torch.randn(10, 1, 1),
+            "past_covariates_known_future": torch.randn(10, 1, 2),
+            "future_covariates_known": torch.randn(5, 1, 2),
+            "output_target": torch.randn(5, 1, 1),
+            "static_features_real": torch.randn(1, 2),
+        },
+        {
+            "past_target": torch.randn(10, 1, 1),
+            "past_covariates_known_future": torch.randn(10, 1, 2),
+            "future_covariates_known": torch.randn(5, 1, 2),
+            "output_target": torch.randn(5, 1, 1),
+            "static_features_real": torch.randn(1, 2),
+        },
+    ]
+
+    collated = custom_collate_fn(batch)
+
+    # Check that all keys are present
+    expected_keys = {
+        "past_target", "past_covariates_known_future",
+        "future_covariates_known", "output_target", "static_features_real"
+    }
+    assert set(collated.keys()) == expected_keys
+
+    # Check that tensors are properly stacked (batch dimension added)
+    assert collated["past_target"].shape == (3, 10, 1, 1)  # (batch_size, time, series, features)
+    assert collated["past_covariates_known_future"].shape == (3, 10, 1, 2)
+    assert collated["future_covariates_known"].shape == (3, 5, 1, 2)
+    assert collated["output_target"].shape == (3, 5, 1, 1)
+    assert collated["static_features_real"].shape == (3, 1, 2)
+
+
+def test_custom_collate_fn_with_none_values():
+    """Test custom_collate_fn handles None values correctly."""
+    batch = [
+        {
+            "past_target": torch.randn(10, 1, 1),
+            "optional_feature": torch.randn(5, 1, 2),
+            "static_features_real": torch.randn(1, 2),
+        },
+        {
+            "past_target": torch.randn(10, 1, 1),
+            "optional_feature": None,  # This item has None for optional_feature
+            "static_features_real": torch.randn(1, 2),
+        },
+        {
+            "past_target": torch.randn(10, 1, 1),
+            "optional_feature": torch.randn(5, 1, 2),
+            "static_features_real": torch.randn(1, 2),
+        },
+    ]
+
+    collated = custom_collate_fn(batch)
+
+    # past_target and static_features_real should be stacked normally
+    assert collated["past_target"].shape == (3, 10, 1, 1)
+    assert collated["static_features_real"].shape == (3, 1, 2)
+
+    # optional_feature should stack only the non-None tensors
+    assert collated["optional_feature"].shape == (2, 5, 1, 2)  # Only 2 items instead of 3
+
+
+def test_custom_collate_fn_all_none_values():
+    """Test custom_collate_fn when all values for a key are None."""
+    batch = [
+        {
+            "past_target": torch.randn(10, 1, 1),
+            "optional_feature": None,
+            "static_features_real": torch.randn(1, 2),
+        },
+        {
+            "past_target": torch.randn(10, 1, 1),
+            "optional_feature": None,
+            "static_features_real": torch.randn(1, 2),
+        },
+    ]
+
+    collated = custom_collate_fn(batch)
+
+    # past_target and static_features_real should be stacked normally
+    assert collated["past_target"].shape == (2, 10, 1, 1)
+    assert collated["static_features_real"].shape == (2, 1, 2)
+
+    # optional_feature should be None since all values were None
+    assert collated["optional_feature"] is None
+
+
+def test_custom_collate_fn_empty_batch():
+    """Test custom_collate_fn with empty batch (edge case)."""
+    batch = []
+
+    try:
+        collated = custom_collate_fn(batch)
+        # If it doesn't raise an error, the result should be an empty dict
+        assert collated == {}
+    except IndexError:
+        # It's acceptable for the function to raise IndexError on empty batch
+        pass
+
+
+def test_custom_collate_fn_single_item():
+    """Test custom_collate_fn with single item batch."""
+    batch = [
+        {
+            "past_target": torch.randn(10, 1, 1),
+            "past_covariates_known_future": torch.randn(10, 1, 2),
+            "static_features_real": torch.randn(1, 2),
+        }
+    ]
+
+    collated = custom_collate_fn(batch)
+
+    # Should add batch dimension of 1
+    assert collated["past_target"].shape == (1, 10, 1, 1)
+    assert collated["past_covariates_known_future"].shape == (1, 10, 1, 2)
+    assert collated["static_features_real"].shape == (1, 1, 2)
+
+
+def test_custom_collate_fn_different_tensor_types():
+    """Test custom_collate_fn with different tensor dtypes."""
+    batch = [
+        {
+            "float_tensor": torch.randn(5, 2).float(),
+            "long_tensor": torch.randint(0, 10, (3,)).long(),
+            "bool_tensor": torch.tensor([True, False]).bool(),
+        },
+        {
+            "float_tensor": torch.randn(5, 2).float(),
+            "long_tensor": torch.randint(0, 10, (3,)).long(),
+            "bool_tensor": torch.tensor([False, True]).bool(),
+        },
+    ]
+
+    collated = custom_collate_fn(batch)
+
+    # Check shapes
+    assert collated["float_tensor"].shape == (2, 5, 2)
+    assert collated["long_tensor"].shape == (2, 3)
+    assert collated["bool_tensor"].shape == (2, 2)
+
+    # Check dtypes are preserved
+    assert collated["float_tensor"].dtype == torch.float32
+    assert collated["long_tensor"].dtype == torch.int64
+    assert collated["bool_tensor"].dtype == torch.bool
+
+
+def test_custom_collate_fn_with_dataloader():
+    """Test that custom_collate_fn works correctly with DataLoader."""
+    dataset = SimpleSyntheticDataset(
+        length=50,
+        past_length=10,
+        future_length=5,
+        num_target_features=1,
+        num_known_cov_features=2,
+        num_static_real_features=2,
+    )
+
+    # Create DataLoader with custom collate function
+    dataloader = DataLoader(
+        dataset,
+        batch_size=4,
+        shuffle=False,
+        collate_fn=custom_collate_fn
+    )
+
+    batch = next(iter(dataloader))
+
+    # Check that batch is properly collated
+    assert isinstance(batch, dict)
+    assert batch["past_target"].shape == (4, 10, 1, 1)
+    assert batch["past_covariates_known_future"].shape == (4, 10, 1, 2)
+    assert batch["future_covariates_known"].shape == (4, 5, 1, 2)
+    assert batch["output_target"].shape == (4, 5, 1, 1)
+    assert batch["static_features_real"].shape == (4, 1, 2)
+
+
+def test_custom_collate_fn_preserves_gradients():
+    """Test that custom_collate_fn preserves gradient information."""
+    batch = [
+        {
+            "tensor_with_grad": torch.randn(3, 2, requires_grad=True),
+        },
+        {
+            "tensor_with_grad": torch.randn(3, 2, requires_grad=True),
+        },
+    ]
+
+    collated = custom_collate_fn(batch)
+
+    # Check that gradient requirement is preserved
+    assert collated["tensor_with_grad"].requires_grad is True
+    assert collated["tensor_with_grad"].shape == (2, 3, 2)

@@ -225,11 +225,7 @@ class DiamondDataset(TimeSeriesDataset):
         Returns the number of covariates with known future values.
 
         Returns:
-<<<<<<< HEAD
             int: The number of known future covariate features (0 for DiamondDataset).
-=======
-            int: Zero for DiamondDataset (no known future covariates).
->>>>>>> 335bb0d (Fixes tests)
         """
         return 0
 
@@ -239,11 +235,7 @@ class DiamondDataset(TimeSeriesDataset):
         Returns the number of covariates without known future values.
 
         Returns:
-<<<<<<< HEAD
             int: The number of unknown future covariate features (0 for DiamondDataset).
-=======
-            int: Zero for DiamondDataset (no unknown future covariates).
->>>>>>> 335bb0d (Fixes tests)
         """
         return 0
 
@@ -253,11 +245,7 @@ class DiamondDataset(TimeSeriesDataset):
         Returns the number of real-valued static features.
 
         Returns:
-<<<<<<< HEAD
             int: The number of real-valued static features (0 for DiamondDataset).
-=======
-            int: Zero for DiamondDataset (no static real features).
->>>>>>> 335bb0d (Fixes tests)
         """
         return 0
 
@@ -267,28 +255,19 @@ class DiamondDataset(TimeSeriesDataset):
         Returns the number of categorical static features.
 
         Returns:
-<<<<<<< HEAD
             int: The number of categorical static features (0 for DiamondDataset).
-=======
-            int: Zero for DiamondDataset (no static categorical features).
->>>>>>> 335bb0d (Fixes tests)
         """
         return 0
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
-<<<<<<< HEAD
         Retrieves a single sample from the dataset in the standardized dictionary format.
-=======
-        Retrieves a single sample from the dataset in the new standardized format.
->>>>>>> 335bb0d (Fixes tests)
 
         Args:
             idx (int): Index of the sample to retrieve.
 
         Returns:
             Dict[str, torch.Tensor]: A dictionary containing tensors with the following keys:
-<<<<<<< HEAD
                 - "past_target": Historical target values, shape (time_step, series_num, 1)
                 - "past_covariates_known_future": Empty tensor (no known future covariates)
                 - "past_covariates_unknown_future": Empty tensor (no unknown future covariates)
@@ -296,15 +275,6 @@ class DiamondDataset(TimeSeriesDataset):
                 - "output_target": Target values to predict, shape (output_window, series_num, 1)
                 - "static_features_real": Empty tensor (no real static features)
                 - "static_features_categorical": Empty tensor (no categorical static features)
-=======
-                - "past_target": Historical target values. Shape: (time_step, series_num, 1)
-                - "past_covariates_known_future": Empty tensor. Shape: (time_step, series_num, 0)
-                - "past_covariates_unknown_future": Empty tensor. Shape: (time_step, series_num, 0)
-                - "future_covariates_known": Empty tensor. Shape: (output_window, series_num, 0)
-                - "output_target": Target values to predict. Shape: (output_window, series_num, 1)
-                - "static_features_real": Empty tensor. Shape: (series_num, 0)
-                - "static_features_categorical": Empty tensor. Shape: (series_num, 0)
->>>>>>> 335bb0d (Fixes tests)
         """
         # Get the end index for the current sample
         end_idx = self.indices[idx]
