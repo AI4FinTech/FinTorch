@@ -43,8 +43,10 @@ class CausalConvolution(nn.Module):
         self.input_window = length_input_window
         self.number_of_heads = number_of_heads
 
-        # Initialize kernel as None - it will be created dynamically
-        self.kernel = None
+        # Initialize kernel parameter with proper shape
+        self.kernel = torch.nn.Parameter(
+            torch.randn(number_of_heads, number_of_series, number_of_series, length_input_window)
+        )
 
         # 6D tensor because the output of apply_kernel is a 6D tensor
         self.register_buffer(
@@ -77,7 +79,7 @@ class CausalConvolution(nn.Module):
         # for verbose implementation (educational), see tests/models/causalformer/test_causalconv.py
         # Use einsum for efficient tensor contraction
         # Notation: h=heads, y,x=series indices, j,i=window indices, b=batch, f=hidden dim
-        einsum_result = torch.einsum("hxyji,bxif->bhxyjf", kernel, x)
+        einsum_result = torch.einsum("hyxji,bxif->bhxyjf", kernel, x)
 
         # einsum_result:
         # (batch_size, number_of_heads, number_of_series, number_of_series, length_input_window, hidden_dimensionality)

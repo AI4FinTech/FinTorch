@@ -172,15 +172,13 @@ class TestCausalDataset:
             sample = dataset[0]
             
             assert isinstance(sample, dict)
-            assert 'past_data' in sample
-            assert 'future_data' in sample
-            assert 'static_data' in sample
-            assert 'target' in sample
+            assert 'past_target' in sample
+            assert 'output_target' in sample
+            assert 'static_features_real' in sample
             
-            assert sample['past_data'].shape == (10, 3, 1)
-            assert sample['future_data'].shape == (5, 3, 1)
-            assert sample['static_data'].shape == (2,)
-            assert sample['target'].shape == (5, 3, 1)
+            assert sample['past_target'].shape == (10, 3, 1)
+            assert sample['output_target'].shape == (5, 3, 1)
+            assert sample['static_features_real'].shape == (3, 2)  # (series_num, static_length)
 
     def test_getitem_invalid_index(self, mock_data_dir):
         """Test __getitem__ method with invalid index."""
@@ -567,8 +565,8 @@ class TestEdgeCases:
                 
                 # Static features should be identical
                 torch.testing.assert_close(
-                    sample1['static_data'], 
-                    sample2['static_data']
+                    sample1['static_features_real'],
+                    sample2['static_features_real']
                 )
 
 

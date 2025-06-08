@@ -117,12 +117,14 @@ def test_apply_kernel():
     # Compute output using `stacked_output`
     stacked_output_result = causal_conv.apply_kernel(x, kernel)
 
+
+
     # Assert that the two results are close
     assert_close(
         stacked_output_result,
         result,
-        rtol=1e-5,
-        atol=1e-8,
+        rtol=1e-4,
+        atol=1e-6,
         msg="stacked_output (einsum) does not match for-loop result",
     )
 

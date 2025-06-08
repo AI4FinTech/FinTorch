@@ -68,16 +68,13 @@ def test_causal_dataset_getitem(sample_causal_dataset_config, monkeypatch):
         
         # Basic checks
         assert isinstance(item, dict)
-        assert 'past_data' in item
-        assert 'future_data' in item
-        assert 'static_data' in item
-        assert 'target' in item
+        assert 'past_target' in item
+        assert 'output_target' in item
         
         # Check shapes
-        assert item['past_data'].shape == (10, 3, 1)
-        assert item['future_data'].shape == (5, 3, 1)
-        assert item['static_data'].shape == (2,)  # Default static_length
-        assert item['target'].shape == (5, 3, 1)
+        assert item['past_target'].shape == (10, 3, 1)
+        assert item['output_target'].shape == (5, 3, 1)
+        assert item['static_features_real'].shape == (3, 2)  # (series_num, static_length)
 
 
 def test_causal_datamodule_initialization():

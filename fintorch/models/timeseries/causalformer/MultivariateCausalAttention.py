@@ -121,18 +121,19 @@ class MultivariateCausalAttention(nn.Module):
         V = self.V_proj(v)
 
         # split into number of heads (add number of heads dimensionality)
-        # Q, K (batch_size, number_of_series, hidden_dimensionality)
-        # After view: (batch_size, number_of_series, number_of_heads, tensor_head_dimensionality)
-        # transpose: (batch_size, number_of_heads, number_of_series, tensor_head_dimensionality)
+        # Q, K (batch_size, actual_number_of_series, hidden_dimensionality)
+        # After view: (batch_size, actual_number_of_series, number_of_heads, tensor_head_dimensionality)
+        # transpose: (batch_size, number_of_heads, actual_number_of_series, tensor_head_dimensionality)
+        actual_number_of_series = Q.shape[1]
         Q = Q.view(
             Q.shape[0],
-            self.number_of_series,
+            actual_number_of_series,
             self.number_of_heads,
             self.tensor_head_dimensionality,
         ).transpose(1, 2)
         K = K.view(
             K.shape[0],
-            self.number_of_series,
+            actual_number_of_series,
             self.number_of_heads,
             self.tensor_head_dimensionality,
         ).transpose(1, 2)
