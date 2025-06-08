@@ -2,21 +2,22 @@ import logging
 import os
 import shutil
 from datetime import date as Date
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import lightning as L
 import pandas as pd  # type: ignore
 import polars as pol
 import torch
 import yfinance as yf  # type: ignore
-from neuralforecast.tsdataset import TimeSeriesDataset  # type: ignore
+from neuralforecast.tsdataset import TimeSeriesDataset as NeuralForecastTimeSeriesDataset  # type: ignore
 from sklearn.preprocessing import StandardScaler  # type: ignore
 from tenacity import retry, stop_after_attempt, wait_exponential  # type: ignore
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
+
+from fintorch.datasets.base.base_dataset import TimeSeriesDataset
 
 
-# TODO: directly subclass TimeSeriesDataset from neural forcast
-class StockTicker(Dataset):  # type: ignore
+class StockTicker(TimeSeriesDataset):
     def __init__(
         self,
         root: str,
@@ -78,11 +79,11 @@ class StockTicker(Dataset):  # type: ignore
             path: The path to the directory or file to remove.
 
         Raises:
-            FileNotFoundError: If the directory or file does not exist.
             OSError: If there's an error during the removal process (e.g., permission issues).
         """
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Directory not found: {path}")
+            print(f"Directory '{path}' does not exist, skipping removal.")
+            return
         try:
             if os.path.isdir(path):
                 shutil.rmtree(path)
@@ -93,7 +94,7 @@ class StockTicker(Dataset):  # type: ignore
 
             print(f"Directory '{path}' and its contents removed successfully.")
         except OSError as e:
-            raise OSError(f"Error removing directory '{path}': {e}")
+            raise OSError(f"Error removing directory '{path}': {e}") from e
 
     def setupDirectories(self) -> None:
         """
@@ -124,12 +125,7 @@ class StockTicker(Dataset):  # type: ignore
             raise RuntimeError("Dataset not loaded. Call load() first.")
         return self.length
 
-    def __getitem__(self, idx: int) -> Tuple[
-        Dict[str, torch.Tensor],
-        Dict[str, torch.Tensor],
-        Dict[str, Optional[torch.Tensor]],
-        torch.Tensor
-    ]:
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
         Get an item from the dataset
 
@@ -164,13 +160,99 @@ class StockTicker(Dataset):  # type: ignore
             .squeeze()
         )
 
-        # Create dictionaries for past, future, and static data
-        past_inputs = {"past_data": past_data}
-        future_data = data[idx + self.past_length : idx + self.past_length + self.future_length].to_torch().float()
-        future_inputs = {"future_data": future_data}
-        static_inputs = {"static_data": None}
+        # Create standardized dictionary format
+        # For stock data, we only have the target (stock price) as the main feature
+        # We'll create minimal placeholder data for other required fields
 
-        return past_inputs, future_inputs, static_inputs, target
+        # Reshape data to match expected format: (time_steps, series_dim=1, features=1)
+        past_target = past_data.unsqueeze(1)  # Add series dimension
+
+        # Handle target tensor shape properly
+        if target.dim() == 0:  # Single scalar value
+            output_target = target.unsqueeze(0).unsqueeze(0).unsqueeze(1)  # (1, 1, 1)
+            future_time_steps = 1
+        else:  # Multiple future time steps
+            output_target = target.unsqueeze(1)  # Add series dimension: (future_time_steps, 1, 1)
+            future_time_steps = target.shape[0]
+
+        # Create minimal placeholder tensors for other required fields
+        time_steps = past_data.shape[0]
+
+        # Past covariates - add placeholder time features
+        past_covariates_known = torch.ones(time_steps, 1, 1)  # Placeholder known future covariates
+        past_covariates_unknown = torch.zeros(time_steps, 1, 0)  # No unknown future covariates
+
+        # Future covariates - add placeholder time features
+        future_covariates_known = torch.ones(future_time_steps, 1, 1)  # Placeholder known future covariates
+
+        # Static features (empty for now)
+        static_features_real = torch.zeros(1, 0)  # No real static features
+        static_features_categorical = torch.zeros(1, 0, dtype=torch.long)  # No categorical static features
+
+        return {
+            "past_target": past_target,
+            "past_covariates_known_future": past_covariates_known,
+            "past_covariates_unknown_future": past_covariates_unknown,
+            "future_covariates_known": future_covariates_known,
+            "output_target": output_target,
+            "static_features_real": static_features_real,
+            "static_features_categorical": static_features_categorical,
+        }
+
+    @property
+    def time_steps(self) -> int:
+        """Returns the number of past time steps in the input sequence."""
+        return self.past_length
+
+    @property
+    def future_steps(self) -> int:
+        """Returns the number of future time steps to predict."""
+        return self.future_length
+
+    @property
+    def series_dim(self) -> int:
+        """Returns the number of different time series in the dataset."""
+        return 1  # Single stock ticker
+
+    @property
+    def features_dim(self) -> int:
+        """Returns the total number of features across all feature types."""
+        return 1  # Only stock price
+
+    @property
+    def static_length(self) -> int:
+        """Returns the total number of static features (real + categorical)."""
+        return 0  # No static features
+
+    @property
+    def static_categorical_cardinalities(self) -> List[int]:
+        """Returns a list of cardinalities for each static categorical feature."""
+        return []  # No categorical features
+
+    @property
+    def num_target_features(self) -> int:
+        """Returns the number of target features."""
+        return 1  # Single target (stock price)
+
+    @property
+    def num_known_future_cov_features(self) -> int:
+        """Returns the number of covariates with known future values."""
+        return 1  # Placeholder known future covariates
+
+    @property
+    def num_unknown_future_cov_features(self) -> int:
+        """Returns the number of covariates without known future values."""
+        return 0  # No unknown future covariates
+
+    @property
+    def num_static_real_features(self) -> int:
+        """Returns the number of real-valued static features."""
+        return 0  # No real static features
+
+    @property
+    def num_static_categorical_features(self) -> int:
+        """Returns the number of categorical static features."""
+        return 0  # No categorical static features
 
     def raw_file_names(self) -> list[str]:
         """
@@ -220,6 +302,51 @@ class StockTicker(Dataset):  # type: ignore
     ) -> Any:
         return yf.download(tickers, start=start_date, end=end_date)
 
+    def _generate_synthetic_data(self, tickers: List[str]) -> None:
+        """
+        Generate synthetic stock data when Yahoo Finance is unavailable.
+
+        Args:
+            tickers (List[str]): List of ticker symbols to generate data for.
+        """
+        import numpy as np
+        from datetime import timedelta
+
+        # Generate date range
+        current_date = self.start_date
+        dates = []
+        while current_date <= self.end_date:
+            dates.append(current_date)
+            current_date += timedelta(days=1)
+
+        for ticker in tickers:
+            # Generate synthetic stock price data with random walk
+            np.random.seed(42)  # For reproducible results
+            initial_price = 100.0
+            num_days = len(dates)
+
+            # Generate random returns with some drift
+            returns = np.random.normal(0.001, 0.02, num_days)  # Small positive drift with volatility
+            prices = [initial_price]
+
+            for i in range(1, num_days):
+                new_price = prices[-1] * (1 + returns[i])
+                prices.append(max(new_price, 1.0))  # Ensure price doesn't go below $1
+
+            # Create DataFrame
+            synthetic_data = pd.DataFrame({
+                'ds': dates,
+                'unique_id': ticker,
+                'y': prices
+            })
+
+            # Save synthetic data to CSV
+            file_name = f"{ticker}_date_range_start_{self.start_date}_end_{self.end_date}.csv"
+            file_path = os.path.join(self.root, "raw", file_name)
+            synthetic_data.to_csv(file_path, index=False)
+
+            logging.info(f"Generated synthetic data for {ticker} and saved to {file_path}")
+
     def download(self, force_reload: bool = False) -> None:
         """
         Downloads the raw stock data from Yahoo Finance for the specified tickers and time range.
@@ -248,41 +375,51 @@ class StockTicker(Dataset):  # type: ignore
                 raw_data = self.download_with_retry(
                     missing_tickers, self.start_date, self.end_date
                 )
-            except Exception as e:
-                logging.warning(f"Yahoo Finance download failed: {str(e)}")
-                logging.info("Falling back to synthetic stock data generation")
 
-            # Check if self.value_name exists as a column in the raw_data dataframe
-            if self.value_name not in raw_data.columns:
-                raise ValueError(
-                    f"{self.value_name} does not exist as a column in the raw_data dataframe"
+                # Check if raw_data is empty or None
+                if raw_data is None or raw_data.empty:
+                    raise ValueError("Downloaded data is empty or None")
+
+                # Check if self.value_name exists as a column in the raw_data dataframe
+                if self.value_name not in raw_data.columns:
+                    raise ValueError(
+                        f"{self.value_name} does not exist as a column in the raw_data dataframe"
+                    )
+
+                # Reshape the data
+                df = raw_data[self.value_name]  # No need to unstack here
+
+                # Convert the Series to a DataFrame if it's not already (optional but recommended)
+                if isinstance(df, pd.Series):
+                    df = df.to_frame()
+
+                # Check if the resulting dataframe has any valid data
+                if df.empty or df.isnull().all().all():
+                    raise ValueError("All downloaded data is null or empty")
+
+                # Melt the dataframe to long format
+                hist = df.melt(
+                    ignore_index=False, var_name="Ticker", value_name=self.value_name
+                )
+                hist.reset_index(inplace=True)
+
+                hist.rename(
+                    columns={"Date": "ds", "Ticker": "unique_id", self.value_name: "y"},
+                    inplace=True,
                 )
 
-            # Reshape the data
-            df = raw_data[self.value_name]  # No need to unstack here
+                # Split the hist dataframe based on unique_id
+                grouped_data = hist.groupby("unique_id")
 
-            # Convert the Series to a DataFrame if it's not already (optional but recommended)
-            if isinstance(df, pd.Series):
-                df = df.to_frame()
+                # Save a csv file per unique_id
+                for ticker, group in grouped_data:
+                    file_name = f"{ticker}_date_range_start_{self.start_date}_end_{self.end_date}.csv"
+                    group.to_csv(os.path.join(self.root, "raw", file_name), index=False)
 
-            # Melt the dataframe to long format
-            hist = df.melt(
-                ignore_index=False, var_name="Ticker", value_name=self.value_name
-            )
-            hist.reset_index(inplace=True)
-
-            hist.rename(
-                columns={"Date": "ds", "Ticker": "unique_id", self.value_name: "y"},
-                inplace=True,
-            )
-
-            # Split the hist dataframe based on unique_id
-            grouped_data = hist.groupby("unique_id")
-
-            # Save a csv file per unique_id
-            for ticker, group in grouped_data:
-                file_name = f"{ticker}_date_range_start_{self.start_date}_end_{self.end_date}.csv"
-                group.to_csv(os.path.join(self.root, "raw", file_name), index=False)
+            except Exception as e:
+                logging.error(f"Yahoo Finance download failed: {str(e)}")
+                logging.info("Falling back to synthetic stock data generation")
+                self._generate_synthetic_data(missing_tickers)
         else:
             logging.info(
                 "Using cached data, if you want to force reload set force_reload=True"
@@ -348,7 +485,7 @@ class StockTicker(Dataset):  # type: ignore
         try:
             self.df_timeseries_dataset = pol.read_parquet(self.processed_paths()[0])
 
-            self.timeseries_dataset, _, _, _ = TimeSeriesDataset.from_df(
+            self.timeseries_dataset, _, _, _ = NeuralForecastTimeSeriesDataset.from_df(
                 self.df_timeseries_dataset,
                 id_col="unique_id",
                 time_col="ds",
