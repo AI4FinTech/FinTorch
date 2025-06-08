@@ -11,8 +11,10 @@ import os
 import subprocess
 import sys
 import time
+import sys
+import time
 from pathlib import Path
-
+from typing import List, Tuple
 
 # Keywords that indicate training has started (must be very specific to avoid false positives)
 TRAINING_KEYWORDS = [
