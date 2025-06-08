@@ -43,18 +43,8 @@ class CausalConvolution(nn.Module):
         self.input_window = length_input_window
         self.number_of_heads = number_of_heads
 
-        self.kernel = nn.Parameter(
-            torch.ones(
-                (
-                    number_of_heads,
-                    number_of_series,
-                    number_of_series,
-                    length_input_window,
-                ),
-                dtype=torch.float,
-            )
-        )
-        self.register_parameter("kernel", self.kernel)
+        # Initialize kernel as None - it will be created dynamically
+        self.kernel = None
 
         # 6D tensor because the output of apply_kernel is a 6D tensor
         self.register_buffer(
@@ -114,9 +104,32 @@ class CausalConvolution(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x : (batch_size, number_of_series, length_input_window, hidden_dimensionality)
+        
+        # Update number_of_series to match actual input data
+        actual_number_of_series = x.shape[1]
+        if actual_number_of_series != self.number_of_series:
+            self.number_of_series = actual_number_of_series
+            
+        # Initialize or recreate kernel if needed
+        if self.kernel is None or self.kernel.shape[1] != self.number_of_series:
+            self.kernel = nn.Parameter(
+                torch.ones(
+                    (
+                        self.number_of_heads,
+                        self.number_of_series,
+                        self.number_of_series,
+                        self.input_window,
+                    ),
+                    dtype=torch.float,
+                    device=x.device
+                )
+            )
+            # Register the parameter if it's the first time
+            if not hasattr(self, '_kernel_registered'):
+                self.register_parameter("kernel", self.kernel)
+                self._kernel_registered = True
 
         # Get stack shifted kernel
-        kernel = self.stack_shifted_kernel(self.kernel)
         kernel = self.stack_shifted_kernel(self.kernel)
 
         # kernel: (number_of_heads, number_of_series, number_of_series, length_input_window, length_input_window)

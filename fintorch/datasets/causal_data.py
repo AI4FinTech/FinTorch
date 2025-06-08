@@ -465,7 +465,7 @@ class CausalDataset(TimeSeriesDataset):
     @property
     def num_target_features(self) -> int:
         """Returns the number of target features."""
-        return self._series_num
+        return 1
 
     @property
     def num_known_future_cov_features(self) -> int:
@@ -489,13 +489,13 @@ class CausalDataset(TimeSeriesDataset):
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
-        Retrieve a sample from the dataset.
+        Retrieve a sample from the dataset in standardized format.
         
         Args:
             idx (int): Index of the sample
             
         Returns:
-            Dictionary containing past_data, future_data, static_data, and target tensors
+            Dictionary containing standardized keys for FinTorch models
         """
         end_idx = self.indices[idx]
         start_idx = end_idx - self._time_step
@@ -510,18 +510,24 @@ class CausalDataset(TimeSeriesDataset):
         
         # Generate deterministic dummy static features based on sample index
         torch.manual_seed(idx)
-        static_data = torch.randn(self._static_length)
+        static_real = torch.randn(self._series_num, self._static_length)
+        static_categorical = torch.zeros(self._series_num, 0, dtype=torch.long)  # No categorical features
         # Reset to a different seed to avoid affecting other random operations
         torch.manual_seed(torch.initial_seed())
         
-        # Create target (same as future_data for this use case)
-        target = future_data.clone()
+        # Create dummy covariate tensors (this dataset doesn't have real covariates)
+        past_cov_known = torch.zeros(self._time_step, self._series_num, 0, dtype=torch.float32)
+        past_cov_unknown = torch.zeros(self._time_step, self._series_num, 0, dtype=torch.float32)
+        future_cov_known = torch.zeros(self._output_window, self._series_num, 0, dtype=torch.float32)
         
         return {
-            "past_data": past_data,
-            "future_data": future_data,
-            "static_data": static_data,
-            "target": target,
+            "past_target": past_data,
+            "past_covariates_known_future": past_cov_known,
+            "past_covariates_unknown_future": past_cov_unknown,
+            "future_covariates_known": future_cov_known,
+            "output_target": future_data,
+            "static_features_real": static_real,
+            "static_features_categorical": static_categorical,
         }
 
     def get_groundtruth(self) -> Optional[pl.DataFrame]:

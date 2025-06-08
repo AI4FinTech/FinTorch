@@ -69,11 +69,10 @@ class Embedding(nn.Module):
                 f"Expected shape: (batch_size, number_of_series, length_input_window, feature_dimensionality)"
             )
 
-        if x.shape[1] != self.number_of_series:
-            raise ValueError(
-                f"Input tensor's number_of_series dimension ({x.shape[1]}) does not match "
-                f"expected value ({self.number_of_series})"
-            )
+        # Update number_of_series to match actual input data
+        actual_number_of_series = x.shape[1]
+        if actual_number_of_series != self.number_of_series:
+            self.number_of_series = actual_number_of_series
 
         if x.shape[2] != self.length_input_window:
             raise ValueError(

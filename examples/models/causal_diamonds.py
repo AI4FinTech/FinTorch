@@ -5,23 +5,21 @@ import lightning as L
 import matplotlib.pyplot as plt
 import torch
 
-# Assuming fintorch is installed or accessible in the Python path
-# Make sure this imported module matches the structure from the immersive artifact
-# (accepts download_url, local_path, static_length and returns dicts + target)
-from fintorch.datasets.diamondata import DiamondDataModule
+# Updated imports to use CausalDataModule instead of DiamondDataModule
+from fintorch.datasets.causal_data import create_causal_datamodule, list_available_datasets
 from fintorch.models.timeseries.causalformer.causalformer_module import (
     CausalFormerModule,
 )
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
 # --- Configuration ---
-# Data Parameters (Updated for DiamondDataModule with download)
-LOCAL_DATA_PATH = "data_0.csv"  # Local filename for downloaded data
+# Data Parameters (Updated for CausalDataModule)
+DATASET_TYPE = "diamond"  # Use diamond dataset from causal_data (note: singular form)
 TIME_STEP = 24  # Input window length (past)
 OUTPUT_WINDOW = 12  # Output window length (future/prediction)
 STATIC_LENGTH = 0  # CausalFormer doesn't use static features in this setup
 BATCH_SIZE = 32
-NUM_WORKERS = os.cpu_count() // 2 if os.cpu_count() else 1  # Use half cores or 1
+NUM_WORKERS = max(1, (os.cpu_count() or 1) // 2)  # Use half cores or minimum 1
 TRAIN_SPLIT = 0.7
 VAL_SPLIT = 0.15
 # TEST_SPLIT is inferred
@@ -30,7 +28,7 @@ VAL_SPLIT = 0.15
 LENGTH_INPUT_WINDOW = TIME_STEP
 LENGTH_OUTPUT_WINDOW = OUTPUT_WINDOW
 
-# FEATURE_DIMENSIONALITY and OUTPUT_DIMENSIONALITY assume 1 based on DataModule reshape
+# FEATURE_DIMENSIONALITY and OUTPUT_DIMENSIONALITY will be determined from data
 FEATURE_DIMENSIONALITY = 1
 OUTPUT_DIMENSIONALITY = 1
 
@@ -59,14 +57,26 @@ if __name__ == "__main__":
 
     data_module = None  # Initialize to None for finally block
 
-    # --- 1. Setup Data ---
-    print("Setting up DiamondDataModule...")
-    # Use updated parameters for DiamondDataModule
-    data_module = DiamondDataModule(
-        local_path=LOCAL_DATA_PATH,
+    # --- 1. List Available Datasets ---
+    print("Available datasets:")
+    available_datasets = list_available_datasets()
+    for dataset in available_datasets:
+        print(f"  - {dataset}")
+    
+    if DATASET_TYPE not in available_datasets:
+        print(f"Warning: {DATASET_TYPE} not in available datasets. Using first available dataset.")
+        DATASET_TYPE = available_datasets[0] if available_datasets else "diamond"
+
+    print(f"\nUsing dataset: {DATASET_TYPE}")
+
+    # --- 2. Setup Data ---
+    print("Setting up CausalDataModule...")
+    # Use create_causal_datamodule function
+    data_module = create_causal_datamodule(
+        dataset_type=DATASET_TYPE,
         time_step=TIME_STEP,
         output_window=OUTPUT_WINDOW,
-        static_length=STATIC_LENGTH,  # Pass static length
+        static_length=STATIC_LENGTH,
         batch_size=BATCH_SIZE,
         num_workers=NUM_WORKERS,
         train_split=TRAIN_SPLIT,
@@ -78,56 +88,65 @@ if __name__ == "__main__":
     data_module.setup()
     print("DataModule setup complete.")
 
-    # --- Update NUMBER_OF_SERIES based on loaded data ---
-    if hasattr(data_module, "series_num") and data_module.series_num is not None:
-        NUMBER_OF_SERIES = data_module.series_num
-        print(f"Updated NUMBER_OF_SERIES based on loaded data: {NUMBER_OF_SERIES}")
+    # --- Update model parameters based on loaded data ---
+    # Get dimensions from the dataset (accessible after setup)
+    if data_module.dataset:
+        # Keep the original NUMBER_OF_SERIES for model architecture initialization
+        # The model will adapt to actual data dimensions at runtime
+        ACTUAL_SERIES_DIM = data_module.dataset.series_dim
+        print(f"Dataset has {ACTUAL_SERIES_DIM} series, model initialized with {NUMBER_OF_SERIES} series")
+        
+        FEATURE_DIMENSIONALITY = data_module.dataset.features_dim
+        print(f"Updated FEATURE_DIMENSIONALITY based on loaded data: {FEATURE_DIMENSIONALITY}")
+        
+        OUTPUT_DIMENSIONALITY = data_module.dataset.num_target_features
+        print(f"Updated OUTPUT_DIMENSIONALITY based on loaded data: {OUTPUT_DIMENSIONALITY}")
+
+        # Print dataset information
+        print(f"\nDataset Information:")
+        print(f"  Time steps (past): {data_module.dataset.time_steps}")
+        print(f"  Future steps: {data_module.dataset.future_steps}")
+        print(f"  Series dimension: {data_module.dataset.series_dim}")
+        print(f"  Features dimension: {data_module.dataset.features_dim}")
+        print(f"  Static length: {data_module.dataset.static_length}")
     else:
-        print(
-            f"Warning: Could not determine number of series from data_module. Using default: {NUMBER_OF_SERIES}"
-        )
+        print("Warning: Dataset not loaded, using default parameters")
 
     # Print dataset sizes
+    print(f"\nDataset Sizes:")
     if data_module.dataset:
-        print(f"Total samples processed: {len(data_module.dataset)}")
-        print(
-            f"Train samples: {len(data_module.train_dataset) if data_module.train_dataset else 'N/A'}"
-        )  # type: ignore
-        print(
-            f"Val samples:   {len(data_module.val_dataset) if data_module.val_dataset else 'N/A'}"
-        )  # type: ignore
-        print(
-            f"Test samples:  {len(data_module.test_dataset) if data_module.test_dataset else 'N/A'}"
-        )  # type: ignore
-    else:
-        print("Warning: DataModule dataset object not found after setup.")
+        print(f"  Total samples: {len(data_module.dataset)}")
+    if data_module.train_dataset:
+        print(f"  Train samples: {len(data_module.train_dataset)}")
+    if data_module.val_dataset:
+        print(f"  Val samples: {len(data_module.val_dataset)}")
+    if data_module.test_dataset:
+        print(f"  Test samples: {len(data_module.test_dataset)}")
 
-    # --- Optional: Print Batch Shapes (Updated Unpacking) ---
+    # --- Optional: Print Batch Shapes ---
     try:
         print("\n--- Sample Batch Shapes ---")
         train_loader = data_module.train_dataloader()
         if len(train_loader) > 0:
-            # Unpack the batch according to the new structure
-            past_batch, future_batch, static_batch, target_batch = next(
-                iter(train_loader)
-            )
-            print("Train Batch Shapes:")
-            print(f"  past_inputs['past_data']:   {past_batch['past_data'].shape}")
-            print(f"  future_inputs['future_data']:{future_batch['future_data'].shape}")
-            print(f"  static_inputs['static_data']:{static_batch['static_data'].shape}")
-            print(f"  target:                     {target_batch.shape}")
+            # Get a sample batch - CausalDataModule returns a dictionary format
+            batch = next(iter(train_loader))
+            print("Train Batch Structure:")
+            for key, value in batch.items():
+                if isinstance(value, torch.Tensor):
+                    print(f"  {key}: {value.shape}")
+                else:
+                    print(f"  {key}: {type(value)}")
         else:
             print("Training DataLoader is empty.")
     except Exception as e:
         print(f"Could not retrieve or print batch shapes: {e}")
 
-    # --- 2. Initialize Model ---
+    # --- 3. Initialize Model ---
     print("\nInitializing CausalFormerModule...")
-    # Pass the potentially updated NUMBER_OF_SERIES
     causalformer_module = CausalFormerModule(
         number_of_layers=NUMBER_OF_LAYERS,
         number_of_heads=NUMBER_OF_HEADS,
-        number_of_series=NUMBER_OF_SERIES,  # Use value derived from data
+        number_of_series=NUMBER_OF_SERIES,
         length_input_window=LENGTH_INPUT_WINDOW,
         length_output_window=LENGTH_OUTPUT_WINDOW,
         embedding_size=EMBEDDING_SIZE,
@@ -140,19 +159,17 @@ if __name__ == "__main__":
         lr_step_size=LR_STEP_SIZE,
         lr_gamma=LR_GAMMA,
         weight_decay=WEIGHT_DECAY,
-        # Add static_length if your CausalFormerModule accepts it
-        # static_length=STATIC_LENGTH,
     )
 
-    # --- 3. Configure Trainer ---
+    # --- 4. Configure Trainer ---
     print("Configuring Trainer...")
     early_stopping = EarlyStopping(
         monitor="val_loss", patience=PATIENCE, verbose=True, mode="min"
     )
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss",
-        dirpath="causalformer_diamond_checkpoints/",
-        filename="causalformer-diamond-best-{epoch:02d}-{val_loss_epoch:.4f}",
+        dirpath="causalformer_causal_checkpoints/",
+        filename="causalformer-causal-best-{epoch:02d}-{val_loss:.4f}",
         save_top_k=1,
         mode="min",
     )
@@ -161,22 +178,19 @@ if __name__ == "__main__":
         callbacks=[early_stopping, checkpoint_callback],
         accelerator="auto",
         devices="auto",
-        log_every_n_steps=50,  # Adjusted logging frequency
+        log_every_n_steps=50,
     )
 
-    # --- 4. Train the Model ---
+    # --- 5. Train the Model ---
     print("Starting Training...")
-    # The CausalFormerModule's training_step needs to handle the new batch structure
-    # (past_inputs, future_inputs, static_inputs, target)
     trainer.fit(causalformer_module, datamodule=data_module)
 
-    # --- 5. Test the Model ---
+    # --- 6. Test the Model ---
     print("\nStarting Testing...")
-    # The CausalFormerModule's test_step needs to handle the new batch structure
     test_results = trainer.test(datamodule=data_module, ckpt_path="best")
     print("Test Results:", test_results)
 
-    # --- 6. Make Predictions and Plot (Updated Unpacking) ---
+    # --- 7. Make Predictions and Plot ---
     print("\nGenerating Predictions and Plotting...")
     best_model_path = checkpoint_callback.best_model_path
     if not best_model_path:
@@ -184,12 +198,11 @@ if __name__ == "__main__":
         model = causalformer_module
     else:
         print(f"Loading best model from: {best_model_path}")
-        # Ensure all necessary hyperparameters are passed for loading
         model = CausalFormerModule.load_from_checkpoint(
             best_model_path,
             number_of_layers=NUMBER_OF_LAYERS,
             number_of_heads=NUMBER_OF_HEADS,
-            number_of_series=NUMBER_OF_SERIES,  # Use updated value
+            number_of_series=NUMBER_OF_SERIES,
             length_input_window=LENGTH_INPUT_WINDOW,
             length_output_window=LENGTH_OUTPUT_WINDOW,
             embedding_size=EMBEDDING_SIZE,
@@ -202,69 +215,68 @@ if __name__ == "__main__":
             lr_step_size=LR_STEP_SIZE,
             lr_gamma=LR_GAMMA,
             weight_decay=WEIGHT_DECAY,
-            # Add static_length if needed by your model's __init__
-            # static_length=STATIC_LENGTH,
         )
 
     model.eval()
     device = next(model.parameters()).device
     print(f"Model running on device: {device}")
 
+    # --- 8. Generate Plots ---
     num_plots = 5
-    # Ensure test_dataset exists before proceeding
-    if not data_module or not data_module.test_dataset:
-        print("Test dataset not available. Cannot generate plots.")
+    if not data_module.test_dataset or len(data_module.test_dataset) == 0:
+        print("Test dataset is empty. Cannot generate plots.")
     else:
-        num_test_samples = len(data_module.test_dataset)  # type: ignore
-        if num_test_samples == 0:
-            print("Test dataset is empty. Cannot generate plots.")
-        else:
-            plot_indices = [
-                randint(0, num_test_samples - 1)
-                for _ in range(min(num_plots, num_test_samples))
-            ]
+        num_test_samples = len(data_module.test_dataset)
+        plot_indices = [
+            randint(0, num_test_samples - 1)
+            for _ in range(min(num_plots, num_test_samples))
+        ]
 
-            plt.figure(figsize=(15, 5 * min(num_plots, num_test_samples)))
+        plt.figure(figsize=(15, 5 * min(num_plots, num_test_samples)))
 
-            for i, idx in enumerate(plot_indices):
-                # Get a single sample using the new structure
-                # Note: static_inputs and future_inputs are ignored for prediction/plotting here
-                past_inputs, _future_inputs, _static_inputs, target_data = (
-                    data_module.test_dataset[idx]
-                )  # type: ignore
-                past_data = past_inputs["past_data"]  # Extract the tensor
+        for i, idx in enumerate(plot_indices):
+            try:
+                # Get a single sample from test dataset
+                if data_module.test_dataset is None:
+                    print(f"Test dataset is None, skipping sample {idx}")
+                    continue
+                sample = data_module.test_dataset[idx]
+                
+                # Create a batch with single sample for prediction
+                batch = {}
+                for key, value in sample.items():
+                    if isinstance(value, torch.Tensor):
+                        batch[key] = value.unsqueeze(0)  # Add batch dimension
+                    else:
+                        batch[key] = value
 
-                # Prepare input tensor (adjust shape for model)
-                # Assuming past_data is (time_step, series_num, 1)
-                if past_data.dim() == 2:
-                    # Permute to (series_num, time_step, 1) -> add batch dim
-                    input_tensor = (
-                        past_data.unsqueeze(-1).permute(1, 0, 2).unsqueeze(0)
-                    )  # (batch=1, series=N, time=T, feat=1)
-                else:
-                    print(
-                        f"Warning: Unexpected input data dimension {past_data.dim()}. Check data loading."
-                    )
-                    # Attempt a reasonable reshape if possible, otherwise skip sample
-                    continue  # Or handle differently
-
-                input_tensor = input_tensor.to(device)
+                # Move batch to device
+                for key, value in batch.items():
+                    if isinstance(value, torch.Tensor):
+                        batch[key] = value.to(device)
 
                 # Generate predictions
                 with torch.no_grad():
-                    # The CausalFormerModule's forward method needs to handle the input shape
-                    # It might also need static features if designed for it
-                    prediction = model(input_tensor)  # Pass only past_data tensor
+                    prediction = model.predict_step(batch, 0)
 
-                # Prepare target and prediction for plotting
-                # Assuming target_data is (output_window, series_num)
-                # Assuming prediction is (batch=1, series_num, output_window, 1)
-                target_plot = (
-                    target_data.squeeze()[3, :].cpu().numpy()
-                )  # Plot first series
-                prediction_plot = (
-                    prediction.squeeze()[3, :].cpu().numpy()
-                )  # Plot first series
+                # Extract target for plotting
+                target_data = batch["output_target"].cpu().squeeze(0)  # Remove batch dim
+                prediction_data = prediction.cpu().squeeze(0)  # Remove batch dim
+
+                # Plot first series if multiple series exist
+                if target_data.dim() > 2:  # [series, time, features]
+                    target_plot = target_data[0, :, 0].numpy()  # First series, first feature
+                    prediction_plot = prediction_data[0, :, 0].numpy()
+                elif target_data.dim() == 2:  # [time, features] or [series, time]
+                    if target_data.shape[1] == OUTPUT_WINDOW:  # [series, time]
+                        target_plot = target_data[0, :].numpy()  # First series
+                        prediction_plot = prediction_data[0, :].numpy()
+                    else:  # [time, features]
+                        target_plot = target_data[:, 0].numpy()  # First feature
+                        prediction_plot = prediction_data[:, 0].numpy()
+                else:  # [time]
+                    target_plot = target_data.numpy()
+                    prediction_plot = prediction_data.numpy()
 
                 # Plotting
                 plt.subplot(min(num_plots, num_test_samples), 1, i + 1)
@@ -275,15 +287,18 @@ if __name__ == "__main__":
                     marker="x",
                     linestyle="--",
                 )
-                plt.title(
-                    f"Test Sample Index: {idx} - Target vs. Prediction (Series 3)"
-                )
+                plt.title(f"Test Sample {idx} - Target vs. Prediction")
                 plt.xlabel(f"Future Time Step (Window Size = {OUTPUT_WINDOW})")
                 plt.ylabel("Value")
                 plt.legend()
 
-            plt.tight_layout()
-            plt.savefig("causalformer_predictions.png")
-            plt.show()
+            except Exception as e:
+                print(f"Error plotting sample {idx}: {e}")
+                continue
 
-    print("\nExample script finished.")
+        plt.tight_layout()
+        plt.savefig("causalformer_causal_predictions.png")
+        plt.show()
+        print("Plots saved as 'causalformer_causal_predictions.png'")
+
+    print("\nExample script finished successfully!")

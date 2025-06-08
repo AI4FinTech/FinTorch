@@ -1,4 +1,4 @@
-from fintorch.datasets.diamondata import DiamondDataModule
+from fintorch.datasets.causal_data import CausalDataModule
 
 if __name__ == "__main__":
     # Define parameters
@@ -9,11 +9,11 @@ if __name__ == "__main__":
     DATA_PATH = "data_0.csv"
     DUMMY_DATA_ROWS = 200  # Number of rows for dummy data
 
-    print("\nInitializing DiamondDataModule...")
+    print("\nInitializing CausalDataModule...")
     try:
         # Instantiate the DataModule
-        data_module = DiamondDataModule(
-            local_path=DATA_PATH,
+        data_module = CausalDataModule(
+            dataset_type='diamond',
             time_step=TIME_STEP,
             output_window=OUTPUT_WINDOW,
             batch_size=BATCH_SIZE,
@@ -37,24 +37,15 @@ if __name__ == "__main__":
         print("\n--- Training DataLoader ---")
         train_loader = data_module.train_dataloader()
         if len(train_loader) > 0:
-            past_inputs, future_inputs, static_inputs, train_target_batch = next(
-                iter(train_loader)
-            )
-            train_data_batch = past_inputs[
-                "past_data"
-            ]  # Get the data tensor from the dictionary
-            print(f"First Train Batch - Past Data Shape:   {train_data_batch.shape}")
-            print(
-                f"First Train Batch - Future Data Shape: {future_inputs['future_data'].shape}"
-            )
-            print(
-                f"First Train Batch - Static Data Shape: {static_inputs['static_data'].shape}"
-            )
-            print(f"First Train Batch - Target Shape:      {train_target_batch.shape}")
+            batch = next(iter(train_loader))
+            train_data_batch = batch["past_target"]
+            print(f"First Train Batch - Past Target Shape: {train_data_batch.shape}")
+            print(f"First Train Batch - Output Target Shape: {batch['output_target'].shape}")
+            print(f"First Train Batch - Static Real Shape: {batch['static_features_real'].shape}")
             print(
                 "First element past data:\n", train_data_batch[0, :5, 0, 0]
             )  # Print first 5 steps of first series
-            print("First element target:\n", train_target_batch[0, :5, 0, 0])
+            print("First element target:\n", batch['output_target'][0, :5, 0, 0])
         else:
             print("Training DataLoader is empty.")
 
@@ -62,14 +53,10 @@ if __name__ == "__main__":
         print("\n--- Validation DataLoader ---")
         val_loader = data_module.val_dataloader()
         if len(val_loader) > 0:
-            past_inputs, future_inputs, static_inputs, val_target_batch = next(
-                iter(val_loader)
-            )
-            val_data_batch = past_inputs[
-                "past_data"
-            ]  # Get the data tensor from the dictionary
-            print(f"First Val Batch - Past Data Shape:   {val_data_batch.shape}")
-            print(f"First Val Batch - Target Shape:      {val_target_batch.shape}")
+            batch = next(iter(val_loader))
+            val_data_batch = batch["past_target"]
+            print(f"First Val Batch - Past Target Shape: {val_data_batch.shape}")
+            print(f"First Val Batch - Output Target Shape: {batch['output_target'].shape}")
         else:
             print("Validation DataLoader is empty.")
 
@@ -77,14 +64,10 @@ if __name__ == "__main__":
         print("\n--- Test DataLoader ---")
         test_loader = data_module.test_dataloader()
         if len(test_loader) > 0:
-            past_inputs, future_inputs, static_inputs, test_target_batch = next(
-                iter(test_loader)
-            )
-            test_data_batch = past_inputs[
-                "past_data"
-            ]  # Get the data tensor from the dictionary
-            print(f"First Test Batch - Past Data Shape:   {test_data_batch.shape}")
-            print(f"First Test Batch - Target Shape:      {test_target_batch.shape}")
+            batch = next(iter(test_loader))
+            test_data_batch = batch["past_target"]
+            print(f"First Test Batch - Past Target Shape: {test_data_batch.shape}")
+            print(f"First Test Batch - Output Target Shape: {batch['output_target'].shape}")
         else:
             print("Test DataLoader is empty.")
 

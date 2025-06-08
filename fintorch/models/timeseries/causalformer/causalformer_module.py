@@ -162,22 +162,17 @@ class CausalFormerModule(L.LightningModule):
         # Expected shape for CausalFormer: [batch_size, num_series, past_length, feature_dimensionality]
         if x.ndim == 3:  # [batch_size, past_length, total_features]
             # Add series dimension if it's missing
-            x = x.unsqueeze(1)  # [batch_size, 1, past_length, total_features]
+            x = x.unsqueeze(2)  # [batch_size, past_length, 1, total_features]
+            x = x.permute(0, 2, 1, 3)  # [batch_size, 1, past_length, total_features]
         elif x.ndim == 4:  # [batch_size, past_length, series_dim, total_features]
             # Permute to the expected shape for the CausalFormer
             x = x.permute(0, 2, 1, 3)  # [batch_size, series_dim, past_length, total_features]
 
-        # Handle multi-series data if needed
-        if x.shape[1] > 1:  # Multiple series
-            # Apply series selection/aggregation if configured
-            x_processed = self._process_multi_series_data(x.permute(0, 2, 1, 3))  # Convert back to [batch, time, series, feat]
-            x = x_processed.unsqueeze(1)  # Add back single series dimension: [batch, 1, time, feat]
-            x = x.permute(0, 1, 2, 3)  # Keep as [batch, 1, time, feat] then permute to [batch, 1, time, feat]
-
         # Handle target tensor shape - ensure it becomes 4D [batch_size, num_series, future_length, feature_dim]
         if y.ndim == 2:  # [batch_size, future_length]
             # Add both series and feature dimensions
-            y = y.unsqueeze(1).unsqueeze(-1)  # [batch_size, 1, future_length, 1]
+            y = y.unsqueeze(2).unsqueeze(-1)  # [batch_size, future_length, 1, 1]
+            y = y.permute(0, 2, 1, 3)  # [batch_size, 1, future_length, 1]
         elif y.ndim == 3:  # [batch_size, future_length, num_series]
             # Add feature dimension and permute
             y = y.unsqueeze(-1)  # [batch_size, future_length, num_series, 1]
@@ -185,13 +180,6 @@ class CausalFormerModule(L.LightningModule):
         elif y.ndim == 4:  # [batch_size, future_length, num_series, feature_dim]
             # Permute to match the CausalFormer output format [batch_size, num_series, future_length, feature_dim]
             y = y.permute(0, 2, 1, 3)
-
-        # Handle multi-series target if needed
-        if y.shape[1] > 1:  # Multiple series
-            # Apply series selection/aggregation if configured
-            y_processed = self._process_multi_series_data(y.permute(0, 2, 1, 3))  # Convert back to [batch, time, series, feat]
-            y = y_processed.unsqueeze(1)  # Add back single series dimension
-            y = y.permute(0, 1, 2, 3)  # Ensure correct shape for target
 
         return x, y
 

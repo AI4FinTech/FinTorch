@@ -13,14 +13,14 @@ sys.path.insert(0, project_root)
 # Import the required modules directly
 try:
     from fintorch.datasets.synthetic.simpleSynthetic import SimpleSyntheticDataset
-    from fintorch.datasets.diamondata import DiamondDataset
+    from fintorch.datasets.causal_data import CausalDataset
     from fintorch.datasets.base.base_dataset import TimeSeriesDataset
 except ImportError:
     # Alternative import path
     from fintorch.datasets.synthetic.simpleSynthetic import (
         SimpleSyntheticDataset,
     )
-    from fintorch.datasets.diamondata import DiamondDataset
+    from fintorch.datasets.causal_data import CausalDataset
     from fintorch.datasets.base.base_dataset import TimeSeriesDataset
 
 
@@ -28,15 +28,6 @@ class TestDatasetFormat(unittest.TestCase):
     """Test the uniform format across different dataset implementations."""
 
     def setUp(self):
-        # Create a temporary CSV file for DiamondDataset
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.temp_file = os.path.join(self.temp_dir.name, "temp_data.csv")
-
-        # Generate simple data for diamonddata
-        # Using 3 series to match series_dim parameter
-        data = np.random.randn(100, 3)
-        np.savetxt(self.temp_file, data, delimiter=",")
-
         # Parameters for datasets
         self.time_steps = 10  # Number of past time steps
         self.future_steps = 5  # Number of future steps to predict
@@ -55,9 +46,9 @@ class TestDatasetFormat(unittest.TestCase):
                 features_dim=self.features_dim,
             )
 
-            # Create the diamond dataset
-            self.diamond_dataset = DiamondDataset(
-                local_path=self.temp_file,
+            # Create the causal dataset with diamond type
+            self.diamond_dataset = CausalDataset(
+                dataset_type='diamond',
                 time_step=self.time_steps,
                 output_window=self.future_steps,
                 static_length=self.static_length,
@@ -66,7 +57,7 @@ class TestDatasetFormat(unittest.TestCase):
             self.fail(f"Failed to create datasets: {str(e)}")
 
     def tearDown(self):
-        self.temp_dir.cleanup()
+        pass
 
     def test_dataset_is_instance_of_base(self):
         """Test that the datasets are instances of TimeSeriesDataset."""
@@ -86,7 +77,8 @@ class TestDatasetFormat(unittest.TestCase):
         self.assertEqual(self.diamond_dataset.time_steps, self.time_steps)
         self.assertEqual(self.diamond_dataset.future_steps, self.future_steps)
         self.assertEqual(self.diamond_dataset.static_length, self.static_length)
-        self.assertEqual(self.diamond_dataset.series_dim, self.series_dim)
+        # Diamond dataset has its own series dimension (determined by the actual data)
+        self.assertGreater(self.diamond_dataset.series_dim, 0)
         self.assertEqual(self.diamond_dataset.features_dim, 1)
 
     def test_getitem_format(self):
