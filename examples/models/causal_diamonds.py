@@ -91,15 +91,15 @@ if __name__ == "__main__":
     # --- Update model parameters based on loaded data ---
     # Get dimensions from the dataset (accessible after setup)
     if data_module.dataset:
-        # Keep the original NUMBER_OF_SERIES for model architecture initialization
-        # The model will adapt to actual data dimensions at runtime
-        ACTUAL_SERIES_DIM = data_module.dataset.series_dim
-        print(f"Dataset has {ACTUAL_SERIES_DIM} series, model initialized with {NUMBER_OF_SERIES} series")
+        # Update NUMBER_OF_SERIES to match actual data dimensions
+        NUMBER_OF_SERIES = data_module.dataset.series_dim
+        print(f"Updated NUMBER_OF_SERIES based on loaded data: {NUMBER_OF_SERIES}")
         
         FEATURE_DIMENSIONALITY = data_module.dataset.features_dim
         print(f"Updated FEATURE_DIMENSIONALITY based on loaded data: {FEATURE_DIMENSIONALITY}")
         
-        OUTPUT_DIMENSIONALITY = data_module.dataset.num_target_features
+        # Fix: OUTPUT_DIMENSIONALITY should be features per series, not total series count
+        OUTPUT_DIMENSIONALITY = 1  # Each series has 1 target feature
         print(f"Updated OUTPUT_DIMENSIONALITY based on loaded data: {OUTPUT_DIMENSIONALITY}")
 
         # Print dataset information

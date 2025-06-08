@@ -43,7 +43,7 @@ LEARNING_RATE = 0.001
 LR_STEP_SIZE = 15
 LR_GAMMA = 0.1
 WEIGHT_DECAY = 1e-5
-MAX_EPOCHS = 50
+MAX_EPOCHS = 5
 PATIENCE = 10  # For EarlyStopping
 
 # Set precision for better performance on compatible GPUs
