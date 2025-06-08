@@ -113,6 +113,9 @@ filename = "pyproject.toml"
 [tool.hatch.build.targets.wheel]
 packages = ["fintorch"]
 
+[tool.pip-tools]
+extra-index-url = ["https://download.pytorch.org/whl/cpu"]
+
 [tool.pytest.ini_options]
 markers = [
     "special: mark a test as requiring special hardware or taking a long time"

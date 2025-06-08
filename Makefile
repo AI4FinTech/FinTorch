@@ -1,4 +1,4 @@
-.PHONY: clean clean-build clean-pyc clean-test coverage dist docs help install lint lint/flake8 lint/black
+.PHONY: clean clean-build clean-pyc clean-test coverage dist docs help install lint lint/flake8 lint/black smoke-test smoke-test-quick
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -103,3 +103,9 @@ dev-requirements:
 
 requirements:
 	uv pip compile -o requirements.txt pyproject.toml
+
+smoke-test: ## Run full smoke tests on all examples to check they reach training stage
+	python scripts/smoke_test_examples.py
+
+smoke-test-quick: ## Run quick smoke tests on a subset of examples
+	python scripts/smoke_test_examples.py --quick
