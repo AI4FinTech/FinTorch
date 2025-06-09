@@ -126,19 +126,22 @@ def test_simple_synthetic_dataset_multi_series():
 
 
 def test_simple_synthetic_dataset_backward_compatibility():
-    """Test that legacy parameters still work for backward compatibility."""
+    """Test that the dataset works with granular parameters and legacy properties are accessible."""
     dataset = SimpleSyntheticDataset(
         length=100,
         past_length=12,
         future_length=6,
-        static_length=3,  # Legacy parameter
-        features_dim=4,   # Legacy parameter
+        num_static_real_features=2,
+        num_static_categorical_features=1,
+        num_target_features=1,
+        num_known_cov_features=2,
+        num_unknown_cov_features=1,
         num_series=1,
     )
 
-    # Should still work and map to new parameters appropriately
-    assert dataset.static_length == 3
-    assert dataset.features_dim == 4
+    # Legacy properties should still be accessible and calculated correctly
+    assert dataset.static_length == 3  # 2 real + 1 categorical
+    assert dataset.features_dim == 4   # 1 target + 2 known + 1 unknown
     assert len(dataset) == 100 - 12 - 6
 
 

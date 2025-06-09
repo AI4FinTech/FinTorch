@@ -227,7 +227,7 @@ class TestModuleIntegration:
         assert cf_result is not None
 
     def test_multi_series_consistency(self):
-        """Test that both models handle multi-series data consistently"""
+        """Test that both models handle multi-series data natively"""
         batch_size = 4
         num_series = 3
 
@@ -241,54 +241,146 @@ class TestModuleIntegration:
             "static_features_categorical": torch.randint(0, 5, (batch_size, num_series, 1)),
         }
 
-        # Test different series selection methods
-        for method in ["first", "last", "aggregate"]:
-            # TFT with series selection
-            tft_model = TemporalFusionTransformerModule(
-                number_of_past_inputs=20,
-                horizon=10,
-                embedding_size_inputs=16,
-                hidden_dimension=32,
-                dropout=0.1,
-                number_of_heads=2,
-                num_past_target_features=1,
-                num_past_known_cov_features=2,
-                num_past_unknown_cov_features=1,
-                num_future_known_cov_features=2,
-                num_static_real_features=2,
-                num_static_categorical_features=1,
-                static_categorical_cardinalities=[5],
-                batch_size=batch_size,
-                device="cpu",
-                series_selection_method=method,
-                series_aggregation="mean" if method == "aggregate" else "mean",
-            )
+        # Test TFT with native multi-series capability (no series selection)
+        # TFT will automatically flatten multi-series into features
+        tft_model = TemporalFusionTransformerModule(
+            number_of_past_inputs=20,
+            horizon=10,
+            embedding_size_inputs=16,
+            hidden_dimension=32,
+            dropout=0.1,
+            number_of_heads=2,
+            num_past_target_features=num_series * 1,  # flattened features: 3 series * 1 feature
+            num_past_known_cov_features=num_series * 2,  # flattened features: 3 series * 2 features
+            num_past_unknown_cov_features=num_series * 1,  # flattened features: 3 series * 1 feature
+            num_future_known_cov_features=num_series * 2,  # flattened features: 3 series * 2 features
+            num_static_real_features=num_series * 2,  # flattened features: 3 series * 2 features
+            num_static_categorical_features=num_series * 1,  # flattened features: 3 series * 1 feature
+            static_categorical_cardinalities=[5] * num_series,  # cardinality per series
+            batch_size=batch_size,
+            device="cpu",
+            series_selection_method=None,  # Explicitly set to None for native multi-series handling
+        )
 
-            # CausalFormer with series selection
-            cf_model = CausalFormerModule(
-                number_of_layers=2,
-                number_of_heads=2,
-                number_of_series=1,
-                length_input_window=20,
-                length_output_window=10,
-                embedding_size=32,
-                feature_dimensionality=4,
-                ffn_hidden_dimensionality=64,
-                output_dimensionality=1,
-                tau=1.0,
-                dropout=0.1,
-                series_selection_method=method,
-                series_aggregation="mean" if method == "aggregate" else "mean",
-            )
+        tft_result = tft_model.training_step(batch, 0)
+        assert "loss" in tft_result
+        assert tft_result["loss"].item() >= 0
 
-            # Both should handle multi-series data
-            tft_result = tft_model.training_step(batch, 0)
-            cf_result = cf_model.training_step(batch, 0)
+        # Test CausalFormer with native multi-series capability
+        cf_model = CausalFormerModule(
+            number_of_layers=2,
+            number_of_heads=2,
+            number_of_series=num_series,  # Handle all series natively
+            length_input_window=20,
+            length_output_window=10,
+            embedding_size=32,
+            feature_dimensionality=4,  # Combined features from all past inputs
+            ffn_hidden_dimensionality=64,
+            output_dimensionality=1,
+            tau=1.0,
+            dropout=0.1,
+        )
 
-            assert "loss" in tft_result
-            assert "loss" in cf_result
-            assert tft_result["loss"].item() >= 0
-            assert cf_result["loss"].item() >= 0
+        cf_result = cf_model.training_step(batch, 0)
+        assert "loss" in cf_result
+        assert cf_result["loss"].item() >= 0
+
+        # Test that both models can handle the same multi-series data
+        print(f"TFT loss: {tft_result['loss'].item():.4f}")
+        print(f"CausalFormer loss: {cf_result['loss'].item():.4f}")
+
+    def test_series_selection_vs_native_multi_series(self):
+        """Test TFT with different series handling approaches"""
+        batch_size = 4
+        num_series = 3
+
+        batch = {
+            "past_target": torch.randn(batch_size, 20, num_series, 1),
+            "past_covariates_known_future": torch.randn(batch_size, 20, num_series, 2),
+            "past_covariates_unknown_future": torch.randn(batch_size, 20, num_series, 1),
+            "future_covariates_known": torch.randn(batch_size, 10, num_series, 2),
+            "output_target": torch.randn(batch_size, 10, num_series, 1),
+            "static_features_real": torch.randn(batch_size, num_series, 2),
+            "static_features_categorical": torch.randint(0, 5, (batch_size, num_series, 1)),
+        }
+
+        # Test 1: TFT with native multi-series (no series selection)
+        tft_native = TemporalFusionTransformerModule(
+            number_of_past_inputs=20,
+            horizon=10,
+            embedding_size_inputs=16,
+            hidden_dimension=32,
+            dropout=0.1,
+            number_of_heads=2,
+            num_past_target_features=num_series * 1,  # 3 series * 1 feature = 3
+            num_past_known_cov_features=num_series * 2,  # 3 series * 2 features = 6
+            num_past_unknown_cov_features=num_series * 1,  # 3 series * 1 feature = 3
+            num_future_known_cov_features=num_series * 2,  # 3 series * 2 features = 6
+            num_static_real_features=num_series * 2,  # 3 series * 2 features = 6
+            num_static_categorical_features=num_series * 1,  # 3 series * 1 feature = 3
+            static_categorical_cardinalities=[5] * num_series,
+            batch_size=batch_size,
+            device="cpu",
+            series_selection_method=None,  # Native multi-series
+        )
+
+        # Test 2: TFT with series aggregation
+        tft_aggregated = TemporalFusionTransformerModule(
+            number_of_past_inputs=20,
+            horizon=10,
+            embedding_size_inputs=16,
+            hidden_dimension=32,
+            dropout=0.1,
+            number_of_heads=2,
+            num_past_target_features=1,  # After aggregation: 1 feature
+            num_past_known_cov_features=2,  # After aggregation: 2 features
+            num_past_unknown_cov_features=1,  # After aggregation: 1 feature
+            num_future_known_cov_features=2,  # After aggregation: 2 features
+            num_static_real_features=2,  # After aggregation: 2 features
+            num_static_categorical_features=1,  # After aggregation: 1 feature
+            static_categorical_cardinalities=[5],
+            batch_size=batch_size,
+            device="cpu",
+            series_selection_method="aggregate",
+            series_aggregation="mean",
+        )
+
+        # Test 3: TFT with first series selection
+        tft_first = TemporalFusionTransformerModule(
+            number_of_past_inputs=20,
+            horizon=10,
+            embedding_size_inputs=16,
+            hidden_dimension=32,
+            dropout=0.1,
+            number_of_heads=2,
+            num_past_target_features=1,  # Single series: 1 feature
+            num_past_known_cov_features=2,  # Single series: 2 features
+            num_past_unknown_cov_features=1,  # Single series: 1 feature
+            num_future_known_cov_features=2,  # Single series: 2 features
+            num_static_real_features=2,  # Single series: 2 features
+            num_static_categorical_features=1,  # Single series: 1 feature
+            static_categorical_cardinalities=[5],
+            batch_size=batch_size,
+            device="cpu",
+            series_selection_method="first",
+        )
+
+        # All should work with the same multi-series data
+        result_native = tft_native.training_step(batch, 0)
+        result_aggregated = tft_aggregated.training_step(batch, 0)
+        result_first = tft_first.training_step(batch, 0)
+
+        # Verify all approaches work
+        assert "loss" in result_native
+        assert "loss" in result_aggregated
+        assert "loss" in result_first
+        assert result_native["loss"].item() >= 0
+        assert result_aggregated["loss"].item() >= 0
+        assert result_first["loss"].item() >= 0
+
+        print(f"TFT Native Multi-Series loss: {result_native['loss'].item():.4f}")
+        print(f"TFT Aggregated Series loss: {result_aggregated['loss'].item():.4f}")
+        print(f"TFT First Series loss: {result_first['loss'].item():.4f}")
 
 
 class TestEdgeCases:

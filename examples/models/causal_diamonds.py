@@ -15,8 +15,8 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 # --- Configuration ---
 # Data Parameters (Updated for CausalDataModule)
 DATASET_TYPE = "diamond"  # Use diamond dataset from causal_data (note: singular form)
-TIME_STEP = 24  # Input window length (past)
-OUTPUT_WINDOW = 12  # Output window length (future/prediction)
+TIME_STEP = 3  # Input window length (past)
+OUTPUT_WINDOW = 1  # Output window length (future/prediction)
 STATIC_LENGTH = 0  # CausalFormer doesn't use static features in this setup
 BATCH_SIZE = 32
 NUM_WORKERS = max(1, (os.cpu_count() or 1) // 2)  # Use half cores or minimum 1
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     available_datasets = list_available_datasets()
     for dataset in available_datasets:
         print(f"  - {dataset}")
-    
+
     if DATASET_TYPE not in available_datasets:
         print(f"Warning: {DATASET_TYPE} not in available datasets. Using first available dataset.")
         DATASET_TYPE = available_datasets[0] if available_datasets else "diamond"
@@ -94,16 +94,16 @@ if __name__ == "__main__":
         # Update NUMBER_OF_SERIES to match actual data dimensions
         NUMBER_OF_SERIES = data_module.dataset.series_dim
         print(f"Updated NUMBER_OF_SERIES based on loaded data: {NUMBER_OF_SERIES}")
-        
+
         FEATURE_DIMENSIONALITY = data_module.dataset.features_dim
         print(f"Updated FEATURE_DIMENSIONALITY based on loaded data: {FEATURE_DIMENSIONALITY}")
-        
+
         # Fix: OUTPUT_DIMENSIONALITY should be features per series, not total series count
         OUTPUT_DIMENSIONALITY = 1  # Each series has 1 target feature
         print(f"Updated OUTPUT_DIMENSIONALITY based on loaded data: {OUTPUT_DIMENSIONALITY}")
 
         # Print dataset information
-        print(f"\nDataset Information:")
+        print("\nDataset Information:")
         print(f"  Time steps (past): {data_module.dataset.time_steps}")
         print(f"  Future steps: {data_module.dataset.future_steps}")
         print(f"  Series dimension: {data_module.dataset.series_dim}")
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         print("Warning: Dataset not loaded, using default parameters")
 
     # Print dataset sizes
-    print(f"\nDataset Sizes:")
+    print("\nDataset Sizes:")
     if data_module.dataset:
         print(f"  Total samples: {len(data_module.dataset)}")
     if data_module.train_dataset:
@@ -241,7 +241,7 @@ if __name__ == "__main__":
                     print(f"Test dataset is None, skipping sample {idx}")
                     continue
                 sample = data_module.test_dataset[idx]
-                
+
                 # Create a batch with single sample for prediction
                 batch = {}
                 for key, value in sample.items():

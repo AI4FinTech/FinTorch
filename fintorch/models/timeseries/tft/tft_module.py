@@ -110,7 +110,7 @@ class TemporalFusionTransformerModule(L.LightningModule):
         batch_size: int,
         device: str,
         quantiles: List[float] = [0.1, 0.5, 0.9],
-        series_selection_method: str = "first",
+        series_selection_method: Optional[str] = "first",
         series_index: Optional[int] = None,
         series_aggregation: str = "mean",
         # Legacy parameters for backward compatibility
@@ -129,19 +129,21 @@ class TemporalFusionTransformerModule(L.LightningModule):
         self.series_index = series_index
         self.series_aggregation = series_aggregation
 
-        # Validate series selection parameters
-        valid_methods = ["first", "last", "index", "aggregate", "flatten"]
-        if series_selection_method not in valid_methods:
-            raise ValueError(f"series_selection_method must be one of {valid_methods}")
+        # Validate series selection parameters only if provided
+        if series_selection_method is not None:
+            valid_methods = ["first", "last", "index", "aggregate", "flatten"]
+            if series_selection_method not in valid_methods:
+                raise ValueError(f"series_selection_method must be one of {valid_methods}")
 
-        if series_selection_method == "index" and series_index is None:
-            raise ValueError(
-                "series_index must be provided when using 'index' selection method"
-            )
+            if series_selection_method == "index" and series_index is None:
+                raise ValueError(
+                    "series_index must be provided when using 'index' selection method"
+                )
 
-        valid_aggregations = ["mean", "sum", "max", "min"]
-        if series_aggregation not in valid_aggregations:
-            raise ValueError(f"series_aggregation must be one of {valid_aggregations}")
+        if series_aggregation is not None:
+            valid_aggregations = ["mean", "sum", "max", "min"]
+            if series_aggregation not in valid_aggregations:
+                raise ValueError(f"series_aggregation must be one of {valid_aggregations}")
 
         # Store new feature dimensions
         self.num_past_target_features = num_past_target_features
@@ -279,50 +281,87 @@ class TemporalFusionTransformerModule(L.LightningModule):
         past_inputs = {}
         if "past_target" in batch:
             past_target = batch["past_target"]
-            if past_target.ndim == 4:  # [batch_size, time_steps, series_dim, features_dim]
+
+            if past_target.ndim == 4 and self.series_selection_method is not None:  # [batch_size, time_steps, series_dim, features_dim]
                 past_target = self._process_multi_series_data(past_target)
+            elif past_target.ndim == 4:
+                # Native multi-series: flatten series and features for TFT
+                batch_size, time_steps, series_dim, features_dim = past_target.shape
+                past_target = past_target.view(batch_size, time_steps, series_dim * features_dim)
+
             past_inputs["past_target"] = past_target
 
         if "past_covariates_known_future" in batch:
             past_known_cov = batch["past_covariates_known_future"]
-            if past_known_cov.ndim == 4:
+
+            if past_known_cov.ndim == 4 and self.series_selection_method is not None:
                 past_known_cov = self._process_multi_series_data(past_known_cov)
+            elif past_known_cov.ndim == 4:
+                # Native multi-series: flatten series and features for TFT
+                batch_size, time_steps, series_dim, features_dim = past_known_cov.shape
+                past_known_cov = past_known_cov.view(batch_size, time_steps, series_dim * features_dim)
+
             past_inputs["past_known_cov"] = past_known_cov
 
         if "past_covariates_unknown_future" in batch:
             past_unknown_cov = batch["past_covariates_unknown_future"]
-            if past_unknown_cov.ndim == 4:
+            if past_unknown_cov.ndim == 4 and self.series_selection_method is not None:
                 past_unknown_cov = self._process_multi_series_data(past_unknown_cov)
+            elif past_unknown_cov.ndim == 4:
+                # Native multi-series: flatten series and features for TFT
+                batch_size, time_steps, series_dim, features_dim = past_unknown_cov.shape
+                past_unknown_cov = past_unknown_cov.view(batch_size, time_steps, series_dim * features_dim)
             past_inputs["past_unknown_cov"] = past_unknown_cov
 
         # Process future inputs
         future_inputs = {}
         if "future_covariates_known" in batch:
             future_known_cov = batch["future_covariates_known"]
-            if future_known_cov.ndim == 4:
+            if future_known_cov.ndim == 4 and self.series_selection_method is not None:
                 future_known_cov = self._process_multi_series_data(future_known_cov)
+            elif future_known_cov.ndim == 4:
+                # Native multi-series: flatten series and features for TFT
+                batch_size, time_steps, series_dim, features_dim = future_known_cov.shape
+                future_known_cov = future_known_cov.view(batch_size, time_steps, series_dim * features_dim)
             future_inputs["future_known_cov"] = future_known_cov
 
         # Process static inputs
         static_inputs = {}
         if "static_features_real" in batch:
             static_real = batch["static_features_real"]
-            if static_real.ndim == 3:  # [batch_size, series_dim, features_dim]
+            if static_real.ndim == 3 and self.series_selection_method is not None:  # [batch_size, series_dim, features_dim]
                 static_real = self._process_multi_series_static_data(static_real)
+            elif static_real.ndim == 3:
+                # Native multi-series: flatten series and features for TFT
+                batch_size, series_dim, features_dim = static_real.shape
+                static_real = static_real.view(batch_size, series_dim * features_dim)
             static_inputs["static_real"] = static_real
 
         if "static_features_categorical" in batch:
             static_categorical = batch["static_features_categorical"]
-            if static_categorical.ndim == 3:  # [batch_size, series_dim, features_dim]
+            if static_categorical.ndim == 3 and self.series_selection_method is not None:  # [batch_size, series_dim, features_dim]
                 static_categorical = self._process_multi_series_static_data(static_categorical)
-            elif static_categorical.dtype == torch.long:
-                # Convert categorical to float for TFT compatibility
+            elif static_categorical.ndim == 3:
+                # Native multi-series: flatten series and features for TFT
+                batch_size, series_dim, features_dim = static_categorical.shape
+                static_categorical = static_categorical.view(batch_size, series_dim * features_dim)
+
+            # Convert categorical to float for TFT compatibility (after any processing)
+            if static_categorical.dtype == torch.long:
                 static_categorical = static_categorical.float()
             static_inputs["static_categorical"] = static_categorical
 
         # Process target
         target = batch["output_target"]
-        target = self._process_multi_series_target(target)
+        if target.ndim in [3, 4] and self.series_selection_method is not None:  # Multi-series target
+            target = self._process_multi_series_target(target)
+        elif target.ndim == 4:  # [batch_size, time_steps, series_dim, features_dim]
+            # For native multi-series, we need to aggregate target across series for TFT's single output
+            # Take the mean across series dimension as TFT expects single target per timestep
+            target = target.mean(dim=2).squeeze(-1)  # [batch_size, time_steps]
+        elif target.ndim == 3:  # [batch_size, time_steps, series_dim]
+            # Take the mean across series dimension
+            target = target.mean(dim=2)  # [batch_size, time_steps]
 
         return past_inputs, future_inputs, static_inputs, target
 

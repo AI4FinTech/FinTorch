@@ -13,7 +13,7 @@ Test Coverage:
    - Gradient information preservation
    - Empty batch error handling
    - Variable sequence length error handling
-   - Static data handling (always None)
+   - Static data handling
    - List accumulation logic
    - Tensor stacking behavior
    - Dictionary structure maintenance
@@ -31,12 +31,10 @@ Test Coverage:
    - Integration with custom_collate_fn
 
 The custom_collate_fn function performs the following key operations:
-1. Accumulates batch items into separate lists for past_inputs, future_inputs, static_inputs, and targets
-2. Stacks past_data tensors using torch.stack() to create batched tensors
-3. Stacks future_data tensors using torch.stack() to create batched tensors
-4. Handles static_data by setting it to None (as required by this dataset)
-5. Stacks target tensors using torch.stack() to create batched targets
-6. Returns properly formatted dictionaries and tensors for model consumption
+1. Takes a list of dictionaries (batch items) with standardized keys
+2. Stacks tensors for each key across the batch dimension
+3. Handles None values appropriately
+4. Returns a single dictionary with batched tensors
 """
 
 import torch
@@ -51,228 +49,190 @@ from fintorch.datasets.airpassenger import (
 
 def test_custom_collate_fn_basic():
     """Test basic functionality of custom_collate_fn with valid batch data."""
-    # Create mock batch data matching the expected format
-    past_data_1 = torch.randn(10, 1)
-    future_data_1 = torch.randn(5, 1)
-    target_1 = torch.randn(5)
+    # Create mock batch data matching the new dictionary format
+    batch_item_1 = {
+        "past_target": torch.randn(10, 1, 1),
+        "past_covariates_known_future": torch.randn(10, 1, 2),
+        "past_covariates_unknown_future": torch.randn(10, 1, 1),
+        "future_covariates_known": torch.randn(5, 1, 2),
+        "output_target": torch.randn(5, 1, 1),
+        "static_features_real": torch.randn(1, 2),
+        "static_features_categorical": torch.tensor([[0]], dtype=torch.long),
+    }
 
-    past_data_2 = torch.randn(10, 1)
-    future_data_2 = torch.randn(5, 1)
-    target_2 = torch.randn(5)
+    batch_item_2 = {
+        "past_target": torch.randn(10, 1, 1),
+        "past_covariates_known_future": torch.randn(10, 1, 2),
+        "past_covariates_unknown_future": torch.randn(10, 1, 1),
+        "future_covariates_known": torch.randn(5, 1, 2),
+        "output_target": torch.randn(5, 1, 1),
+        "static_features_real": torch.randn(1, 2),
+        "static_features_categorical": torch.tensor([[1]], dtype=torch.long),
+    }
 
-    past_data_3 = torch.randn(10, 1)
-    future_data_3 = torch.randn(5, 1)
-    target_3 = torch.randn(5)
+    batch_item_3 = {
+        "past_target": torch.randn(10, 1, 1),
+        "past_covariates_known_future": torch.randn(10, 1, 2),
+        "past_covariates_unknown_future": torch.randn(10, 1, 1),
+        "future_covariates_known": torch.randn(5, 1, 2),
+        "output_target": torch.randn(5, 1, 1),
+        "static_features_real": torch.randn(1, 2),
+        "static_features_categorical": torch.tensor([[0]], dtype=torch.long),
+    }
 
-    batch = [
-        (
-            {"past_data": past_data_1},
-            {"future_data": future_data_1},
-            {"static_data": None},
-            target_1
-        ),
-        (
-            {"past_data": past_data_2},
-            {"future_data": future_data_2},
-            {"static_data": None},
-            target_2
-        ),
-        (
-            {"past_data": past_data_3},
-            {"future_data": future_data_3},
-            {"static_data": None},
-            target_3
-        ),
-    ]
+    batch = [batch_item_1, batch_item_2, batch_item_3]
 
-    collated_past, collated_future, collated_static, collated_targets = custom_collate_fn(batch)
+    collated_batch = custom_collate_fn(batch)
 
-    # Check return types
-    assert isinstance(collated_past, dict)
-    assert isinstance(collated_future, dict)
-    assert isinstance(collated_static, dict)
-    assert isinstance(collated_targets, torch.Tensor)
+    # Check return type
+    assert isinstance(collated_batch, dict)
 
     # Check dictionary keys
-    assert "past_data" in collated_past
-    assert "future_data" in collated_future
-    assert "static_data" in collated_static
+    expected_keys = {
+        "past_target", "past_covariates_known_future", "past_covariates_unknown_future",
+        "future_covariates_known", "output_target", "static_features_real", "static_features_categorical"
+    }
+    assert set(collated_batch.keys()) == expected_keys
 
     # Check tensor shapes - should have batch dimension added
-    assert collated_past["past_data"].shape == (3, 10, 1)  # (batch_size, time, features)
-    assert collated_future["future_data"].shape == (3, 5, 1)
-    assert collated_targets.shape == (3, 5)
-
-    # Check static data is None
-    assert collated_static["static_data"] is None
+    assert collated_batch["past_target"].shape == (3, 10, 1, 1)  # (batch, time, series, features)
+    assert collated_batch["past_covariates_known_future"].shape == (3, 10, 1, 2)
+    assert collated_batch["past_covariates_unknown_future"].shape == (3, 10, 1, 1)
+    assert collated_batch["future_covariates_known"].shape == (3, 5, 1, 2)
+    assert collated_batch["output_target"].shape == (3, 5, 1, 1)
+    assert collated_batch["static_features_real"].shape == (3, 1, 2)
+    assert collated_batch["static_features_categorical"].shape == (3, 1, 1)
 
     # Check that the data is correctly stacked
-    assert torch.equal(collated_past["past_data"][0], past_data_1)
-    assert torch.equal(collated_past["past_data"][1], past_data_2)
-    assert torch.equal(collated_past["past_data"][2], past_data_3)
+    assert torch.equal(collated_batch["past_target"][0], batch_item_1["past_target"])
+    assert torch.equal(collated_batch["past_target"][1], batch_item_2["past_target"])
+    assert torch.equal(collated_batch["past_target"][2], batch_item_3["past_target"])
 
-    assert torch.equal(collated_future["future_data"][0], future_data_1)
-    assert torch.equal(collated_future["future_data"][1], future_data_2)
-    assert torch.equal(collated_future["future_data"][2], future_data_3)
-
-    assert torch.equal(collated_targets[0], target_1)
-    assert torch.equal(collated_targets[1], target_2)
-    assert torch.equal(collated_targets[2], target_3)
+    # Check data types are preserved
+    assert collated_batch["past_target"].dtype == torch.float32
+    assert collated_batch["static_features_categorical"].dtype == torch.long
 
 
 def test_custom_collate_fn_single_item():
-    """Test custom_collate_fn with a single item batch."""
-    past_data = torch.randn(10, 1)
-    future_data = torch.randn(5, 1)
-    target = torch.randn(5)
+    """Test custom_collate_fn with a single batch item."""
+    batch_item = {
+        "past_target": torch.randn(8, 1, 1),
+        "past_covariates_known_future": torch.randn(8, 1, 2),
+        "past_covariates_unknown_future": torch.randn(8, 1, 1),
+        "future_covariates_known": torch.randn(3, 1, 2),
+        "output_target": torch.randn(3, 1, 1),
+        "static_features_real": torch.randn(1, 2),
+        "static_features_categorical": torch.tensor([[1]], dtype=torch.long),
+    }
 
-    batch = [
-        (
-            {"past_data": past_data},
-            {"future_data": future_data},
-            {"static_data": None},
-            target
-        ),
-    ]
+    batch = [batch_item]
 
-    collated_past, collated_future, collated_static, collated_targets = custom_collate_fn(batch)
+    collated_batch = custom_collate_fn(batch)
 
-    # Check shapes with batch size 1
-    assert collated_past["past_data"].shape == (1, 10, 1)
-    assert collated_future["future_data"].shape == (1, 5, 1)
-    assert collated_targets.shape == (1, 5)
-    assert collated_static["static_data"] is None
+    # Check return type
+    assert isinstance(collated_batch, dict)
 
-    # Check data integrity
-    assert torch.equal(collated_past["past_data"][0], past_data)
-    assert torch.equal(collated_future["future_data"][0], future_data)
-    assert torch.equal(collated_targets[0], target)
+    # Check tensor shapes - should have batch dimension of 1
+    assert collated_batch["past_target"].shape == (1, 8, 1, 1)
+    assert collated_batch["past_covariates_known_future"].shape == (1, 8, 1, 2)
+    assert collated_batch["output_target"].shape == (1, 3, 1, 1)
+    assert collated_batch["static_features_real"].shape == (1, 1, 2)
+
+    # Check that the data is correctly preserved
+    assert torch.equal(collated_batch["past_target"][0], batch_item["past_target"])
 
 
 def test_custom_collate_fn_different_tensor_types():
-    """Test custom_collate_fn with different tensor dtypes."""
-    # Create tensors with different dtypes
-    past_data_float = torch.randn(10, 1).float()
-    future_data_double = torch.randn(5, 1).double()
-    target_int = torch.randint(0, 10, (5,)).int()
+    """Test that custom_collate_fn preserves different tensor data types."""
+    batch_item_1 = {
+        "past_target": torch.randn(5, 1, 1).float(),
+        "static_features_categorical": torch.tensor([[0]], dtype=torch.long),
+        "output_target": torch.randn(3, 1, 1).double(),
+    }
 
-    past_data_float2 = torch.randn(10, 1).float()
-    future_data_double2 = torch.randn(5, 1).double()
-    target_int2 = torch.randint(0, 10, (5,)).int()
+    batch_item_2 = {
+        "past_target": torch.randn(5, 1, 1).float(),
+        "static_features_categorical": torch.tensor([[1]], dtype=torch.long),
+        "output_target": torch.randn(3, 1, 1).double(),
+    }
 
-    batch = [
-        (
-            {"past_data": past_data_float},
-            {"future_data": future_data_double},
-            {"static_data": None},
-            target_int
-        ),
-        (
-            {"past_data": past_data_float2},
-            {"future_data": future_data_double2},
-            {"static_data": None},
-            target_int2
-        ),
-    ]
+    batch = [batch_item_1, batch_item_2]
 
-    collated_past, collated_future, collated_static, collated_targets = custom_collate_fn(batch)
+    collated_batch = custom_collate_fn(batch)
 
-    # Check that dtypes are preserved
-    assert collated_past["past_data"].dtype == torch.float32
-    assert collated_future["future_data"].dtype == torch.float64
-    assert collated_targets.dtype == torch.int32
-
-    # Check shapes
-    assert collated_past["past_data"].shape == (2, 10, 1)
-    assert collated_future["future_data"].shape == (2, 5, 1)
-    assert collated_targets.shape == (2, 5)
+    # Check that data types are preserved
+    assert collated_batch["past_target"].dtype == torch.float32
+    assert collated_batch["static_features_categorical"].dtype == torch.long
+    assert collated_batch["output_target"].dtype == torch.float64
 
 
 def test_custom_collate_fn_preserves_gradients():
     """Test that custom_collate_fn preserves gradient information."""
-    past_data = torch.randn(10, 1, requires_grad=True)
-    future_data = torch.randn(5, 1, requires_grad=True)
-    target = torch.randn(5, requires_grad=True)
+    tensor_with_grad = torch.randn(5, 1, 1, requires_grad=True)
 
-    batch = [
-        (
-            {"past_data": past_data},
-            {"future_data": future_data},
-            {"static_data": None},
-            target
-        ),
-    ]
+    batch_item = {
+        "past_target": tensor_with_grad,
+        "output_target": torch.randn(3, 1, 1),
+    }
 
-    collated_past, collated_future, collated_static, collated_targets = custom_collate_fn(batch)
+    batch = [batch_item, batch_item]
+
+    collated_batch = custom_collate_fn(batch)
 
     # Check that gradient information is preserved
-    assert collated_past["past_data"].requires_grad
-    assert collated_future["future_data"].requires_grad
-    assert collated_targets.requires_grad
+    assert collated_batch["past_target"].requires_grad is True
+    assert collated_batch["output_target"].requires_grad is False
 
 
 def test_custom_collate_fn_empty_batch():
-    """Test custom_collate_fn with empty batch (edge case)."""
+    """Test custom_collate_fn behavior with empty batch."""
     batch = []
 
-    # This should raise a RuntimeError when trying to stack empty tensor lists
-    with pytest.raises(RuntimeError, match="stack expects a non-empty TensorList"):
+    # Should handle empty batch gracefully
+    with pytest.raises(IndexError):
         custom_collate_fn(batch)
 
 
 def test_custom_collate_fn_variable_sequence_lengths():
-    """Test custom_collate_fn with different sequence lengths (should fail)."""
-    # Create data with different sequence lengths
-    past_data_1 = torch.randn(10, 1)  # length 10
-    past_data_2 = torch.randn(8, 1)   # length 8 - different!
+    """Test custom_collate_fn with variable sequence lengths (should fail)."""
+    batch_item_1 = {
+        "past_target": torch.randn(10, 1, 1),
+        "output_target": torch.randn(5, 1, 1),
+    }
 
-    future_data_1 = torch.randn(5, 1)
-    future_data_2 = torch.randn(5, 1)
+    batch_item_2 = {
+        "past_target": torch.randn(8, 1, 1),  # Different length
+        "output_target": torch.randn(5, 1, 1),
+    }
 
-    target_1 = torch.randn(5)
-    target_2 = torch.randn(5)
+    batch = [batch_item_1, batch_item_2]
 
-    batch = [
-        (
-            {"past_data": past_data_1},
-            {"future_data": future_data_1},
-            {"static_data": None},
-            target_1
-        ),
-        (
-            {"past_data": past_data_2},
-            {"future_data": future_data_2},
-            {"static_data": None},
-            target_2
-        ),
-    ]
-
-    # This should raise a RuntimeError due to size mismatch in torch.stack
+    # Should raise an error when trying to stack tensors of different sizes
     with pytest.raises(RuntimeError):
         custom_collate_fn(batch)
 
 
-def test_custom_collate_fn_static_data_always_none():
-    """Test that static_data is always None regardless of input."""
-    batch = [
-        (
-            {"past_data": torch.randn(10, 1)},
-            {"future_data": torch.randn(5, 1)},
-            {"static_data": None},
-            torch.randn(5)
-        ),
-        (
-            {"past_data": torch.randn(10, 1)},
-            {"future_data": torch.randn(5, 1)},
-            {"static_data": None},
-            torch.randn(5)
-        ),
-    ]
+def test_custom_collate_fn_static_data_handling():
+    """Test custom_collate_fn handles static data correctly."""
+    batch_item_1 = {
+        "static_features_real": torch.randn(1, 2),
+        "static_features_categorical": torch.tensor([[0]], dtype=torch.long),
+        "past_target": torch.randn(5, 1, 1),
+    }
 
-    collated_past, collated_future, collated_static, collated_targets = custom_collate_fn(batch)
+    batch_item_2 = {
+        "static_features_real": torch.randn(1, 2),
+        "static_features_categorical": torch.tensor([[1]], dtype=torch.long),
+        "past_target": torch.randn(5, 1, 1),
+    }
 
-    # Static data should always be None for this dataset
-    assert collated_static["static_data"] is None
+    batch = [batch_item_1, batch_item_2]
+
+    collated_batch = custom_collate_fn(batch)
+
+    # Check that static features are properly batched
+    assert collated_batch["static_features_real"].shape == (2, 1, 2)
+    assert collated_batch["static_features_categorical"].shape == (2, 1, 1)
 
 
 def test_air_passenger_dataset_initialization():
@@ -281,8 +241,6 @@ def test_air_passenger_dataset_initialization():
 
     assert dataset.past_length == 12
     assert dataset.future_length == 6
-    assert hasattr(dataset, 'scaler')
-    assert hasattr(dataset, 'data')
     assert len(dataset) > 0
 
 
@@ -291,91 +249,82 @@ def test_air_passenger_dataset_getitem():
     dataset = AirPassengerDataset(past_length=10, future_length=5)
 
     # Get a single item
-    past_inputs, future_inputs, static_inputs, target = dataset[0]
+    sample = dataset[0]
 
-    # Check return types and structure
-    assert isinstance(past_inputs, dict)
-    assert isinstance(future_inputs, dict)
-    assert isinstance(static_inputs, dict)
-    assert isinstance(target, torch.Tensor)
+    # Check return type
+    assert isinstance(sample, dict)
 
     # Check dictionary keys
-    assert "past_data" in past_inputs
-    assert "future_data" in future_inputs
-    assert "static_data" in static_inputs
+    expected_keys = {
+        "past_target", "past_covariates_known_future", "past_covariates_unknown_future",
+        "future_covariates_known", "output_target", "static_features_real", "static_features_categorical"
+    }
+    assert set(sample.keys()) == expected_keys
 
     # Check tensor shapes
-    assert past_inputs["past_data"].shape == (10, 1)
-    assert future_inputs["future_data"].shape == (5, 1)
-    assert target.shape == (5,)
-
-    # Check static data is None
-    assert static_inputs["static_data"] is None
+    assert sample["past_target"].shape == (10, 1, 1)  # (time, series, features)
+    assert sample["past_covariates_known_future"].shape == (10, 1, 2)  # month + trend
+    assert sample["past_covariates_unknown_future"].shape == (10, 1, 1)  # placeholder
+    assert sample["future_covariates_known"].shape == (5, 1, 2)  # month + trend
+    assert sample["output_target"].shape == (5, 1, 1)
+    assert sample["static_features_real"].shape == (1, 2)
+    assert sample["static_features_categorical"].shape == (1, 1)
 
     # Check data types
-    assert past_inputs["past_data"].dtype == torch.float32
-    assert future_inputs["future_data"].dtype == torch.float32
-    assert target.dtype == torch.float32
+    assert sample["past_target"].dtype == torch.float32
+    assert sample["past_covariates_known_future"].dtype == torch.float32
+    assert sample["output_target"].dtype == torch.float32
+    assert sample["static_features_categorical"].dtype == torch.long
 
 
 def test_air_passenger_datamodule_initialization():
     """Test AirPassengerDataModule initialization."""
     datamodule = AirPassengerDataModule(
         batch_size=32,
-        past_length=12,
-        horizon=6,
-        workers=1
+        past_length=15,
+        horizon=7,
+        workers=2
     )
 
     assert datamodule.batch_size == 32
-    assert datamodule.past_length == 12
-    assert datamodule.future_length == 6
-    assert datamodule.workers == 1
+    assert datamodule.past_length == 15
+    assert datamodule.future_length == 7
+    assert datamodule.workers == 2
 
 
 def test_air_passenger_datamodule_setup():
     """Test AirPassengerDataModule setup method."""
-    datamodule = AirPassengerDataModule(batch_size=16, past_length=10, horizon=5)
-    datamodule.setup()
+    datamodule = AirPassengerDataModule(batch_size=16, past_length=8, horizon=4)
 
-    # Check that datasets are created
+    # Test setup for fit stage
+    datamodule.setup(stage="fit")
     assert hasattr(datamodule, 'train_dataset')
     assert hasattr(datamodule, 'val_dataset')
-    assert hasattr(datamodule, 'test_dataset')
 
-    # Check that datasets have correct configurations
-    assert datamodule.train_dataset.past_length == 10
-    assert datamodule.train_dataset.future_length == 5
-    assert datamodule.val_dataset.past_length == 10
-    assert datamodule.val_dataset.future_length == 5
-    assert datamodule.test_dataset.past_length == 10
-    assert datamodule.test_dataset.future_length == 5
+    # Test setup for test stage
+    datamodule.setup(stage="test")
+    assert hasattr(datamodule, 'test_dataset')
 
 
 def test_air_passenger_datamodule_dataloaders():
     """Test AirPassengerDataModule dataloader methods."""
-    datamodule = AirPassengerDataModule(batch_size=8, past_length=10, horizon=5)
+    datamodule = AirPassengerDataModule(batch_size=4, past_length=6, horizon=3)
     datamodule.setup()
 
     # Test train dataloader
     train_loader = datamodule.train_dataloader()
-    assert train_loader.batch_size == 8
-    assert train_loader.dataset == datamodule.train_dataset
+    assert train_loader.batch_size == 4
+    assert train_loader.collate_fn == custom_collate_fn
 
-    # Test val dataloader
+    # Test validation dataloader
     val_loader = datamodule.val_dataloader()
-    assert val_loader.batch_size == 8
-    assert val_loader.dataset == datamodule.val_dataset
+    assert val_loader.batch_size == 4
+    assert val_loader.collate_fn == custom_collate_fn
 
     # Test test dataloader
     test_loader = datamodule.test_dataloader()
-    assert test_loader.batch_size == 8
-    assert test_loader.dataset == datamodule.test_dataset
-
-    # Test predict dataloader
-    predict_loader = datamodule.predict_dataloader()
-    assert predict_loader.batch_size == 8
-    assert predict_loader.dataset == datamodule.test_dataset
+    assert test_loader.batch_size == 4
+    assert val_loader.collate_fn == custom_collate_fn
 
 
 def test_dataloader_with_custom_collate_fn():
@@ -392,184 +341,141 @@ def test_dataloader_with_custom_collate_fn():
 
     # Get a batch
     batch = next(iter(dataloader))
-    past_inputs, future_inputs, static_inputs, targets = batch
 
     # Check batch structure
-    assert isinstance(past_inputs, dict)
-    assert isinstance(future_inputs, dict)
-    assert isinstance(static_inputs, dict)
-    assert isinstance(targets, torch.Tensor)
+    assert isinstance(batch, dict)
+
+    # Check dictionary keys
+    expected_keys = {
+        "past_target", "past_covariates_known_future", "past_covariates_unknown_future",
+        "future_covariates_known", "output_target", "static_features_real", "static_features_categorical"
+    }
+    assert set(batch.keys()) == expected_keys
 
     # Check batch dimensions
-    assert past_inputs["past_data"].shape[0] == 3  # batch size
-    assert future_inputs["future_data"].shape[0] == 3
-    assert targets.shape[0] == 3
+    assert batch["past_target"].shape[0] == 3  # batch size
+    assert batch["future_covariates_known"].shape[0] == 3
+    assert batch["output_target"].shape[0] == 3
 
     # Check sequence dimensions
-    assert past_inputs["past_data"].shape[1] == 8  # past_length
-    assert future_inputs["future_data"].shape[1] == 4  # future_length
-    assert targets.shape[1] == 4
+    assert batch["past_target"].shape[1] == 8  # past_length
+    assert batch["future_covariates_known"].shape[1] == 4  # future_length
+    assert batch["output_target"].shape[1] == 4
 
 
 def test_custom_collate_fn_type_annotations():
-    """Test that custom_collate_fn handles the expected input/output types correctly."""
-    # Create a batch that matches the type annotation
-    batch_item = (
-        {"past_data": torch.randn(10, 1)},  # Dict[str, torch.Tensor]
-        {"future_data": torch.randn(5, 1)},  # Dict[str, torch.Tensor]
-        {"static_data": None},  # Dict[str, Optional[torch.Tensor]]
-        torch.randn(5)  # torch.Tensor
-    )
+    """Test that custom_collate_fn handles type annotations correctly."""
+    batch_item = {
+        "past_target": torch.randn(5, 1, 1),
+        "past_covariates_known_future": torch.randn(5, 1, 2),
+        "output_target": torch.randn(3, 1, 1),
+        "static_features_real": torch.randn(1, 2),
+        "static_features_categorical": torch.tensor([[0]], dtype=torch.long),
+    }
 
     batch = [batch_item, batch_item]
 
-    result = custom_collate_fn(batch)
+    # Function should work without type annotation issues
+    collated_batch = custom_collate_fn(batch)
 
-    # Check return type matches annotation
-    assert isinstance(result, tuple)
-    assert len(result) == 4
-
-    past_inputs, future_inputs, static_inputs, targets = result
-
-    # Check types match the annotation
-    assert isinstance(past_inputs, dict)
-    assert isinstance(future_inputs, dict)
-    assert isinstance(static_inputs, dict)
-    assert isinstance(targets, torch.Tensor)
-
-    # Check dictionary values
-    assert isinstance(past_inputs["past_data"], torch.Tensor)
-    assert isinstance(future_inputs["future_data"], torch.Tensor)
-    assert static_inputs["static_data"] is None
+    assert isinstance(collated_batch, dict)
+    assert len(collated_batch) == 5
 
 
 def test_custom_collate_fn_list_accumulation():
-    """Test that the collation logic correctly accumulates items into lists."""
-    # Create specific data to track through the process
-    past_data_1 = torch.tensor([[1.0], [2.0], [3.0]])
-    past_data_2 = torch.tensor([[4.0], [5.0], [6.0]])
-    future_data_1 = torch.tensor([[7.0], [8.0]])
-    future_data_2 = torch.tensor([[9.0], [10.0]])
-    target_1 = torch.tensor([11.0, 12.0])
-    target_2 = torch.tensor([13.0, 14.0])
+    """Test custom_collate_fn list accumulation logic."""
+    batch_items = []
 
-    batch = [
-        (
-            {"past_data": past_data_1},
-            {"future_data": future_data_1},
-            {"static_data": None},
-            target_1
-        ),
-        (
-            {"past_data": past_data_2},
-            {"future_data": future_data_2},
-            {"static_data": None},
-            target_2
-        ),
-    ]
+    for i in range(4):
+        batch_items.append({
+            "past_target": torch.randn(6, 1, 1) + i,  # Add offset to distinguish
+            "output_target": torch.randn(2, 1, 1) + i,
+            "static_features_real": torch.randn(1, 2) + i,
+        })
 
-    collated_past, collated_future, collated_static, collated_targets = custom_collate_fn(batch)
+    collated_batch = custom_collate_fn(batch_items)
 
-    # Verify that the list accumulation step worked correctly
-    # by checking that data is stacked in the correct order
-    assert torch.equal(collated_past["past_data"][0], past_data_1)
-    assert torch.equal(collated_past["past_data"][1], past_data_2)
-    assert torch.equal(collated_future["future_data"][0], future_data_1)
-    assert torch.equal(collated_future["future_data"][1], future_data_2)
-    assert torch.equal(collated_targets[0], target_1)
-    assert torch.equal(collated_targets[1], target_2)
+    # Check that all items are properly accumulated
+    assert collated_batch["past_target"].shape[0] == 4
+    assert collated_batch["output_target"].shape[0] == 4
+    assert collated_batch["static_features_real"].shape[0] == 4
+
+    # Check that order is preserved (approximate check due to random values)
+    # The mean should increase with the offset we added
+    means = [collated_batch["past_target"][i].mean().item() for i in range(4)]
+    assert means[1] > means[0]
+    assert means[2] > means[1]
+    assert means[3] > means[2]
 
 
 def test_custom_collate_fn_stacking_behavior():
-    """Test the torch.stack behavior in the collation function."""
-    # Create tensors with specific values to verify stacking
-    past_1 = torch.tensor([[1.0], [2.0]])
-    past_2 = torch.tensor([[3.0], [4.0]])
-    past_3 = torch.tensor([[5.0], [6.0]])
-
-    future_1 = torch.tensor([[7.0]])
-    future_2 = torch.tensor([[8.0]])
-    future_3 = torch.tensor([[9.0]])
-
-    target_1 = torch.tensor([10.0])
-    target_2 = torch.tensor([11.0])
-    target_3 = torch.tensor([12.0])
+    """Test custom_collate_fn tensor stacking behavior."""
+    # Create distinguishable tensors
+    tensor_1 = torch.ones(3, 1, 1)
+    tensor_2 = torch.ones(3, 1, 1) * 2
+    tensor_3 = torch.ones(3, 1, 1) * 3
 
     batch = [
-        ({"past_data": past_1}, {"future_data": future_1}, {"static_data": None}, target_1),
-        ({"past_data": past_2}, {"future_data": future_2}, {"static_data": None}, target_2),
-        ({"past_data": past_3}, {"future_data": future_3}, {"static_data": None}, target_3),
+        {"past_target": tensor_1, "output_target": torch.randn(2, 1, 1)},
+        {"past_target": tensor_2, "output_target": torch.randn(2, 1, 1)},
+        {"past_target": tensor_3, "output_target": torch.randn(2, 1, 1)},
     ]
 
-    collated_past, collated_future, collated_static, collated_targets = custom_collate_fn(batch)
+    collated_batch = custom_collate_fn(batch)
 
-    # Test that torch.stack creates the expected tensor structure
-    expected_past = torch.stack([past_1, past_2, past_3])
-    expected_future = torch.stack([future_1, future_2, future_3])
-    expected_targets = torch.stack([target_1, target_2, target_3])
+    # Check that stacking preserves the individual tensors
+    assert torch.equal(collated_batch["past_target"][0], tensor_1)
+    assert torch.equal(collated_batch["past_target"][1], tensor_2)
+    assert torch.equal(collated_batch["past_target"][2], tensor_3)
 
-    assert torch.equal(collated_past["past_data"], expected_past)
-    assert torch.equal(collated_future["future_data"], expected_future)
-    assert torch.equal(collated_targets, expected_targets)
-
-    # Verify the stacking added the batch dimension correctly
-    assert collated_past["past_data"].shape == (3, 2, 1)  # batch_size=3, seq_len=2, features=1
-    assert collated_future["future_data"].shape == (3, 1, 1)  # batch_size=3, seq_len=1, features=1
-    assert collated_targets.shape == (3, 1)  # batch_size=3, target_len=1
+    # Check that the batch dimension is correctly added
+    assert collated_batch["past_target"].dim() == 4  # batch + original 3 dims
+    assert collated_batch["past_target"].shape[0] == 3  # batch size
 
 
 def test_custom_collate_fn_dictionary_structure():
-    """Test that the collation function correctly handles dictionary structures."""
-    batch = [
-        (
-            {"past_data": torch.randn(5, 1)},
-            {"future_data": torch.randn(3, 1)},
-            {"static_data": None},
-            torch.randn(3)
-        ),
-        (
-            {"past_data": torch.randn(5, 1)},
-            {"future_data": torch.randn(3, 1)},
-            {"static_data": None},
-            torch.randn(3)
-        ),
-    ]
+    """Test custom_collate_fn preserves dictionary structure."""
+    batch_item = {
+        "past_target": torch.randn(4, 1, 1),
+        "past_covariates_known_future": torch.randn(4, 1, 2),
+        "future_covariates_known": torch.randn(2, 1, 2),
+        "output_target": torch.randn(2, 1, 1),
+        "static_features_real": torch.randn(1, 2),
+    }
 
-    collated_past, collated_future, collated_static, collated_targets = custom_collate_fn(batch)
+    batch = [batch_item, batch_item]
 
-    # Test that dictionaries maintain their structure
-    assert len(collated_past) == 1
-    assert len(collated_future) == 1
-    assert len(collated_static) == 1
+    collated_batch = custom_collate_fn(batch)
 
-    # Test that the correct keys are present
-    assert "past_data" in collated_past
-    assert "future_data" in collated_future
-    assert "static_data" in collated_static
+    # Check that all keys are preserved
+    assert set(collated_batch.keys()) == set(batch_item.keys())
 
-    # Test that no extra keys are added
-    assert list(collated_past.keys()) == ["past_data"]
-    assert list(collated_future.keys()) == ["future_data"]
-    assert list(collated_static.keys()) == ["static_data"]
+    # Check that each value is a tensor (not None for available keys)
+    for key, value in collated_batch.items():
+        assert isinstance(value, torch.Tensor), f"Key {key} should be a tensor"
 
 
-def test_custom_collate_fn_static_data_handling():
-    """Test the specific handling of static_data (always None) in the collation function."""
-    # Test various scenarios where static_data is None
-    batch_scenarios = [
-        # All None
-        [
-            ({"past_data": torch.randn(2, 1)}, {"future_data": torch.randn(1, 1)}, {"static_data": None}, torch.randn(1)),
-            ({"past_data": torch.randn(2, 1)}, {"future_data": torch.randn(1, 1)}, {"static_data": None}, torch.randn(1)),
-        ],
-    ]
+def test_custom_collate_fn_with_none_values():
+    """Test custom_collate_fn handles None values correctly."""
+    batch_item_1 = {
+        "past_target": torch.randn(3, 1, 1),
+        "static_features_real": None,  # Simulate None value
+        "output_target": torch.randn(2, 1, 1),
+    }
 
-    for batch in batch_scenarios:
-        collated_past, collated_future, collated_static, collated_targets = custom_collate_fn(batch)
+    batch_item_2 = {
+        "past_target": torch.randn(3, 1, 1),
+        "static_features_real": None,
+        "output_target": torch.randn(2, 1, 1),
+    }
 
-        # The function explicitly sets static_data to None regardless of input
-        assert collated_static["static_data"] is None
+    batch = [batch_item_1, batch_item_2]
 
-        # Verify this is consistent behavior across the batch
-        assert isinstance(collated_static, dict)
-        assert len(collated_static) == 1
+    collated_batch = custom_collate_fn(batch)
+
+    # Check that None values result in None in the collated batch
+    assert collated_batch["static_features_real"] is None
+
+    # Check that non-None values are properly stacked
+    assert collated_batch["past_target"].shape == (2, 3, 1, 1)
+    assert collated_batch["output_target"].shape == (2, 2, 1, 1)

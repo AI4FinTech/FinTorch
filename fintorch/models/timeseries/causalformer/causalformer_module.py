@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import lightning as L
 import torch
@@ -11,7 +11,20 @@ class CausalFormerModule(L.LightningModule):
     CausalFormer Lightning Module that works with the new standardized dictionary format.
 
     This module processes time series data in the new standardized format and converts it
-    to the format expected by the CausalFormer core model.
+    to the format expected by the CausalFormer core model. CausalFormer is designed to
+    handle multiple time series natively by calculating attention between different series
+    to discover causal relationships between variables.
+
+    Key Features:
+    - Native multi-series processing without forced aggregation
+    - Causal attention mechanism to discover relationships between time series
+    - Designed for multivariate time series forecasting and causal discovery
+
+    For multi-series data, configure number_of_series to match the actual number of series
+    in your data to leverage CausalFormer's native multi-series processing capabilities.
+
+    Note: Unlike TFT, CausalFormer does not require series selection methods as it is
+    specifically designed to work with all series simultaneously to discover causal patterns.
     """
 
     def __init__(
@@ -31,32 +44,34 @@ class CausalFormerModule(L.LightningModule):
         lr_step_size: int = 30,
         lr_gamma: float = 0.1,
         weight_decay: float = 0,
-        # New parameters for handling standardized format
-        series_selection_method: str = "first",
-        series_index: int = 0,
-        series_aggregation: str = "mean",
+        # Optional parameters for handling standardized format (not used in core functionality)
+        series_selection_method: Optional[str] = None,
+        series_index: Optional[int] = None,
+        series_aggregation: Optional[str] = None,
     ):
         super().__init__()
         self.save_hyperparameters()
 
-        # Store series handling parameters
+        # Store series handling parameters (optional, for compatibility)
         self.series_selection_method = series_selection_method
         self.series_index = series_index
         self.series_aggregation = series_aggregation
 
-        # Validate series selection parameters
-        valid_methods = ["first", "last", "index", "aggregate", "flatten"]
-        if series_selection_method not in valid_methods:
-            raise ValueError(f"series_selection_method must be one of {valid_methods}")
+        # Validate series selection parameters only if provided
+        if series_selection_method is not None:
+            valid_methods = ["first", "last", "index", "aggregate", "flatten"]
+            if series_selection_method not in valid_methods:
+                raise ValueError(f"series_selection_method must be one of {valid_methods}")
 
-        if series_selection_method == "index" and series_index is None:
-            raise ValueError(
-                "series_index must be provided when using 'index' selection method"
-            )
+            if series_selection_method == "index" and series_index is None:
+                raise ValueError(
+                    "series_index must be provided when using 'index' selection method"
+                )
 
-        valid_aggregations = ["mean", "sum", "max", "min"]
-        if series_aggregation not in valid_aggregations:
-            raise ValueError(f"series_aggregation must be one of {valid_aggregations}")
+        if series_aggregation is not None:
+            valid_aggregations = ["mean", "sum", "max", "min"]
+            if series_aggregation not in valid_aggregations:
+                raise ValueError(f"series_aggregation must be one of {valid_aggregations}")
 
         self.causalformer = CausalFormer(
             number_of_layers=self.hparams["number_of_layers"],
@@ -90,7 +105,7 @@ class CausalFormerModule(L.LightningModule):
         if data.shape[2] == 1:
             # Already single series, just squeeze the series dimension
             return data.squeeze(2)
-            
+
         if self.series_selection_method == "first":
             return data[:, :, 0, :]
         elif self.series_selection_method == "last":
@@ -162,6 +177,25 @@ class CausalFormerModule(L.LightningModule):
         # Get target
         y = batch["output_target"]  # [batch_size, future_length, series_dim, num_target_features]
 
+        # Process multi-series data if needed
+        if x.ndim == 4 and x.shape[2] > 1:  # [batch_size, past_length, series_dim, total_features]
+            # Check if we should use native multi-series processing (series_selection_method is None)
+            if self.series_selection_method is None:
+                # Keep all series for native multi-series processing - no reduction needed
+                pass  # x remains [batch_size, past_length, series_dim, total_features]
+                # y remains [batch_size, future_length, series_dim, num_target_features]
+            else:
+                # Use multi-series processing to reduce to single series
+                x = self._process_multi_series_data(x)  # [batch_size, past_length, processed_features]
+
+                # For target data, handle flatten method differently
+                if self.series_selection_method == "flatten":
+                    # For flatten method, don't flatten targets - use first series instead
+                    y = y[:, :, 0, :]  # [batch_size, future_length, target_features]
+                else:
+                    # For other methods, process target data with same method
+                    y = self._process_multi_series_data(y)  # [batch_size, future_length, processed_features]
+
         # Handle input tensor shape adaptively
         # Expected shape for CausalFormer: [batch_size, num_series, past_length, feature_dimensionality]
         if x.ndim == 3:  # [batch_size, past_length, total_features]
@@ -177,10 +211,12 @@ class CausalFormerModule(L.LightningModule):
             # Add both series and feature dimensions
             y = y.unsqueeze(2).unsqueeze(-1)  # [batch_size, future_length, 1, 1]
             y = y.permute(0, 2, 1, 3)  # [batch_size, 1, future_length, 1]
-        elif y.ndim == 3:  # [batch_size, future_length, num_series]
-            # Add feature dimension and permute
-            y = y.unsqueeze(-1)  # [batch_size, future_length, num_series, 1]
-            y = y.permute(0, 2, 1, 3)  # [batch_size, num_series, future_length, 1]
+        elif y.ndim == 3:  # [batch_size, future_length, features] - from multi-series processing
+            # Add series dimension and feature dimension if needed
+            if y.shape[-1] == 1:  # Already has feature dimension
+                y = y.unsqueeze(1)  # [batch_size, 1, future_length, 1]
+            else:  # Multiple features, add series dimension
+                y = y.unsqueeze(1)  # [batch_size, 1, future_length, features]
         elif y.ndim == 4:  # [batch_size, future_length, num_series, feature_dim]
             # Preserve all series and permute to expected format
             y = y.permute(0, 2, 1, 3)  # [batch_size, num_series, future_length, feature_dim]

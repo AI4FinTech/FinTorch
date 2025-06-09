@@ -1,6 +1,3 @@
-import os
-from random import randint
-
 import lightning as L
 import matplotlib.pyplot as plt
 import torch
@@ -23,11 +20,10 @@ TREND_SLOPE = 0.1
 SEASONALITY_AMPLITUDE = 10
 SEASONALITY_PERIOD = 100
 STATIC_LENGTH = 0  # CausalFormer doesn't use static features in this setup
-WORKERS = os.cpu_count()
 
 # Model Hyperparameters
 # Note: Set number_of_series=1 and feature_dimensionality=1 for univariate synthetic data
-NUMBER_OF_SERIES = 1
+NUMBER_OF_SERIES = 4
 FEATURE_DIMENSIONALITY = 1
 OUTPUT_DIMENSIONALITY = 1  # Predicting the single feature
 LENGTH_INPUT_WINDOW = 24  # Corresponds to past_length
@@ -59,11 +55,12 @@ data_module = SimpleSyntheticDataModule(
     noise_level=NOISE_LEVEL,
     past_length=LENGTH_INPUT_WINDOW,
     future_length=LENGTH_OUTPUT_WINDOW,
-    static_length=STATIC_LENGTH,  # Ignored by model but needed by datamodule
+    num_series=NUMBER_OF_SERIES,
     trend_slope=TREND_SLOPE,
     seasonality_amplitude=SEASONALITY_AMPLITUDE,
     seasonality_period=SEASONALITY_PERIOD,
-    workers=WORKERS,
+    num_known_cov_features = 0,
+    num_unknown_cov_features= 0,
 )
 
 data_module.setup()
@@ -72,7 +69,7 @@ data_module.setup()
 print("Plotting sample data...")
 try:
     # Get data for the first time series and first feature
-    plot_data = data_module.train_dataset.data[
+    plot_data = data_module.train_dataset.data['target'][
         :500, 0, 0
     ]  # Plot first 500 points for first series and feature
     plt.figure(figsize=(15, 5))
@@ -161,7 +158,6 @@ test_loader = data_module.test_dataloader()
 batch = next(iter(test_loader))
 x_test, y_test = model._prepare_data(batch)
 
-
 # Move data to the correct device (if model is on GPU)
 device = next(model.parameters()).device
 x_test = x_test.to(device)
@@ -171,32 +167,25 @@ y_test = y_test.to(device)  # Keep y_test for comparison
 with torch.no_grad():
     predictions = model(x_test)
 
-# Reshape predictions and actuals for plotting if needed
-# Concatenate predictions
-all_predictions = predictions
-
-# Number of batches to plot
-num_batches_to_plot = 5
+# Number of samples to plot from the batch
+num_samples_to_plot = min(5, predictions.shape[0])
 
 # Plotting
-plt.figure(figsize=(15, 5 * num_batches_to_plot))  # Adjust figure size
+plt.figure(figsize=(15, 5 * num_samples_to_plot))  # Adjust figure size
 
-for idx in range(0, num_batches_to_plot):
-    batch_idx = randint(0, len(all_predictions) - 1)
+for idx in range(num_samples_to_plot):
+    # Get predictions and targets for this sample
+    # predictions shape: [batch_size, num_series, future_length, feature_dim]
+    # y_test shape: [batch_size, num_series, future_length, feature_dim]
 
-    selected_batch_predictions = all_predictions[batch_idx]
-    _, _, _, selected_batch_target = data_module.test_dataset[batch_idx]
+    sample_prediction = predictions[idx, 0, :, 0].detach().cpu()  # First series, first feature
+    sample_target = y_test[idx, 0, :, 0].detach().cpu()  # First series, first feature
 
-    # Ensure proper reshaping for target and predictions
-    # Get first series (index 0) of both tensors
-    prediction_to_plot = selected_batch_predictions[0].detach().cpu()
-    target_to_plot = selected_batch_target.permute(1, 0, 2)[0].detach().cpu()
+    plt.subplot(num_samples_to_plot, 1, idx + 1)  # Create subplots
 
-    plt.subplot(num_batches_to_plot, 1, idx + 1)  # Create subplots
-
-    plt.plot(target_to_plot.flatten(), label="Target", marker="o", linestyle="-")
+    plt.plot(sample_target.flatten(), label="Target", marker="o", linestyle="-")
     plt.plot(
-        prediction_to_plot.flatten(),
+        sample_prediction.flatten(),
         label="Predicted",
         marker="x",
         linestyle="--",
@@ -204,7 +193,7 @@ for idx in range(0, num_batches_to_plot):
 
     plt.xlabel("Time Step")
     plt.ylabel("Value")
-    plt.title(f"Target vs Predicted for Batch {batch_idx + 1}")
+    plt.title(f"Target vs Predicted for Sample {idx + 1}")
     plt.legend()
 
 plt.tight_layout()  # Adjust subplot parameters for a tight layout

@@ -8,25 +8,19 @@ and all utility functions, including edge cases, error handling, and property te
 
 import os
 import tempfile
-import shutil
 import pytest
 import numpy as np
 import torch
 import polars as pl
 import requests
-from unittest.mock import patch, MagicMock, mock_open
-from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 from fintorch.datasets.causal_data import (
-    CausalDataset, 
-    CausalDataModule, 
+    CausalDataset,
+    CausalDataModule,
     create_causal_datamodule,
     custom_collate_fn,
     _download_causal_data,
-    get_causal_data_dir,
-    clear_causal_data,
-    list_available_datasets,
-    get_dataset_info,
     get_clean_adjacency_matrix
 )
 
@@ -40,7 +34,7 @@ class TestCausalDataset:
         with tempfile.TemporaryDirectory() as temp_dir:
             dataset_dir = os.path.join(temp_dir, 'diamond')
             os.makedirs(dataset_dir, exist_ok=True)
-            
+
             # Create mock data files
             for i in range(3):
                 data_file = os.path.join(dataset_dir, f'data_{i}.csv')
@@ -48,7 +42,7 @@ class TestCausalDataset:
                     f.write('node_0,node_1,node_2\n')
                     for j in range(100):
                         f.write(f'{np.random.rand():.4f},{np.random.rand():.4f},{np.random.rand():.4f}\n')
-            
+
             # Create groundtruth file
             groundtruth_file = os.path.join(dataset_dir, 'groundtruth.csv')
             with open(groundtruth_file, 'w') as f:
@@ -56,7 +50,7 @@ class TestCausalDataset:
                 f.write('0,1,0\n')
                 f.write('1,0,1\n')
                 f.write('0,1,0\n')
-            
+
             yield temp_dir
 
     def test_initialization_with_valid_params(self, mock_data_dir):
@@ -69,7 +63,7 @@ class TestCausalDataset:
                 output_window=5,
                 static_length=3
             )
-            
+
             assert dataset.dataset_type == 'diamond'
             assert dataset._time_step == 10
             assert dataset._output_window == 5
@@ -81,9 +75,9 @@ class TestCausalDataset:
         with patch('fintorch.datasets.causal_data._download_causal_data'), \
              patch.object(CausalDataset, '_load_data', return_value=(torch.randn(100, 5), None)), \
              patch.object(CausalDataset, '_generate_indices', return_value=list(range(10, 90))):
-            
+
             dataset = CausalDataset(dataset_type='diamond')
-            
+
             assert dataset.dataset_type == 'diamond'
             assert dataset._time_step == 10
             assert dataset._output_window == 5
@@ -98,7 +92,7 @@ class TestCausalDataset:
                 time_step=10,
                 output_window=5
             )
-            
+
             assert dataset.data is not None
             assert dataset.groundtruth is not None
             assert dataset.data.shape[1] == 3  # 3 nodes
@@ -111,7 +105,7 @@ class TestCausalDataset:
         for file in os.listdir(dataset_dir):
             if file.startswith('data_'):
                 os.remove(os.path.join(dataset_dir, file))
-        
+
         with patch('fintorch.datasets.causal_data._download_causal_data'):
             with pytest.raises(FileNotFoundError, match="No data files found"):
                 CausalDataset(
@@ -130,7 +124,7 @@ class TestCausalDataset:
                 time_step=10,
                 output_window=5
             )
-            
+
             indices = dataset._generate_indices()
             assert len(indices) > 0
             assert all(i >= 10 for i in indices)
@@ -141,14 +135,14 @@ class TestCausalDataset:
         with tempfile.TemporaryDirectory() as temp_dir:
             dataset_dir = os.path.join(temp_dir, 'diamond')
             os.makedirs(dataset_dir, exist_ok=True)
-            
+
             # Create a very small data file (only 10 rows)
             data_file = os.path.join(dataset_dir, 'data_0.csv')
             with open(data_file, 'w') as f:
                 f.write('node_0,node_1\n')
                 for j in range(10):  # Only 10 data points
                     f.write(f'{j},{j+1}\n')
-            
+
             with patch('fintorch.datasets.causal_data._download_causal_data'):
                 # The dataset initialization itself should raise the error since _generate_indices is called in __init__
                 with pytest.raises(ValueError, match="No valid indices found"):
@@ -168,14 +162,14 @@ class TestCausalDataset:
                 time_step=10,
                 output_window=5
             )
-            
+
             sample = dataset[0]
-            
+
             assert isinstance(sample, dict)
             assert 'past_target' in sample
             assert 'output_target' in sample
             assert 'static_features_real' in sample
-            
+
             assert sample['past_target'].shape == (10, 3, 1)
             assert sample['output_target'].shape == (5, 3, 1)
             assert sample['static_features_real'].shape == (3, 2)  # (series_num, static_length)
@@ -189,7 +183,7 @@ class TestCausalDataset:
                 time_step=10,
                 output_window=5
             )
-            
+
             with pytest.raises(IndexError):
                 dataset[len(dataset)]
 
@@ -203,14 +197,14 @@ class TestCausalDataset:
                 output_window=7,
                 static_length=4
             )
-            
+
             assert dataset.time_steps == 15
             assert dataset.future_steps == 7
             assert dataset.series_dim == 3
             assert dataset.features_dim == 1
             assert dataset.static_length == 4
             assert dataset.static_categorical_cardinalities == []
-            assert dataset.num_target_features == 3
+            assert dataset.num_target_features == 1
             assert dataset.num_known_future_cov_features == 0
             assert dataset.num_unknown_future_cov_features == 0
             assert dataset.num_static_real_features == 4
@@ -225,7 +219,7 @@ class TestCausalDataset:
                 time_step=10,
                 output_window=5
             )
-            
+
             groundtruth = dataset.get_groundtruth()
             assert groundtruth is not None
             assert isinstance(groundtruth, pl.DataFrame)
@@ -246,7 +240,7 @@ class TestCausalDataModule:
             train_split=0.8,
             val_split=0.1
         )
-        
+
         assert datamodule.dataset_type == 'diamond'
         assert datamodule.time_step == 20
         assert datamodule.output_window == 10
@@ -279,14 +273,14 @@ class TestCausalDataModule:
             train_split=0.7,
             val_split=0.2
         )
-        
+
         datamodule.setup()
-        
+
         assert datamodule.dataset is not None
         assert datamodule.train_dataset is not None
         assert datamodule.val_dataset is not None
         assert datamodule.test_dataset is not None
-        
+
         # Check dataset sizes
         assert len(datamodule.train_dataset) == 70
         assert len(datamodule.val_dataset) == 20
@@ -296,22 +290,22 @@ class TestCausalDataModule:
         """Test dataloader methods."""
         with patch.object(CausalDataModule, 'setup'):
             datamodule = CausalDataModule(dataset_type='diamond', batch_size=32)
-            
+
             # Mock datasets with proper length
             datamodule.train_dataset = MagicMock()
             datamodule.val_dataset = MagicMock()
             datamodule.test_dataset = MagicMock()
-            
+
             # Mock __len__ method to return positive integers
             datamodule.train_dataset.__len__.return_value = 100
             datamodule.val_dataset.__len__.return_value = 50
             datamodule.test_dataset.__len__.return_value = 25
-            
+
             train_loader = datamodule.train_dataloader()
             val_loader = datamodule.val_dataloader()
             test_loader = datamodule.test_dataloader()
             predict_loader = datamodule.predict_dataloader()
-            
+
             assert train_loader is not None
             assert val_loader is not None
             assert test_loader is not None
@@ -320,12 +314,12 @@ class TestCausalDataModule:
     def test_get_groundtruth_with_dataset(self):
         """Test get_groundtruth method when dataset is available."""
         datamodule = CausalDataModule(dataset_type='diamond')
-        
+
         # Mock dataset with groundtruth
         mock_groundtruth = pl.DataFrame({'node_0': [0, 1], 'node_1': [1, 0]})
         datamodule.dataset = MagicMock()
         datamodule.dataset.get_groundtruth.return_value = mock_groundtruth
-        
+
         result = datamodule.get_groundtruth()
         assert result is not None
         assert result.equals(mock_groundtruth)
@@ -333,7 +327,7 @@ class TestCausalDataModule:
     def test_get_groundtruth_without_dataset(self):
         """Test get_groundtruth method when dataset is not available."""
         datamodule = CausalDataModule(dataset_type='diamond')
-        
+
         result = datamodule.get_groundtruth()
         assert result is None
 
@@ -357,9 +351,9 @@ class TestUtilityFunctions:
                 'target': torch.rand(5, 3, 1)
             }
         ]
-        
+
         collated_batch = custom_collate_fn(batch)
-        
+
         assert isinstance(collated_batch, dict)
         assert collated_batch['past_data'].shape == (2, 10, 3, 1)
         assert collated_batch['future_data'].shape == (2, 5, 3, 1)
@@ -372,7 +366,7 @@ class TestUtilityFunctions:
             {'time_series': torch.rand(5, 10)},
             {'time_series': torch.rand(7, 10)}  # Different size
         ]
-        
+
         with pytest.raises(RuntimeError, match="stack expects each tensor to be equal size"):
             custom_collate_fn(batch)
 
@@ -380,15 +374,15 @@ class TestUtilityFunctions:
         """Test _download_causal_data with successful download."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with patch('requests.get') as mock_get:
-                
+
                 # Mock successful response
                 mock_response = MagicMock()
                 mock_response.raise_for_status.return_value = None
                 mock_response.content = b'mock,data\n1,2\n3,4'
                 mock_get.return_value = mock_response
-                
+
                 _download_causal_data('diamond', temp_dir)
-                
+
                 # Verify directory was created and requests were made
                 assert os.path.exists(os.path.join(temp_dir, 'diamond'))
                 assert mock_get.called
@@ -398,14 +392,14 @@ class TestUtilityFunctions:
         with tempfile.TemporaryDirectory() as temp_dir:
             dataset_dir = os.path.join(temp_dir, 'diamond')
             os.makedirs(dataset_dir)
-            
+
             # Create a dummy file to make directory non-empty
             with open(os.path.join(dataset_dir, 'dummy.txt'), 'w') as f:
                 f.write('dummy')
-            
+
             with patch('requests.get') as mock_get:
                 _download_causal_data('diamond', temp_dir)
-                
+
                 # Verify no requests were made
                 mock_get.assert_not_called()
 
@@ -414,10 +408,10 @@ class TestUtilityFunctions:
         with tempfile.TemporaryDirectory() as temp_dir:
             with patch('requests.get') as mock_get, \
                  patch('os.path.exists', return_value=False):
-                
+
                 # Mock failed response
                 mock_get.side_effect = requests.exceptions.RequestException("Network error")
-                
+
                 with pytest.raises(RuntimeError, match="Could not download any files"):
                     _download_causal_data('diamond', temp_dir)
 
@@ -428,7 +422,7 @@ class TestUtilityFunctions:
             time_step=15,
             batch_size=64
         )
-        
+
         assert isinstance(datamodule, CausalDataModule)
         assert datamodule.dataset_type == 'diamond'
         assert datamodule.time_step == 15
@@ -441,9 +435,9 @@ class TestUtilityFunctions:
             'node_0': [0.0, 1.0],
             'node_1': [1.0, 0.0]
         })
-        
+
         matrix = get_clean_adjacency_matrix(df)
-        
+
         assert matrix is not None
         assert matrix.shape == (2, 2)
         np.testing.assert_array_equal(matrix, [[0.0, 1.0], [1.0, 0.0]])
@@ -454,9 +448,9 @@ class TestUtilityFunctions:
             'node_0': [0.0, 1.0],
             'node_1': [1.0, 0.0]
         })
-        
+
         matrix = get_clean_adjacency_matrix(df)
-        
+
         assert matrix is not None
         assert matrix.shape == (2, 2)
         np.testing.assert_array_equal(matrix, [[0.0, 1.0], [1.0, 0.0]])
@@ -475,11 +469,11 @@ class TestEdgeCases:
         with tempfile.TemporaryDirectory() as temp_dir:
             dataset_dir = os.path.join(temp_dir, 'diamond')
             os.makedirs(dataset_dir)
-            
+
             # Create empty data file
             with open(os.path.join(dataset_dir, 'data_0.csv'), 'w') as f:
                 f.write('node_0,node_1\n')  # Header only
-            
+
             with patch('fintorch.datasets.causal_data._download_causal_data'):
                 with pytest.raises(ValueError, match="Could not load any valid data"):
                     CausalDataset(
@@ -494,13 +488,13 @@ class TestEdgeCases:
         with tempfile.TemporaryDirectory() as temp_dir:
             dataset_dir = os.path.join(temp_dir, 'diamond')
             os.makedirs(dataset_dir)
-            
+
             # Create data file with non-numeric data
             with open(os.path.join(dataset_dir, 'data_0.csv'), 'w') as f:
                 f.write('text_col,another_text\n')
                 f.write('hello,world\n')
                 f.write('foo,bar\n')
-            
+
             with patch('fintorch.datasets.causal_data._download_causal_data'):
                 with pytest.raises(ValueError, match="Could not load any valid data"):
                     CausalDataset(
@@ -515,19 +509,19 @@ class TestEdgeCases:
         with tempfile.TemporaryDirectory() as temp_dir:
             dataset_dir = os.path.join(temp_dir, 'diamond')
             os.makedirs(dataset_dir)
-            
+
             # Create corrupted CSV file
             with open(os.path.join(dataset_dir, 'data_0.csv'), 'w') as f:
                 f.write('corrupted,csv,file\n')
                 f.write('1,2\n')  # Missing column
                 f.write('3,4,5,6\n')  # Extra column
-            
+
             # Create valid CSV file
             with open(os.path.join(dataset_dir, 'data_1.csv'), 'w') as f:
                 f.write('node_0,node_1\n')
                 for i in range(50):
                     f.write(f'{i},{i+1}\n')
-            
+
             with patch('fintorch.datasets.causal_data._download_causal_data'):
                 # Should still work if at least one file is valid
                 dataset = CausalDataset(
@@ -543,13 +537,13 @@ class TestEdgeCases:
         with tempfile.TemporaryDirectory() as temp_dir:
             dataset_dir = os.path.join(temp_dir, 'diamond')
             os.makedirs(dataset_dir)
-            
+
             # Create minimal data file
             with open(os.path.join(dataset_dir, 'data_0.csv'), 'w') as f:
                 f.write('node_0,node_1\n')
                 for i in range(50):
                     f.write(f'{i},{i+1}\n')
-            
+
             with patch('fintorch.datasets.causal_data._download_causal_data'):
                 dataset = CausalDataset(
                     dataset_type='diamond',
@@ -558,11 +552,11 @@ class TestEdgeCases:
                     output_window=5,
                     static_length=5
                 )
-                
+
                 # Get same sample multiple times
                 sample1 = dataset[0]
                 sample2 = dataset[0]
-                
+
                 # Static features should be identical
                 torch.testing.assert_close(
                     sample1['static_features_real'],

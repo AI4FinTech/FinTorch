@@ -464,7 +464,7 @@ class CausalDataset(TimeSeriesDataset):
     @property
     def num_target_features(self) -> int:
         """Returns the number of target features."""
-        return self._series_num
+        return 1  # Each series has 1 target feature
 
     @property
     def num_known_future_cov_features(self) -> int:

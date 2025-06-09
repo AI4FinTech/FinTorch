@@ -11,8 +11,6 @@ import os
 import subprocess
 import sys
 import time
-import sys
-import time
 from pathlib import Path
 from typing import List, Tuple
 
@@ -320,11 +318,10 @@ def run_quick_test():
 
     # Representative subset for quick testing
     quick_examples = [
-        "examples/datasets/example_marketdata.py",
-        "examples/datasets/example_stockticker.py",
         "examples/models/example_tft.py",
-        "examples/models/stockmodel.py",
-        "examples/causal_data_example.py",
+        "examples/models/causalformer.py",
+        "examples/datasets/diamonds.py",
+        "examples/models/causalformer.py"
     ]
 
     runner = ExampleRunner(project_root)

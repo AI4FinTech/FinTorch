@@ -69,9 +69,6 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
         num_static_real_features: int = 2,
         num_static_categorical_features: int = 1,
         static_categorical_cardinalities: Optional[List[int]] = None,
-        # Legacy parameters for backward compatibility
-        static_length: Optional[int] = None,
-        features_dim: Optional[int] = None,
     ) -> None:
         super().__init__()
         self.length = length
@@ -96,16 +93,11 @@ class SimpleSyntheticDataset(TimeSeriesDataset):
         else:
             self._static_categorical_cardinalities = static_categorical_cardinalities
 
-        # Legacy compatibility
-        if static_length is not None:
-            self._static_length = static_length
-        else:
-            self._static_length = num_static_real_features + num_static_categorical_features
 
-        if features_dim is not None:
-            self._features_dim = features_dim
-        else:
-            self._features_dim = num_target_features + num_known_cov_features + num_unknown_cov_features
+        self._static_length = num_static_real_features + num_static_categorical_features
+
+
+        self._features_dim = num_target_features + num_known_cov_features + num_unknown_cov_features
 
         self.data = self._generate_data()
 
@@ -410,8 +402,6 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         num_static_categorical_features: int = 1,
         static_categorical_cardinalities: Optional[List[int]] = None,
         workers: int = 1,
-        # Legacy parameters for backward compatibility
-        static_length: Optional[int] = None,
     ) -> None:
         super().__init__()
         self.train_length = train_length
@@ -433,11 +423,8 @@ class SimpleSyntheticDataModule(L.LightningDataModule):
         self.static_categorical_cardinalities = static_categorical_cardinalities
         self.workers = workers
 
-        # Legacy compatibility
-        if static_length is not None:
-            self.static_length = static_length
-        else:
-            self.static_length = num_static_real_features + num_static_categorical_features
+        # Calculate static_length from granular parameters
+        self.static_length = num_static_real_features + num_static_categorical_features
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Setup datasets for each stage."""
