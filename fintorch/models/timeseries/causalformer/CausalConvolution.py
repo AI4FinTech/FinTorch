@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from fintorch.layers.explainable import einsum
 
 
 class CausalConvolution(nn.Module):
@@ -15,6 +16,7 @@ class CausalConvolution(nn.Module):
         number_of_heads (int): The number of attention heads.
         kernel (nn.Parameter): The learnable kernel for the causal convolution.
         base (torch.Tensor): A base tensor used for normalization.
+        einsum_layer (einsum): Explainable einsum layer for relevance propagation.
 
     Methods:
         shift_kernel(kernel: torch.Tensor, shifts: int) -> torch.Tensor:
@@ -27,10 +29,12 @@ class CausalConvolution(nn.Module):
             Transforms the input data to remove self-information.
         forward(x: torch.Tensor) -> torch.Tensor:
             Forward pass of the causal convolution module.
+        propagate(relevance: torch.Tensor) -> torch.Tensor:
+            Propagates relevance backwards for explainable AI.
 
     References:
-    - Kong, Lingbai, Wengen Li, Hanchen Yang, Yichao Zhang, Jihong Guan, and Shuigeng Zhou. 2024. “CausalFormer:
-      An Interpretable Transformer for Temporal Causal Discovery.” arXiv [Cs.LG]. arXiv. http://arxiv.org/abs/2406.16708
+    - Kong, Lingbai, Wengen Li, Hanchen Yang, Yichao Zhang, Jihong Guan, and Shuigeng Zhou. 2024. "CausalFormer:
+      An Interpretable Transformer for Temporal Causal Discovery." arXiv [Cs.LG]. arXiv. http://arxiv.org/abs/2406.16708
 
     """
 
@@ -50,11 +54,15 @@ class CausalConvolution(nn.Module):
 
         # 6D tensor because the output of apply_kernel is a 6D tensor
         self.register_buffer(
-            "base", 
+            "base",
             torch.tensor([i for i in range(1, self.input_window + 1)]).reshape(
                 1, 1, 1, 1, -1, 1
             )
         )
+
+        # Initialize explainable einsum layer
+        self.einsum_layer = einsum("hyxji,bxif->bhxyjf")
+
     def shift_kernel(self, kernel: torch.Tensor, shifts: int) -> torch.Tensor:
         # kernel: (number_of_heads, number_of_series, number_of_series, length_input_window)
         return torch.roll(kernel, shifts=shifts + 1, dims=3)
@@ -75,11 +83,9 @@ class CausalConvolution(nn.Module):
         number_of_heads, number_of_series, _, length_input_window, _ = kernel.shape
         batch_size, _, _, hidden_dimensionality = x.shape
 
-        # Compute output using `einsum`
-        # for verbose implementation (educational), see tests/models/causalformer/test_causalconv.py
-        # Use einsum for efficient tensor contraction
+        # Use explainable einsum for relevance propagation capability
         # Notation: h=heads, y,x=series indices, j,i=window indices, b=batch, f=hidden dim
-        einsum_result = torch.einsum("hyxji,bxif->bhxyjf", kernel, x)
+        einsum_result = self.einsum_layer(kernel, x)
 
         # einsum_result:
         # (batch_size, number_of_heads, number_of_series, number_of_series, length_input_window, hidden_dimensionality)
@@ -106,12 +112,12 @@ class CausalConvolution(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x : (batch_size, number_of_series, length_input_window, hidden_dimensionality)
-        
+
         # Update number_of_series to match actual input data
         actual_number_of_series = x.shape[1]
         if actual_number_of_series != self.number_of_series:
             self.number_of_series = actual_number_of_series
-            
+
         # Initialize or recreate kernel if needed
         if self.kernel is None or self.kernel.shape[1] != self.number_of_series:
             self.kernel = nn.Parameter(
@@ -150,12 +156,24 @@ class CausalConvolution(nn.Module):
 
         return x
 
-    def layerwise_relevance_propagation(self, x: torch.Tensor) -> torch.Tensor:
-        for i in range(self.number_of_series):
-            x[:, :, i, i, :, :] = x[:, :, i, i, :, :].roll(-1, dims=2)
+    def propagate(self, relevance: torch.Tensor) -> torch.Tensor:
+        """
+        Propagates relevance backwards for the causal convolution.
 
-        x = x * self.base
-        # TODO: Implement proper layerwise relevance propagation
-        # For now, return the processed tensor directly
-        self.layerwise_relevance_propagation_value = x
-        return x
+        Args:
+            relevance: Relevance tensor to propagate backwards
+
+        Returns:
+            Propagated relevance tensor
+        """
+        # Reverse the transform_x operation
+        for i in range(self.number_of_series):
+            relevance[:, :, i, i, :, :] = relevance[:, :, i, i, :, :].roll(-1, dims=2)
+
+        # Reverse the base division
+        relevance = relevance * self.base
+
+        # Use the einsum layer's propagate method for relevance propagation
+        relevance_key, relevance_x = self.einsum_layer.propagate(relevance)
+
+        return relevance_x

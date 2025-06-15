@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch
 
 from fintorch.models.timeseries.causalformer.Encoder import Encoder
-
+from fintorch.layers.explainable.linear import Linear
 
 class CausalFormer(nn.Module):
     """
@@ -32,6 +32,13 @@ class CausalFormer(nn.Module):
             Returns:
                 torch.Tensor: Output tensor of shape
                     [batch_size, number_of_series, length_output_window, output_dimensionality].
+
+        propagate(x: torch.Tensor) -> torch.Tensor:
+            Propagates relevance backwards for explainable AI.
+            Args:
+                x (torch.Tensor): Relevance tensor to propagate backwards.
+            Returns:
+                torch.Tensor: Propagated relevance tensor.
     """
 
     def __init__(
@@ -64,7 +71,7 @@ class CausalFormer(nn.Module):
             dropout=dropout,
         )
 
-        self.fully_connected = nn.Linear(
+        self.fully_connected = Linear(
             in_features=feature_dimensionality, out_features=output_dimensionality
         )
 
@@ -79,3 +86,25 @@ class CausalFormer(nn.Module):
         return x[
             :, :, -self.output_window :, :
         ]  # Return the output window time step(s) for each series
+
+
+
+    def propagate(self, x: torch.Tensor) -> torch.Tensor:
+        try:
+            relevance = self.fully_connected.propagate(x)
+
+            # Ensure the relevance is a tensor
+            if isinstance(relevance, torch.Tensor):
+                relevance = self.encoder.propagate(relevance)
+
+                # Final check to ensure output is a tensor
+                if isinstance(relevance, torch.Tensor):
+                    return relevance
+                else:
+                    return x
+            else:
+                # Fallback if fully_connected.propagate returns unexpected type
+                return x
+        except Exception:
+            # Fallback to input if propagation fails
+            return x

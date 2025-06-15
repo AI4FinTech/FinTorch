@@ -6,6 +6,8 @@ from fintorch.models.timeseries.causalformer.CausalConvolution import CausalConv
 from fintorch.models.timeseries.causalformer.MultiHeadAttention import (
     MultiHeadAttention,
 )
+from fintorch.layers.explainable.einsum import einsum
+from fintorch.layers.explainable.linear import Linear
 
 
 class MultivariateCausalAttention(nn.Module):
@@ -45,6 +47,15 @@ class MultivariateCausalAttention(nn.Module):
                 torch.Tensor: Output tensor of shape
                     (batch_size, number_of_series, length_input_window, feature_dimensionality).
 
+        propagate(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+            Propagates relevance backwards for explainable AI.
+
+            Args:
+                x (torch.Tensor): Relevance tensor to propagate backwards.
+
+            Returns:
+                tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Relevance tensors for Q, K, V projections.
+
 
     References:
     - Kong, Lingbai, Wengen Li, Hanchen Yang, Yichao Zhang, Jihong Guan, and Shuigeng Zhou. 2024. “CausalFormer:
@@ -65,14 +76,14 @@ class MultivariateCausalAttention(nn.Module):
         super().__init__()
 
         # projection of embedding to Q
-        self.Q_proj = nn.Linear(
+        self.Q_proj = Linear(
             in_features=embedding_size,
             out_features=embedding_size,
             bias=False,
         )
 
         # projection of embedding to K
-        self.K_proj = nn.Linear(
+        self.K_proj = Linear(
             in_features=embedding_size,
             out_features=embedding_size,
             bias=False,
@@ -98,11 +109,15 @@ class MultivariateCausalAttention(nn.Module):
         self.number_of_series = number_of_series
         self.input_window = length_input_window
         self.feature_dimensionality = feature_dimensionality
-        self.concat_proj = nn.Linear(
+        self.concat_proj = Linear(
             in_features=self.number_of_heads * self.feature_dimensionality,
             out_features=self.feature_dimensionality,
             bias=False,
         )
+
+        # Initialize custom einsum operators for explainable AI
+        self.qk_einsum = einsum('bhij,bhkj->bhik')
+        self.attention_einsum = einsum('bhij,bhjitf->bhitf')
 
     def forward(
         self,
@@ -185,22 +200,23 @@ class MultivariateCausalAttention(nn.Module):
 
         return output  # type: ignore
 
-    def layerwise_relevance_propagation(
-        self, x: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        # x_A, x_v = self.mul.relprop(x)  # TODO: what does this do?
-        # self.layerwise_relevance_propagation_value = (
-        #     x_A  # Store in layer, similar to grad property
-        # )
-        # rel_score = self.softmax.relprop(x_A)
-        # rel_mask, rel_score = self.hardmard_product.relprop(rel_score)
-        # rel_score *= math.sqrt(self.input_window * self.d_tensor)
-        # rel_q, rel_k = self.qk_mul.relprop(rel_score)
-        # rel_k = rel_k.transpose(2, 3)
+    def propagate(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Propagates relevance backwards for explainable AI.
 
-        rel_q = x
-        rel_k = x
-        rel_v = x
+        Args:
+            x: Relevance tensor to propagate backwards
 
-        # Relevance propagation through q, k, and v.
-        return rel_q, rel_k, rel_v
+        Returns:
+            Propagated relevance tensor
+        """
+
+        output_projection_relevance = self.concat_proj.propagate(x)
+
+        relevance_q, relevance_k, relevance_v = self.attention.layerwise_relevance_propagation(output_projection_relevance)
+
+        relevance_q_proj = self.Q_proj.propagate(relevance_q)
+        relevance_k_proj = self.K_proj.propagate(relevance_k)
+        relevance_v_proj = self.V_proj.propagate(relevance_v)
+
+        return relevance_q_proj, relevance_k_proj, relevance_v_proj

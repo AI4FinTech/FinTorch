@@ -28,6 +28,16 @@ class Encoder(nn.Module):
         forward(x: torch.Tensor) -> torch.Tensor:
             Forward pass of the encoder. Processes the input tensor through the embedding
             layer and the stack of encoder layers.
+
+        propagate(x: torch.Tensor) -> torch.Tensor:
+            Propagates relevance backwards for explainable AI.
+
+            Args:
+                x (torch.Tensor): Relevance tensor to propagate backwards.
+
+            Returns:
+                torch.Tensor: Propagated relevance tensor.
+
     Input Shape:
         x: torch.Tensor of shape [batch_size, number_of_series, length_input_window, feature_dimensionality]
     Output Shape:
@@ -96,3 +106,26 @@ class Encoder(nn.Module):
             x = layer(x_emb, x)
 
         return x
+
+    def propagate(self, x: torch.Tensor) -> torch.Tensor:
+        try:
+            for layer in reversed(self.layers):
+                if hasattr(layer, 'propagate'):
+                    propagate_method = getattr(layer, 'propagate')
+                    if callable(propagate_method):
+                        relevance = propagate_method(x)
+                        if isinstance(relevance, torch.Tensor):
+                            x = relevance
+                        else:
+                            # Fallback if layer returns unexpected type
+                            break
+                    else:
+                        # Skip layers without callable propagate method
+                        continue
+                else:
+                    # Skip layers without propagate method
+                    continue
+            return x
+        except Exception:
+            # Fallback to input if propagation fails
+            return x

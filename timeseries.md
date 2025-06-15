@@ -233,7 +233,7 @@ The standardized architecture enables several future enhancements:
 
 1. **Additional Data Types**: Easy integration of new data sources
 1. **Model Ensembles**: Combine multiple models with consistent interfaces
-1. **Transfer Learning**: Pre-train on one dataset, fine-tune on another
+1. **Transfer Learning**: Pre-train off one dataset, fine-tune on another
 1. **Automated Benchmarking**: Compare all models on all datasets systematically
 1. **Real-time Inference**: Consistent serving interface across models
 

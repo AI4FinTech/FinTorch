@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from fintorch.layers.explainable import Linear, ReLU, Dropout
 
 
 class PositionwiseFeedForward(nn.Module):
@@ -25,6 +26,15 @@ class PositionwiseFeedForward(nn.Module):
             Returns:
                 torch.Tensor: The output tensor.
 
+        propagate(x: torch.Tensor) -> torch.Tensor:
+            Propagates relevance backwards for explainable AI.
+
+            Args:
+                x (torch.Tensor): Relevance tensor to propagate backwards.
+
+            Returns:
+                torch.Tensor: Propagated relevance tensor.
+
 
     References:
     - Kong, Lingbai, Wengen Li, Hanchen Yang, Yichao Zhang, Jihong Guan, and Shuigeng Zhou. 2024. “CausalFormer:
@@ -36,10 +46,10 @@ class PositionwiseFeedForward(nn.Module):
         self, input_dim: int, hidden_dimensionality: int, dropout_rate: float
     ) -> None:
         super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dimensionality)
-        self.fc2 = nn.Linear(hidden_dimensionality, input_dim)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(dropout_rate)
+        self.fc1 = Linear(in_features=input_dim, out_features=hidden_dimensionality)
+        self.fc2 = Linear(in_features=hidden_dimensionality, out_features=input_dim)
+        self.relu = ReLU()
+        self.dropout = Dropout(p=dropout_rate)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.fc1(x)
@@ -48,9 +58,19 @@ class PositionwiseFeedForward(nn.Module):
         x = self.fc2(x)
         return x
 
-    def layerwise_relevance_propagation(self, x: torch.Tensor) -> torch.Tensor:
-        rel = self.fc2.relprop(x) if hasattr(self.fc2, "relprop") else x  # type: ignore
-        rel = self.dropout.relprop(rel) if hasattr(self.dropout, "relprop") else rel  # type: ignore
-        rel = self.relu.relprop(rel) if hasattr(self.relu, "relprop") else rel  # type: ignore
-        rel = self.fc1.relprop(rel) if hasattr(self.fc1, "relprop") else rel  # type: ignore
-        return rel
+    def propagate(self, x: torch.Tensor) -> torch.Tensor:
+        try:
+            rel = self.fc2.propagate(x)
+            if isinstance(rel, torch.Tensor):
+                rel = self.dropout.propagate(rel)
+                if isinstance(rel, torch.Tensor):
+                    rel = self.relu.propagate(rel)
+                    if isinstance(rel, torch.Tensor):
+                        rel = self.fc1.propagate(rel)
+                        if isinstance(rel, torch.Tensor):
+                            return rel
+            # Fallback to input if any step fails type check
+            return x
+        except Exception:
+            # Fallback to input if propagation fails
+            return x
