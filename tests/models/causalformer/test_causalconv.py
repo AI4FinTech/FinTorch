@@ -373,7 +373,7 @@ def test_relevance_propagation_consistency():
 
     # Test that relevance propagation doesn't crash with various inputs
     try:
-        propagated_relevance = causal_conv.layerwise_relevance_propagation(relevance) # noqa
+        causal_conv.layerwise_relevance_propagation(relevance)
         assert True, "Relevance propagation should not crash"
     except Exception as e:
         assert False, f"Relevance propagation crashed with error: {e}"
@@ -381,7 +381,7 @@ def test_relevance_propagation_consistency():
     # Test with zero relevance
     zero_relevance = torch.zeros_like(output)
     try:
-        zero_propagated = causal_conv.layerwise_relevance_propagation(zero_relevance) #noqa
+        causal_conv.layerwise_relevance_propagation(zero_relevance)
         assert True, "Relevance propagation should handle zero relevance"
     except Exception as e:
         assert False, f"Relevance propagation failed with zero relevance: {e}"
