@@ -7,6 +7,7 @@ and all utility functions, including edge cases, error handling, and property te
 """
 
 import os
+import sys
 import tempfile
 import pytest
 import numpy as np
@@ -14,6 +15,9 @@ import torch
 import polars as pl
 import requests
 from unittest.mock import patch, MagicMock
+
+# Add project root to Python path for CI environments
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 from fintorch.datasets.causal_data import (
     CausalDataset,

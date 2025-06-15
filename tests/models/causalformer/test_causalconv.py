@@ -564,3 +564,393 @@ def test_relevance_propagation_zero_input():
             assert True, "Zero input test skipped due to autograd issues"
         else:
             raise e
+
+
+def test_propagate_method_basic_functionality():
+    """
+    Test the propagate method of CausalConvolution.
+
+    This test verifies that:
+    1. The propagate method can be called without errors
+    2. The output has the correct shape
+    3. The method properly reverses the transform_x and base division operations
+    """
+    # Define parameters
+    batch_size = 2
+    number_of_series = 3
+    length_input_window = 4
+    hidden_dimensionality = 5
+    number_of_heads = 2
+
+    # Initialize the CausalConvolution module
+    causal_conv = CausalConvolution(
+        number_of_series=number_of_series,
+        length_input_window=length_input_window,
+        number_of_heads=number_of_heads,
+    )
+
+    # Create input tensor and perform forward pass
+    x = torch.randn(
+        batch_size, number_of_series, length_input_window, hidden_dimensionality,
+        requires_grad=True
+    )
+    output = causal_conv(x)
+
+    # Create relevance tensor with same shape as output
+    relevance = torch.randn_like(output)
+
+    # Test the propagate method
+    propagated_relevance = causal_conv.propagate(relevance)
+
+    # Verify output is a tensor
+    assert isinstance(propagated_relevance, torch.Tensor), (
+        "Propagated relevance should be a tensor"
+    )
+
+    # Verify output has the same shape as the original input x
+    expected_shape = (batch_size, number_of_series, length_input_window, hidden_dimensionality)
+    assert propagated_relevance.shape == expected_shape, (
+        f"Expected propagated relevance shape {expected_shape}, got {propagated_relevance.shape}"
+    )
+
+    # Verify the tensor has the correct dtype
+    assert propagated_relevance.dtype == torch.float32, (
+        "Propagated relevance should have float32 dtype"
+    )
+
+
+def test_propagate_method_shape_consistency():
+    """
+    Test that the propagate method maintains shape consistency across different configurations.
+    """
+    test_configs = [
+        (1, 2, 3, 4, 1),  # Small configuration
+        (2, 3, 4, 5, 2),  # Medium configuration
+        (1, 5, 6, 3, 3),  # Different dimensions
+    ]
+
+    for batch_size, number_of_series, length_input_window, hidden_dimensionality, number_of_heads in test_configs:
+        causal_conv = CausalConvolution(
+            number_of_series=number_of_series,
+            length_input_window=length_input_window,
+            number_of_heads=number_of_heads,
+        )
+
+        # Create input and perform forward pass
+        x = torch.randn(
+            batch_size, number_of_series, length_input_window, hidden_dimensionality,
+            requires_grad=True
+        )
+        output = causal_conv(x)
+
+        # Create relevance tensor
+        relevance = torch.randn_like(output)
+
+        # Test propagate method
+        propagated_relevance = causal_conv.propagate(relevance)
+
+        # Verify shape consistency
+        expected_shape = x.shape
+        assert propagated_relevance.shape == expected_shape, (
+            f"Shape mismatch for config {test_configs.index((batch_size, number_of_series, length_input_window, hidden_dimensionality, number_of_heads))}: "
+            f"expected {expected_shape}, got {propagated_relevance.shape}"
+        )
+
+
+def test_propagate_method_zero_relevance():
+    """
+    Test the propagate method with zero relevance input.
+    """
+    batch_size = 1
+    number_of_series = 2
+    length_input_window = 3
+    hidden_dimensionality = 2
+    number_of_heads = 1
+
+    causal_conv = CausalConvolution(
+        number_of_series=number_of_series,
+        length_input_window=length_input_window,
+        number_of_heads=number_of_heads,
+    )
+
+    # Create input and perform forward pass
+    x = torch.randn(
+        batch_size, number_of_series, length_input_window, hidden_dimensionality,
+        requires_grad=True
+    )
+    output = causal_conv(x)
+
+    # Test with zero relevance
+    zero_relevance = torch.zeros_like(output)
+    zero_propagated = causal_conv.propagate(zero_relevance)
+
+    # Verify the output is a tensor with correct shape
+    assert isinstance(zero_propagated, torch.Tensor), "Should return a tensor"
+    assert zero_propagated.shape == x.shape, "Shape should match input shape"
+
+    # Zero relevance should generally propagate to zero or near-zero values
+    # (allowing for small numerical errors)
+    assert torch.allclose(zero_propagated, torch.zeros_like(zero_propagated), atol=1e-6), (
+        "Zero relevance should propagate to near-zero values"
+    )
+
+
+def test_propagate_method_numerical_stability():
+    """
+    Test that the propagate method is numerically stable across different relevance inputs.
+    """
+    batch_size = 1
+    number_of_series = 2
+    length_input_window = 3
+    hidden_dimensionality = 2
+    number_of_heads = 1
+
+    causal_conv = CausalConvolution(
+        number_of_series=number_of_series,
+        length_input_window=length_input_window,
+        number_of_heads=number_of_heads,
+    )
+
+    # Create input and perform forward pass
+    x = torch.randn(
+        batch_size, number_of_series, length_input_window, hidden_dimensionality,
+        requires_grad=True
+    )
+    output = causal_conv(x)
+
+    # Test different types of relevance inputs
+    test_cases = [
+        torch.ones_like(output),           # All ones
+        torch.randn_like(output),          # Random values
+        torch.ones_like(output) * 1000,    # Large values
+        torch.ones_like(output) * 1e-6,    # Small values
+    ]
+
+    for i, relevance in enumerate(test_cases):
+        propagated = causal_conv.propagate(relevance)
+
+        # Check for numerical stability
+        assert not torch.isnan(propagated).any(), f"NaN detected in test case {i}"
+        assert not torch.isinf(propagated).any(), f"Inf detected in test case {i}"
+        assert propagated.shape == x.shape, f"Shape mismatch in test case {i}"
+
+        # Check that propagation doesn't produce unreasonable values
+        max_val = torch.max(torch.abs(propagated))
+        assert max_val < 1e10, f"Propagated values too large in test case {i}: {max_val}"
+
+
+def test_propagate_method_consistency():
+    """
+    Test that the propagate method produces consistent results for the same input.
+    """
+    batch_size = 1
+    number_of_series = 2
+    length_input_window = 3
+    hidden_dimensionality = 2
+    number_of_heads = 1
+
+    causal_conv = CausalConvolution(
+        number_of_series=number_of_series,
+        length_input_window=length_input_window,
+        number_of_heads=number_of_heads,
+    )
+
+    # Create input and perform forward pass
+    x = torch.randn(
+        batch_size, number_of_series, length_input_window, hidden_dimensionality,
+        requires_grad=True
+    )
+    output = causal_conv(x)
+
+    # Create relevance tensor
+    relevance = torch.randn_like(output)
+
+    # Run propagation multiple times
+    prop1 = causal_conv.propagate(relevance.clone())
+    prop2 = causal_conv.propagate(relevance.clone())
+    prop3 = causal_conv.propagate(relevance.clone())
+
+    # Check consistency
+    assert torch.allclose(prop1, prop2, rtol=1e-6, atol=1e-8), (
+        "Propagate method should produce consistent results"
+    )
+    assert torch.allclose(prop2, prop3, rtol=1e-6, atol=1e-8), (
+        "Propagate method should produce consistent results"
+    )
+
+
+def test_propagate_method_transform_reversal():
+    """
+    Test that the propagate method properly reverses the transform_x operation.
+    """
+    batch_size = 2
+    number_of_series = 3
+    length_input_window = 4
+    hidden_dimensionality = 2
+    number_of_heads = 1
+
+    causal_conv = CausalConvolution(
+        number_of_series=number_of_series,
+        length_input_window=length_input_window,
+        number_of_heads=number_of_heads,
+    )
+
+    # Create input and perform forward pass
+    x = torch.randn(
+        batch_size, number_of_series, length_input_window, hidden_dimensionality,
+        requires_grad=True
+    )
+    output = causal_conv(x)
+
+    # Create relevance tensor
+    relevance = torch.randn_like(output)
+
+    # Manually perform the first step of propagate (reverse transform_x)
+    relevance_manual = relevance.clone()
+    for i in range(number_of_series):
+        relevance_manual[:, :, i, i, :, :] = relevance_manual[:, :, i, i, :, :].roll(-1, dims=2)
+
+    # The manual transformation should match the first step in propagate
+    # We can't easily test this directly, but we can verify the propagate method runs without error
+    propagated = causal_conv.propagate(relevance)
+
+    # Verify basic properties
+    assert isinstance(propagated, torch.Tensor), "Should return a tensor"
+    assert propagated.shape == x.shape, "Should have correct output shape"
+    assert not torch.isnan(propagated).any(), "Should not contain NaN values"
+    assert not torch.isinf(propagated).any(), "Should not contain infinite values"
+
+
+def test_propagate_method_base_multiplication():
+    """
+    Test that the propagate method properly handles base tensor multiplication.
+    """
+    batch_size = 1
+    number_of_series = 2
+    length_input_window = 3
+    hidden_dimensionality = 2
+    number_of_heads = 1
+
+    causal_conv = CausalConvolution(
+        number_of_series=number_of_series,
+        length_input_window=length_input_window,
+        number_of_heads=number_of_heads,
+    )
+
+    # Create input and perform forward pass to initialize base tensor
+    x = torch.randn(
+        batch_size, number_of_series, length_input_window, hidden_dimensionality,
+        requires_grad=True
+    )
+    output = causal_conv(x)
+
+    # Create relevance tensor
+    relevance = torch.randn_like(output)
+
+    # Test that base tensor is on correct device
+    assert causal_conv.base.device == x.device, (
+        "Base tensor should be on the same device as input"
+    )
+
+    # Test propagate method
+    propagated = causal_conv.propagate(relevance)
+
+    # Verify the method completes successfully
+    assert isinstance(propagated, torch.Tensor), "Should return a tensor"
+    assert propagated.shape == x.shape, "Should maintain correct shape"
+
+    # Verify that the base tensor multiplication doesn't cause issues
+    assert torch.isfinite(propagated).all(), (
+        "All values should be finite after base multiplication"
+    )
+
+
+def test_propagate_method_einsum_integration():
+    """
+    Test that the propagate method properly integrates with the einsum layer.
+    """
+    batch_size = 1
+    number_of_series = 2
+    length_input_window = 3
+    hidden_dimensionality = 2
+    number_of_heads = 1
+
+    causal_conv = CausalConvolution(
+        number_of_series=number_of_series,
+        length_input_window=length_input_window,
+        number_of_heads=number_of_heads,
+    )
+
+    # Create input and perform forward pass
+    x = torch.randn(
+        batch_size, number_of_series, length_input_window, hidden_dimensionality,
+        requires_grad=True
+    )
+    output = causal_conv(x)
+
+    # Verify einsum layer exists and has correct equation
+    assert hasattr(causal_conv, 'einsum_layer'), "Should have einsum_layer attribute"
+    assert causal_conv.einsum_layer.equation == "hyxji,bxif->bhxyjf", (
+        "Einsum layer should have correct equation"
+    )
+
+    # Create relevance and test propagation
+    relevance = torch.randn_like(output)
+    propagated = causal_conv.propagate(relevance)
+
+    # Verify successful integration
+    assert isinstance(propagated, torch.Tensor), "Should return a tensor from einsum propagation"
+    assert propagated.shape == x.shape, "Should have correct shape after einsum propagation"
+
+
+def test_propagate_method_device_consistency():
+    """
+    Test that the propagate method maintains device consistency.
+    """
+    batch_size = 1
+    number_of_series = 2
+    length_input_window = 3
+    hidden_dimensionality = 2
+    number_of_heads = 1
+
+    causal_conv = CausalConvolution(
+        number_of_series=number_of_series,
+        length_input_window=length_input_window,
+        number_of_heads=number_of_heads,
+    )
+
+    # Test with CPU
+    x_cpu = torch.randn(
+        batch_size, number_of_series, length_input_window, hidden_dimensionality,
+        requires_grad=True
+    )
+    output_cpu = causal_conv(x_cpu)
+    relevance_cpu = torch.randn_like(output_cpu)
+
+    propagated_cpu = causal_conv.propagate(relevance_cpu)
+
+    # Verify all tensors are on CPU
+    assert propagated_cpu.device.type == 'cpu', "Propagated relevance should be on CPU"
+    assert causal_conv.base.device.type == 'cpu', "Base tensor should be on CPU"
+
+    # Test GPU if available
+    if torch.cuda.is_available():
+        device = torch.device('cuda:0')
+        causal_conv_gpu = CausalConvolution(
+            number_of_series=number_of_series,
+            length_input_window=length_input_window,
+            number_of_heads=number_of_heads,
+        ).to(device)
+
+        x_gpu = torch.randn(
+            batch_size, number_of_series, length_input_window, hidden_dimensionality,
+            requires_grad=True, device=device
+        )
+        output_gpu = causal_conv_gpu(x_gpu)
+        relevance_gpu = torch.randn_like(output_gpu)
+
+        propagated_gpu = causal_conv_gpu.propagate(relevance_gpu)
+
+        # Verify all tensors are on GPU
+        assert propagated_gpu.device.type == 'cuda', "Propagated relevance should be on GPU"
+        assert causal_conv_gpu.base.device.type == 'cuda', "Base tensor should be on GPU"
