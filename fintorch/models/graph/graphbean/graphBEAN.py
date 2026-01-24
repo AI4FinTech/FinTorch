@@ -63,12 +63,12 @@ def GraphBEANLossClassifier(
     * 2: the class we exlcude (for example unlabelled data)
 
     Args:
-        feature_predictions (Tensor): Predictions of the node features.
+        feature_predictions (Dict[Any, Any]): Predictions of the node features.
         edge_predictions (Tensor): Predictions of the edge features.
-        ground_truth_sampled_data (Tensor): Ground truth data.
-        edge (Tensor): Edge tensor.
-        node_pred (Tensor): Predictions of the node labels.
-        node_ground_truth (Tensor): Ground truth node labels.
+        ground_truth_sampled_data (Dict[Any, Any]): Ground truth data.
+        edge (Tuple[Any, Any, Any]): Edge tensor.
+        node_pred (Any): Predictions of the node labels.
+        node_ground_truth (Any): Ground truth node labels.
 
     Returns:
         Tensor: The total loss for the GraphBEAN model with a classifier.
@@ -202,9 +202,9 @@ class GraphBEAN(nn.Module):
         super().__init__()
 
         assert n_encoder_layers > 0, "Number of encoder layers must be greater than 0."
-        assert (
-            n_feature_decoder_layers > 0
-        ), "Number of feature decoder layers must be greater than 0."
+        assert n_feature_decoder_layers > 0, (
+            "Number of feature decoder layers must be greater than 0."
+        )
         assert hidden_channels > 0, "Number of hidden channels must be greater than 0."
 
         # Encoder layers
@@ -260,7 +260,7 @@ class GraphBEAN(nn.Module):
 
     def forward(
         self, data: Any, edge: Tuple[Any, Any, Any]
-    ) -> Tuple[None, Tensor, Tensor, Tensor]:
+    ) -> Tuple[None, Dict[Any, Any], Dict[Any, Any], Tensor]:
         """
         Forward pass of the GraphBEAN model.
 
@@ -271,8 +271,8 @@ class GraphBEAN(nn.Module):
         Returns:
             Tuple: A tuple containing the following elements:
                 - None: Placeholder for future use (classification model).
-                - hidden_representation (Tensor): The hidden representation obtained from the encoder layers.
-                - feature_out (Tensor): The output of the feature decoding layers.
+                - hidden_representation (Dict[Any, Any]): The hidden representation obtained from the encoder layers.
+                - feature_out (Dict[Any, Any]): The output of the feature decoding layers.
                 - edge_prediction (Tensor): The predicted edge labels.
         """
 
@@ -384,7 +384,7 @@ class GraphBeanClassifier(nn.Module):
 
     def forward(
         self, data: Any, edge: Tuple[Any, Any, Any]
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    ) -> Tuple[Dict[Any, Any], Dict[Any, Any], Dict[Any, Any], Tensor]:
         """
         Forward pass of the GraphBeanClassifier.
 
@@ -393,10 +393,10 @@ class GraphBeanClassifier(nn.Module):
             edge (torch.Tensor): The edge indices of the graph.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: The output tensors from the forward pass.
-                - class_probs (torch.Tensor): The class probabilities.
-                - hidden_representation (torch.Tensor): The hidden representation.
-                - feature_out (torch.Tensor): The output features.
+            Tuple[Dict[Any, Any], Dict[Any, Any], Dict[Any, Any], torch.Tensor]: The output tensors from the forward pass.
+                - class_probs (Dict[Any, Any]): The class probabilities.
+                - hidden_representation (Dict[Any, Any]): The hidden representation.
+                - feature_out (Dict[Any, Any]): The output features.
                 - edge_prediction (torch.Tensor): The edge predictions.
 
         """
@@ -572,7 +572,7 @@ class GraphBEANModule(L.LightningModule):
         return self.model(batch, edge)
 
     def loss(
-        self, batch: Any, class_probs: Tensor, pred_features: Tensor, pred_edges: Tensor
+        self, batch: Any, class_probs: Dict[Any, Any], pred_features: Dict[Any, Any], pred_edges: Tensor
     ) -> Any:
         """
         Computes the loss for the given batch.
@@ -587,16 +587,21 @@ class GraphBEANModule(L.LightningModule):
             The computed loss.
         """
         if self.classifier:
-            loss = self.loss_fn(
-                pred_features,
-                pred_edges,
-                batch,
-                self.edge,
-                class_probs[self.predict],
-                batch[self.predict].y,
+            loss = GraphBEANLossClassifier(
+                feature_predictions=pred_features,
+                edge_predictions=pred_edges,
+                ground_truth_sampled_data=batch,
+                edge=self.edge,
+                node_pred=class_probs[self.predict],
+                node_ground_truth=batch[self.predict].y,
             )
         else:
-            loss = self.loss_fn(pred_features, pred_edges, batch, self.edge)
+            loss = GraphBEANLoss(
+                feature_predictions=pred_features,
+                edge_predictions=pred_edges,
+                ground_truth_sampled_data=batch,
+                edge=self.edge,
+            )
 
         return loss
 

@@ -44,9 +44,9 @@ def test_scaled_dot_product_attention_with_mask():
     assert attention_weights.shape == (batch_size, seq_length, seq_length)
     # Check that masked positions have very low attention weights (close to zero after softmax)
     threshold = 1e-5  # Adjust as needed
-    assert torch.all(
-        attention_weights[mask] < threshold
-    ), f"Masked attention weights are not sufficiently close to zero:{attention_weights}."
+    assert torch.all(attention_weights[mask] < threshold), (
+        f"Masked attention weights are not sufficiently close to zero:{attention_weights}."
+    )
 
 
 # Tests for InterpretableMultiHeadAttention
@@ -89,6 +89,6 @@ def test_interpretable_multi_head_attention_with_mask():
     # Check that masked positions have very low attention weights (close to zero after softmax)
     threshold = 1e-6
     for head in range(number_of_heads):
-        assert torch.all(
-            attentions[:, head, :, :][mask] < threshold
-        ), "Attention weights should be close to zero for multi-head attention."
+        assert torch.all(attentions[:, head, :, :][mask] < threshold), (
+            "Attention weights should be close to zero for multi-head attention."
+        )

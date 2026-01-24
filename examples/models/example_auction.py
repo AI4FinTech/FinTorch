@@ -1,5 +1,6 @@
 import csv
 import logging
+import os
 from pathlib import Path
 
 import polars as pl
@@ -8,9 +9,71 @@ from neuralforecast import NeuralForecast
 from neuralforecast.auto import AutoNBEATS, AutoNHITS, AutoTFT
 from neuralforecast.losses.numpy import mae, mse
 from neuralforecast.losses.pytorch import MAE, HuberLoss
+from fintorch.datasets.auctiondata import AuctionDataset
 from ray import tune
 
-from fintorch.datasets.auctiondata import AuctionDataset
+# Set environment variables to fix Ray Tune and PyTorch Lightning compatibility issues
+os.environ["PL_DISABLE_BLAME"] = "1"
+os.environ["PYTHONWARNINGS"] = "ignore::DeprecationWarning"
+
+# Apply monkey patch to fix the callback validation issue
+# This is a temporary workaround for Ray Tune and PyTorch Lightning compatibility
+try:
+    import pytorch_lightning
+    from pytorch_lightning.trainer.connectors.callback_connector import (
+        _validate_callbacks_list,
+    )
+    import pytorch_lightning.trainer.connectors.callback_connector
+
+    # Check PyTorch Lightning version to track when this patch can be removed
+    pl_version = pytorch_lightning.__version__
+    logging.warning(
+        f"Applying PyTorch Lightning callback validation patch for version {pl_version}. "
+        "This is a temporary workaround for Ray Tune compatibility issues. "
+        "Please check if this patch is still needed with newer versions."
+    )
+
+    def patched_validate_callbacks_list(callbacks):
+        """A patched version that handles the 'Expected a parent' error."""
+        try:
+            # Original implementation
+            return _validate_callbacks_list(callbacks)
+        except ValueError as e:
+            if "Expected a parent" in str(e):
+                logging.warning(
+                    "Intercepted 'Expected a parent' error - using patched validation. "
+                    "This indicates a compatibility issue between Ray Tune and PyTorch Lightning."
+                )
+                # Filter out callbacks that cause issues
+                return [
+                    cb
+                    for cb in callbacks
+                    if not str(cb.__class__).startswith("ray.tune")
+                ]
+            else:
+                raise
+
+    # Apply the monkey patch
+    pytorch_lightning.trainer.connectors.callback_connector._validate_callbacks_list = (
+        patched_validate_callbacks_list
+    )
+    logging.info("PyTorch Lightning callback validation patch applied successfully")
+
+except ImportError as e:
+    logging.error(
+        f"Failed to import PyTorch Lightning components for patching: {e}. "
+        "This may cause issues with Ray Tune hyperparameter optimization."
+    )
+except AttributeError as e:
+    logging.error(
+        f"PyTorch Lightning API has changed - callback validation patch failed: {e}. "
+        "The patch may need to be updated or removed for this version."
+    )
+except Exception as e:
+    logging.error(
+        f"Unexpected error while applying PyTorch Lightning patch: {e}. "
+        "Continuing without patch - this may cause compatibility issues."
+    )
 
 logging.basicConfig(level=logging.INFO)
 torch.set_float32_matmul_precision("medium")
@@ -38,6 +101,9 @@ tft_config = {
     "batch_size": batch_size,
     "windows_batch_size": tune.choice([128, 256, 512, 1024]),
     "random_seed": tune.randint(1, 20),
+    "callbacks": [],  # Empty callbacks list to avoid PL validation issues
+    "enable_progress_bar": False,  # Disable progress bar to avoid tqdm issues
+    "enable_model_summary": False,  # Disable model summary to reduce output noise
 }
 
 nbeats_config = {
@@ -71,6 +137,9 @@ nbeats_config = {
     "scaler_type": "identity",
     "random_seed": 1,
     "num_workers_loader": 0,
+    "callbacks": [],  # Empty callbacks list to avoid PL validation issues
+    "enable_progress_bar": False,  # Disable progress bar to avoid tqdm issues
+    "enable_model_summary": False,  # Disable model summary to reduce output noise
 }
 
 nhits_config = {
@@ -93,6 +162,9 @@ nhits_config = {
     "interpolation_mode": tune.choice(["linear"]),  # Type of multi-step interpolation
     "val_check_steps": tune.choice([100]),  # Compute validation every 100 epochs
     "random_seed": tune.randint(1, 10),
+    "callbacks": [],  # Empty callbacks list to avoid PL validation issues
+    "enable_progress_bar": False,  # Disable progress bar to avoid tqdm issues
+    "enable_model_summary": False,  # Disable model summary to reduce output noise
     "futr_exog_list": [
         "wap",
         "bid_price",

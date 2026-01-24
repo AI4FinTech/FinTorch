@@ -1,4 +1,4 @@
-.PHONY: clean clean-build clean-pyc clean-test coverage dist docs help install lint lint/flake8 lint/black
+.PHONY: clean clean-build clean-pyc clean-test coverage dist docs help install lint lint/flake8 lint/black smoke-test smoke-test-quick
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -55,14 +55,14 @@ lint/black: ## check style with black
 lint: lint/flake8 lint/black ## check style
 
 test: ## Run tests quickly with the default Python
-	pytest -m "not special"
+	.venv/bin/python -m pytest -m "not special"
 
 fulltest: ## Run all tests, including special ones
-	pytest -m "special or not special"
+	.venv/bin/python -m pytest -m "special or not special"
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source fintorch -m pytest
-	coverage report -m
+	.venv/bin/python -m coverage run --source fintorch -m pytest
+	.venv/bin/python -m coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
@@ -99,12 +99,13 @@ pre-commit: mypy
 	pre-commit run
 
 dev-requirements:
-	python -m piptools compile \
-    --extra dev \
-    -o dev-requirements.txt \
-    pyproject.toml
+	uv pip compile --extra dev -o dev-requirements.txt pyproject.toml
 
 requirements:
-	python -m piptools compile \
-    -o requirements.txt \
-    pyproject.toml
+	uv pip compile -o requirements.txt pyproject.toml
+
+smoke-test: ## Run full smoke tests on all examples to check they reach training stage
+	python scripts/smoke_test_examples.py
+
+smoke-test-quick: ## Run quick smoke tests on a subset of examples
+	python scripts/smoke_test_examples.py --quick

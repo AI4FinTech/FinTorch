@@ -95,6 +95,19 @@ class VariableSelectionNetwork(nn.Module):
         # Context: Tensor => [batch size, context size]
         # Context size is linearly projected to hidden dimensionality, and expanded to the sequence length
 
+        # Handle empty input case
+        if len(self.input_grns) == 0:
+            # Return a zero tensor with the expected output shape
+            # Determine batch size and sequence length from context or create dummy values
+            if context is not None:
+                batch_size = context.shape[0]
+                seq_len = 1  # Default sequence length when no inputs
+            else:
+                batch_size = 1
+                seq_len = 1
+            device = context.device if context is not None else torch.device('cpu')
+            return torch.zeros(batch_size, seq_len, self.hidden_dimensions, device=device)
+
         transformed_values_output = []
         values_output = []
         for key, grn in self.input_grns.items():

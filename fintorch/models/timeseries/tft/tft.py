@@ -78,6 +78,7 @@ class TemporalFusionTransformer(nn.Module):
         self.number_of_past_inputs = number_of_past_inputs
         self.horizon = horizon
         self.embedding_size_inputs = embedding_size_inputs
+        self.hidden_dimension = hidden_dimension
         self.past_inputs = past_inputs
         self.future_inputs = future_inputs
         self.static_inputs = static_inputs
@@ -94,6 +95,10 @@ class TemporalFusionTransformer(nn.Module):
         lstm_layer = 1
 
         # Variable Selection Networks for each branch
+        # Ensure past_inputs is never empty - it must contain at least past_target
+        if not past_inputs or len(past_inputs) == 0:
+            raise ValueError("past_inputs cannot be empty - must contain at least past_target")
+
         self.variable_selection_past = VariableSelectionNetwork(
             inputs=past_inputs,
             hidden_dimensions=hidden_dimension,
@@ -101,14 +106,14 @@ class TemporalFusionTransformer(nn.Module):
             context_size=context_size,
         )
 
-        if future_inputs is not None:
+        if future_inputs is not None and len(future_inputs) > 0:
             self.variable_selection_future = VariableSelectionNetwork(
                 inputs=future_inputs,
                 hidden_dimensions=hidden_dimension,
                 dropout=dropout,
                 context_size=context_size,
             )
-        if static_inputs is not None:
+        if static_inputs is not None and len(static_inputs) > 0:
             self.variable_selection_static = VariableSelectionNetwork(
                 inputs=static_inputs,
                 hidden_dimensions=hidden_dimension,
@@ -194,11 +199,11 @@ class TemporalFusionTransformer(nn.Module):
         )
 
     def _init_lstm_states(
-        self, static_inputs: torch.Tensor, device: str, batch_size: int
+        self, static_inputs: Optional[torch.Tensor], device: str, batch_size: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         if static_inputs is None:
-            h0 = torch.zeros(1, batch_size, self.embedding_size_inputs, device=device)
-            c0 = torch.zeros(1, batch_size, self.embedding_size_inputs, device=device)
+            h0 = torch.zeros(1, batch_size, self.hidden_dimension, device=device)
+            c0 = torch.zeros(1, batch_size, self.hidden_dimension, device=device)
         else:
             h0 = static_inputs.unsqueeze(0)
             c0 = static_inputs.unsqueeze(0)
@@ -250,12 +255,12 @@ class TemporalFusionTransformer(nn.Module):
         past = self.variable_selection_past(past_inputs)
         future = (
             self.variable_selection_future(future_inputs)
-            if future_inputs is not None
+            if future_inputs is not None and hasattr(self, 'variable_selection_future')
             else None
         )
         static = (
             self.variable_selection_static(static_inputs)
-            if static_inputs is not None
+            if static_inputs is not None and hasattr(self, 'variable_selection_static')
             else None
         )
 

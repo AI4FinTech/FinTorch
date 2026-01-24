@@ -1,0 +1,179 @@
+import torch
+import torch.nn as nn
+from fintorch.layers.explainable import einsum
+
+
+class CausalConvolution(nn.Module):
+    """
+    Causal Convolution module for time series data.
+
+    This module applies a causal convolution operation to time series data,
+    allowing for the modeling of temporal dependencies in a causal manner.
+
+    Attributes:
+        number_of_series (int): The number of time series in the input data.
+        length_input_window (int): The length of the input time window.
+        number_of_heads (int): The number of attention heads.
+        kernel (nn.Parameter): The learnable kernel for the causal convolution.
+        base (torch.Tensor): A base tensor used for normalization.
+        einsum_layer (einsum): Explainable einsum layer for relevance propagation.
+
+    Methods:
+        shift_kernel(kernel: torch.Tensor, shifts: int) -> torch.Tensor:
+            Shifts the kernel along the time dimension.
+        stack_shifted_kernel(kernel: torch.Tensor) -> torch.Tensor:
+            Stacks the shifted kernels to create a lower triangular kernel.
+        apply_kernel(x: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
+            Applies the kernel to the input data.
+        transform_x(x: torch.Tensor) -> torch.Tensor:
+            Transforms the input data to remove self-information.
+        forward(x: torch.Tensor) -> torch.Tensor:
+            Forward pass of the causal convolution module.
+        propagate(relevance: torch.Tensor) -> torch.Tensor:
+            Propagates relevance backwards for explainable AI.
+
+    References:
+    - Kong, Lingbai, Wengen Li, Hanchen Yang, Yichao Zhang, Jihong Guan, and Shuigeng Zhou. 2024. "CausalFormer:
+      An Interpretable Transformer for Temporal Causal Discovery." arXiv [Cs.LG]. arXiv. http://arxiv.org/abs/2406.16708
+
+    """
+
+    def __init__(
+        self, number_of_series: int, length_input_window: int, number_of_heads: int
+    ) -> None:
+        super().__init__()
+
+        self.number_of_series = number_of_series
+        self.input_window = length_input_window
+        self.number_of_heads = number_of_heads
+
+        # Initialize kernel parameter with proper shape
+        self.kernel = torch.nn.Parameter(
+            torch.randn(number_of_heads, number_of_series, number_of_series, length_input_window)
+        )
+
+        # 6D tensor because the output of apply_kernel is a 6D tensor
+        self.register_buffer(
+            "base",
+            torch.tensor([i for i in range(1, self.input_window + 1)]).reshape(
+                1, 1, 1, 1, -1, 1
+            )
+        )
+
+        # Initialize explainable einsum layer
+        self.einsum_layer = einsum("hyxji,bxif->bhxyjf")
+
+    def shift_kernel(self, kernel: torch.Tensor, shifts: int) -> torch.Tensor:
+        # kernel: (number_of_heads, number_of_series, number_of_series, length_input_window)
+        return torch.roll(kernel, shifts=shifts + 1, dims=3)
+
+    def stack_shifted_kernel(self, kernel: torch.Tensor) -> torch.Tensor:
+        # kernel: (number_of_heads, number_of_series, number_of_series, length_input_window)
+        shifted_kernels = []
+        for i in range(self.input_window):
+            shifted_kernels.append(self.shift_kernel(kernel, i))
+        kernel = torch.stack(shifted_kernels, dim=-2)
+
+        # kernel: (number_of_heads, number_of_series, number_of_series, length_input_window, length_input_window)
+        # Make the kernel lower triangular
+        kernel = torch.tril(kernel, diagonal=0)
+        return kernel
+
+    def apply_kernel(self, x: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
+        number_of_heads, number_of_series, _, length_input_window, _ = kernel.shape
+        batch_size, _, _, hidden_dimensionality = x.shape
+
+        # Use explainable einsum for relevance propagation capability
+        # Notation: h=heads, y,x=series indices, j,i=window indices, b=batch, f=hidden dim
+        einsum_result = self.einsum_layer(kernel, x)
+
+        # einsum_result:
+        # (batch_size, number_of_heads, number_of_series, number_of_series, length_input_window, hidden_dimensionality)
+        return einsum_result
+
+    def transform_x(self, x: torch.Tensor) -> torch.Tensor:
+        for i in range(self.number_of_series):
+            # Select the the same series in from the (3) and (4) th dimension
+            # (batch_size, number_of_heads, i, i, length_input_window, hidden_dimensionality)
+            # dim 0 = batch_size
+            # dim 1 = number_of_heads
+            # dim 2 = number_of_series (roll dimension) -> shift right by 1
+            # dim 3 = number_of_series
+            # dim 4 = length_input_window
+            # dim 5 = hidden_dimensionality
+            # used for self-causation (samples in same sample time-window)
+            x[:, :, i, i, :, :] = x[:, :, i, i, :, :].roll(1, dims=2)
+            # exclude ground-truth value
+            # (batch size, heads, hidden) => 0 for all self-relation (i,i) at time T values which after the shift/roll
+            # operation is the first index (0) because it should not contain ground-truth X^T_{i,i}
+            x[:, :, i, i, 0, :] *= torch.zeros_like(x[:, :, i, i, 0, :])
+
+        return x
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x : (batch_size, number_of_series, length_input_window, hidden_dimensionality)
+
+        # Update number_of_series to match actual input data
+        actual_number_of_series = x.shape[1]
+        if actual_number_of_series != self.number_of_series:
+            self.number_of_series = actual_number_of_series
+
+        # Initialize or recreate kernel if needed
+        if self.kernel is None or self.kernel.shape[1] != self.number_of_series:
+            self.kernel = nn.Parameter(
+                torch.ones(
+                    (
+                        self.number_of_heads,
+                        self.number_of_series,
+                        self.number_of_series,
+                        self.input_window,
+                    ),
+                    dtype=torch.float,
+                    device=x.device
+                )
+            )
+            # Register the parameter if it's the first time
+            if not hasattr(self, '_kernel_registered'):
+                self.register_parameter("kernel", self.kernel)
+                self._kernel_registered = True
+
+        # Get stack shifted kernel
+        kernel = self.stack_shifted_kernel(self.kernel)
+
+        # kernel: (number_of_heads, number_of_series, number_of_series, length_input_window, length_input_window)
+
+        # x after:
+        # (batch_size, number_of_heads, number_of_series, number_of_series, length_input_window, hidden_dimensionality)
+        x = self.apply_kernel(x, kernel)
+
+        # TODO: check performance impact and other ways to do this, currently it might be on two devices
+        self.base = self.base.to(x.device)
+
+        x = x / self.base  # divide by 6D tensor
+
+        # Remove self-information (Ground-truth)
+        x = self.transform_x(x)
+
+        return x
+
+    def propagate(self, relevance: torch.Tensor) -> torch.Tensor:
+        """
+        Propagates relevance backwards for the causal convolution.
+
+        Args:
+            relevance: Relevance tensor to propagate backwards
+
+        Returns:
+            Propagated relevance tensor
+        """
+        # Reverse the transform_x operation
+        for i in range(self.number_of_series):
+            relevance[:, :, i, i, :, :] = relevance[:, :, i, i, :, :].roll(-1, dims=2)
+
+        # Reverse the base division
+        relevance = relevance * self.base
+
+        # Use the einsum layer's propagate method for relevance propagation
+        relevance_key, relevance_x = self.einsum_layer.propagate(relevance)
+
+        return relevance_x

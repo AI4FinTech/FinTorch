@@ -103,9 +103,9 @@ def test_variable_selection_network_zero_input():
     output = vsn(x, context)
 
     # Check if output is not NaN or Inf
-    assert torch.all(
-        torch.isfinite(output)
-    ), "Output contains NaN or Inf for zero input"
+    assert torch.all(torch.isfinite(output)), (
+        "Output contains NaN or Inf for zero input"
+    )
 
     # Check output shape
     assert output.shape == (

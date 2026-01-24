@@ -81,6 +81,8 @@ To determine TORCH version and DEVICE type run:
 
    python -c "import torch; print('TORCH:',torch.__version__,'\nDEVICE:', 'cu'+torch.version.cuda.replace('.','')) if torch.cuda.is_available() else print('TORCH:',str(torch.__version__).split('+')[0],'\nDEVICE: cpu')"
 
+**Note for macOS users:** macOS typically uses CPU-only PyTorch. If you encounter CUDA-related dependency issues, use the CPU-only PyTorch installation method described in the macOS section below.
+
 
 **For Linux:**
 
@@ -117,6 +119,48 @@ Download the required dependencies using the following PyG installation commands
 
    pip install pyg-lib -f https://data.pyg.org/whl/torch-%TORCH%+%DEVICE%.html
    pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-%TORCH%+%DEVICE%.html
+
+**For macOS:**
+
+macOS systems typically use CPU-only PyTorch. If you encounter NVIDIA CUDA dependency conflicts during installation, follow these steps:
+
+1. First, ensure you have the CPU-only version of PyTorch installed:
+
+.. code-block:: bash
+
+   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+2. Set TORCH and DEVICE for CPU:
+
+.. code-block:: bash
+
+   export TORCH=$(python -c "import torch; print(torch.__version__.split('+')[0])")
+   export DEVICE=cpu
+
+3. Install PyTorch Geometric dependencies:
+
+.. code-block:: bash
+
+   pip install pyg-lib -f https://data.pyg.org/whl/torch-${TORCH}+${DEVICE}.html
+   pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-${TORCH}+${DEVICE}.html
+
+4. Finally, install FinTorch:
+
+.. code-block:: bash
+
+   pip install fintorch
+
+**Alternative for macOS (using development installation):**
+
+If you're installing from source or using development requirements, you can use uv for faster dependency resolution:
+
+.. code-block:: bash
+
+   # Install uv if not already installed
+   pip install uv
+   
+   # Install with CPU-only PyTorch dependencies
+   uv pip install -r dev-requirements.txt --index-strategy unsafe-best-match
 
 Description of the Structure
 -----------------------------

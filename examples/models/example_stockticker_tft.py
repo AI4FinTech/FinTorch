@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Parameters
 tickers = ["AAPL"]
-data_path = Path("~/.fintorch_data/stocktickers/").expanduser()
+data_path = Path("./data/stocktickers/")
 start_date = date(2015, 1, 1)
 end_date = date(2024, 6, 30)
 
@@ -26,7 +26,7 @@ ticker_index = {ticker: index for index, ticker in enumerate(tickers)}
 
 # Load the stock dataset
 stockdata = stockticker.StockTicker(
-    data_path,
+    str(data_path),
     tickers=tickers,
     start_date=start_date,
     end_date=end_date,
@@ -46,7 +46,7 @@ batch_size = 1024
 
 # Create a datamodule
 datamodule = StockTickerDataModule(
-    data_path=data_path,
+    data_path=str(data_path),
     tickers=tickers,
     start_date=start_date,
     end_date=end_date,
@@ -55,23 +55,39 @@ datamodule = StockTickerDataModule(
     workers=0,
     past_length=number_of_past_inputs,
     future_length=number_of_future_inputs,
+    force_reload=False,
 )
 
 # Setup the datamodule
 datamodule.setup()
 
 # Iterate over the first 3 batches of the train dataset
-for batch_idx, (past_inputs, target) in enumerate(datamodule.train_dataloader()):
+for batch_idx, batch in enumerate(datamodule.train_dataloader()):
     if batch_idx >= 3:
         break
     print(f"Batch {batch_idx + 1}:")
-    print(f"  Past Inputs shape: {past_inputs['past_data'].shape}")
-    print(f"  Target shape: {target.shape}")
+    print(f"  Past Target shape: {batch['past_target'].shape}")
+    print(f"  Output Target shape: {batch['output_target'].shape}")
+    print(f"  Past Known Covariates shape: {batch['past_covariates_known_future'].shape}")
+    print(f"  Future Known Covariates shape: {batch['future_covariates_known'].shape}")
 
 
-past_inputs = {"past_data": 1}
-future_inputs = None
-static_inputs = None
+# Define feature dimensions based on the StockTicker dataset
+num_past_target_features = 1  # stock price
+num_past_known_cov_features = 1  # time features (placeholder)
+num_past_unknown_cov_features = 0  # no unknown future covariates
+num_future_known_cov_features = 1  # time features (placeholder)
+num_static_real_features = 0  # no static real features
+num_static_categorical_features = 0  # no static categorical features
+static_categorical_cardinalities = []  # no categorical features
+
+# Create legacy format inputs for TFT compatibility
+past_inputs = {
+    "past_target": num_past_target_features,
+    "past_known_cov": num_past_known_cov_features
+}
+future_inputs = {"future_known_cov": num_future_known_cov_features}
+static_inputs = None  # No static inputs
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -79,17 +95,26 @@ quantiles = [0.05, 0.5, 0.95]
 
 # Create an instance of TemporalFusionTransformerModule
 tft_module = TemporalFusionTransformerModule(
-    number_of_past_inputs,
-    number_of_future_inputs,
-    embedding_size_inputs,
-    hidden_dimension,
-    dropout,
-    number_of_heads,
-    past_inputs,
-    future_inputs,
-    static_inputs,
+    number_of_past_inputs=number_of_past_inputs,
+    horizon=number_of_future_inputs,
+    embedding_size_inputs=embedding_size_inputs,
+    hidden_dimension=hidden_dimension,
+    dropout=dropout,
+    number_of_heads=number_of_heads,
+    # Required parameters
+    num_past_target_features=num_past_target_features,
+    num_past_known_cov_features=num_past_known_cov_features,
+    num_past_unknown_cov_features=num_past_unknown_cov_features,
+    num_future_known_cov_features=num_future_known_cov_features,
+    num_static_real_features=num_static_real_features,
+    num_static_categorical_features=num_static_categorical_features,
+    static_categorical_cardinalities=static_categorical_cardinalities,
+    # Use legacy format to avoid future input issues
+    past_inputs=past_inputs,
+    future_inputs=future_inputs,
+    static_inputs=static_inputs,
     batch_size=batch_size,
-    device=device,
+    device=str(device),
     quantiles=quantiles,
 ).to(device)
 
@@ -111,7 +136,7 @@ plt.show()
 
 
 # Create a trainer with TensorBoard for better monitoring
-early_stopping = EarlyStopping("val_loss_epoch", patience=100)
+early_stopping = EarlyStopping("val_loss", patience=100)
 trainer = L.Trainer(max_epochs=500, callbacks=[early_stopping], log_every_n_steps=4)
 
 # Train the model
@@ -135,7 +160,8 @@ for idx in range(0, num_batches_to_plot):
     batch_idx = randint(0, len(all_predictions) - 1)
 
     selected_batch_predictions = all_predictions[batch_idx]
-    _, selected_batch_target = datamodule.test_dataset[batch_idx]
+    selected_batch_data = datamodule.test_dataset[batch_idx]
+    selected_batch_target = selected_batch_data["output_target"].squeeze()
 
     selected_batch_predictions_inverse_scaled = (
         datamodule.dataset.scaler.inverse_transform(
